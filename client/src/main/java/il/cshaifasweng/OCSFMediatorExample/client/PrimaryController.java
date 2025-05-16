@@ -64,6 +64,7 @@ public class PrimaryController {
 		String identityNumber = IDField.getText().trim();
 		String creditCardNumber = CCNumberSignUp.getText().trim();
 		String cvv = CVVNumber.getText().trim();
+		String phoneNumber = PhoneField.getText().trim();
 		LocalDate localDate = CCValidDate.getValue();
 
 		// Validate names (no digits)
@@ -102,17 +103,21 @@ public class PrimaryController {
 			return;
 		}
 
+		// Validate phone number
+		if (!phoneNumber.matches("^\\+?\\d{7,15}$")) {
+			showError("Invalid phone number.");
+			return;
+		}
+
+
 		// All fields valid, convert date
 		Date creditCardValidUntil = java.sql.Date.valueOf(localDate);
-
-		System.out.println("Sending signup request...");
-		System.out.println("Client connected? " + SimpleClient.getClient().isConnected());
 
 		try {
 			SimpleClient.getClient().sendToServer(new SignUpRequest(
 					email, password, firstName, lastName,
 					identityNumber, creditCardNumber, cvv,
-					creditCardValidUntil
+					creditCardValidUntil,phoneNumber
 			));
 		} catch (IOException e) {
 			showError("Failed to send request to server.");
@@ -230,6 +235,19 @@ public class PrimaryController {
 			IDField.setText("");
 			CCNumberSignUp.setText("");
 			CVVNumber.setText("");
+			PhoneField.setText("");
+		});
+	}
+
+	@org.greenrobot.eventbus.Subscribe
+	public void onSignUpSuccess(SignUpSuccess event) {
+		javafx.application.Platform.runLater(()-> {
+			showLoginScreen(true);
+			ErrorSignUpLabel.setVisible(false);
+			ErrorMessageLabel.setVisible(false);
+			PasswordSignUpField.setVisible(false);
+			PasswordField.setVisible(true);
+			CCValidDate.setVisible(false);
 		});
 	}
 

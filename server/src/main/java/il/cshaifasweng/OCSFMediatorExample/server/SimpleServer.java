@@ -111,7 +111,7 @@ public class SimpleServer extends AbstractServer {
 			}
 		}
 		else if (msg instanceof SignUpRequest signupDetails) {
-			System.out.println("📥 Received SignUp request from client");
+			System.out.println("Received SignUp request from client");
 
 			Session session = null;
 
@@ -126,7 +126,7 @@ public class SimpleServer extends AbstractServer {
 				List<Account> existing = query.getResultList();
 
 				if (!existing.isEmpty()) {
-					System.out.println("❌ Email already exists: " + signupDetails.getEmail());
+					System.out.println("Email already exists: " + signupDetails.getEmail());
 					client.sendToClient("Email already exists");
 				} else {
 					// 2. Create new Account object
@@ -139,6 +139,7 @@ public class SimpleServer extends AbstractServer {
 					newAccount.setCreditCardNumber(signupDetails.getCreditCardNumber());
 					newAccount.setCvv(signupDetails.getCvv());
 					newAccount.setCreditCardValidUntil(signupDetails.getCreditCardValidUntil());
+					newAccount.setPhoneNumber(signupDetails.getPhoneNumber());
 
 					// 3. Set account level
 					newAccount.setAccountLevel("Customer");
@@ -147,7 +148,7 @@ public class SimpleServer extends AbstractServer {
 					session.save(newAccount);
 					session.getTransaction().commit();
 
-					System.out.println("✅ Sign-up succeeded for email: " + signupDetails.getEmail());
+					System.out.println("Sign-up succeeded for email: " + signupDetails.getEmail());
 					client.sendToClient("Sign-up succeeded for email");
 				}
 
