@@ -1,51 +1,30 @@
 package il.cshaifasweng.OCSFMediatorExample.entities;
 
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
 import java.io.Serializable;
 import java.util.Date;
 
-@Entity
-@Table(name = "accounts")
-public class Account implements Serializable {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
-
-    @Column(nullable = false, unique = true)
+public class SignUpRequest implements Serializable {
     private String email;
 
-    @Column(nullable = false)
     private String password;
 
-    @Column(name = "first_name", nullable = false)
     private String firstName;
 
-    @Column(name = "last_name", nullable = false)
     private String lastName;
 
-    @Column(name = "identity_number", nullable = false, unique = true)
     private String identityNumber;
 
-    @Column(name = "credit_card_number", nullable = false)
     private String creditCardNumber;
 
-    @Column(nullable = false)
     private String cvv;
 
-    @Column(name = "credit_card_valid_until", nullable = false)
-    @Temporal(TemporalType.DATE)
     private Date creditCardValidUntil;
 
-    @Column(name = "account_level")
-    private String accountLevel;
-
-    // ----- Constructors -----
-
-    public Account() {}
-
-    public Account(String email, String password, String firstName, String lastName,
-                   String identityNumber, String creditCardNumber, String cvv, Date creditCardValidUntil,String accountLevel) {
+    public SignUpRequest(String email, String password,String firstName, String lastName,String identityNumber,
+                         String creditCardNumber,String cvv,Date creditCardValidUntil) {
         this.email = email;
         this.password = password;
         this.firstName = firstName;
@@ -54,84 +33,53 @@ public class Account implements Serializable {
         this.creditCardNumber = creditCardNumber;
         this.cvv = cvv;
         this.creditCardValidUntil = creditCardValidUntil;
-        this.accountLevel = accountLevel;
     }
-
-    // ----- Getters and Setters -----
-
-    public int getId() {
-        return id;
-    }
-
     public String getEmail() {
         return email;
     }
-
     public void setEmail(String email) {
         this.email = email;
     }
-
     public String getPassword() {
         return password;
     }
-
     public void setPassword(String password) {
         this.password = password;
     }
-
     public String getFirstName() {
         return firstName;
     }
-
     public void setFirstName(String firstName) {
         this.firstName = firstName;
     }
-
     public String getLastName() {
         return lastName;
     }
-
     public void setLastName(String lastName) {
         this.lastName = lastName;
     }
-
     public String getIdentityNumber() {
         return identityNumber;
     }
-
     public void setIdentityNumber(String identityNumber) {
         this.identityNumber = identityNumber;
     }
-
     public String getCreditCardNumber() {
         return creditCardNumber;
     }
-
     public void setCreditCardNumber(String creditCardNumber) {
         this.creditCardNumber = creditCardNumber;
     }
-
     public String getCvv() {
         return cvv;
     }
-
     public void setCvv(String cvv) {
         this.cvv = cvv;
     }
-
     public Date getCreditCardValidUntil() {
         return creditCardValidUntil;
     }
-
     public void setCreditCardValidUntil(Date creditCardValidUntil) {
         this.creditCardValidUntil = creditCardValidUntil;
-    }
-
-    public String getAccountLevel() {
-        return accountLevel;
-    }
-
-    public void setAccountLevel(String accountLevel) {
-        this.accountLevel = accountLevel;
     }
 }

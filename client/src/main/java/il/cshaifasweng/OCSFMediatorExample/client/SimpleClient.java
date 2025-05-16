@@ -23,7 +23,8 @@ public class SimpleClient extends AbstractClient {
 	protected void handleMessageFromServer(Object msg) {
 		if (msg.getClass().equals(Warning.class)) {
 			EventBus.getDefault().post(new WarningEvent((Warning) msg));
-		}else if (msg instanceof LoginResponse loginResponse) {
+		}
+		else if (msg instanceof LoginResponse loginResponse) {
 			if (loginResponse.isSuccess()) {
 				try {
 					App.setRoot("secondary");
@@ -34,6 +35,10 @@ public class SimpleClient extends AbstractClient {
 				EventBus.getDefault().post(new ErrorMessageEvent("Login failed"));
 			}
 			account = loginResponse.getAccount();
+		} else if (msg instanceof String message) {
+			if (message.startsWith("Email already exists")) {
+				EventBus.getDefault().post(new ErrorMessageSignUpEvent(message));
+			}
 		} else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}
