@@ -1,7 +1,6 @@
 package il.cshaifasweng.OCSFMediatorExample.server;
 
-import il.cshaifasweng.OCSFMediatorExample.entities.Account;
-import il.cshaifasweng.OCSFMediatorExample.entities.LoginResponse;
+import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
 
@@ -10,9 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
-import il.cshaifasweng.OCSFMediatorExample.entities.Warning;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
-import il.cshaifasweng.OCSFMediatorExample.entities.LoginRequest;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -111,6 +108,58 @@ public class SimpleServer extends AbstractServer {
 				client.sendToClient(new LoginResponse(success, account != null ? account.getId() : -1,account != null ? account.getFirstName():"-" ,account));
 			} catch (IOException e) {
 				e.printStackTrace();
+			}
+		}
+		else if (msg instanceof SignUpRequest signupDetails) {
+			System.out.println("📥 Received SignUp request from client");
+
+			Session session = null;
+
+			try {
+				session = sessionFactory.openSession();
+				session.beginTransaction();
+
+				// 1. Check if email already exists
+				Query<Account> query = session.createQuery("FROM Account WHERE email = :email", Account.class);
+				query.setParameter("email", signupDetails.getEmail());
+
+				List<Account> existing = query.getResultList();
+
+				if (!existing.isEmpty()) {
+					System.out.println("❌ Email already exists: " + signupDetails.getEmail());
+					client.sendToClient("Email already exists");
+				} else {
+					// 2. Create new Account object
+					Account newAccount = new Account();
+					newAccount.setEmail(signupDetails.getEmail());
+					newAccount.setPassword(signupDetails.getPassword());
+					newAccount.setFirstName(signupDetails.getFirstName());
+					newAccount.setLastName(signupDetails.getLastName());
+					newAccount.setIdentityNumber(signupDetails.getIdentityNumber());
+					newAccount.setCreditCardNumber(signupDetails.getCreditCardNumber());
+					newAccount.setCvv(signupDetails.getCvv());
+					newAccount.setCreditCardValidUntil(signupDetails.getCreditCardValidUntil());
+
+					// 3. Set account level
+					newAccount.setAccountLevel("Customer");
+
+					// 4. Save to DB
+					session.save(newAccount);
+					session.getTransaction().commit();
+
+					System.out.println("✅ Sign-up succeeded for email: " + signupDetails.getEmail());
+					client.sendToClient("Sign-up succeeded for email");
+				}
+
+			} catch (Exception e) {
+				if (session != null && session.getTransaction().isActive()) {
+					session.getTransaction().rollback();
+				}
+				e.printStackTrace();
+			} finally {
+				if (session != null) {
+					session.close();
+				}
 			}
 		}
 		else {
