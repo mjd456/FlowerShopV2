@@ -18,7 +18,7 @@ import org.greenrobot.eventbus.Subscribe;
  * JavaFX App
  */
 public class App extends Application {
-
+//test
     private static Scene scene;
     private SimpleClient client;
 
