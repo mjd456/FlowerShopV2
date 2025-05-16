@@ -38,6 +38,8 @@ public class SimpleClient extends AbstractClient {
 		} else if (msg instanceof String message) {
 			if (message.startsWith("Email already exists")) {
 				EventBus.getDefault().post(new ErrorMessageSignUpEvent(message));
+			} else if (message.startsWith("Sign-up succeeded for email")) {
+				EventBus.getDefault().post(new SignUpSuccess());
 			}
 		} else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());

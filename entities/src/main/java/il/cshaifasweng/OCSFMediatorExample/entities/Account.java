@@ -40,12 +40,14 @@ public class Account implements Serializable {
     @Column(name = "account_level")
     private String accountLevel;
 
+    @Column(name = "phone_number")
+    private String phoneNumber;
     // ----- Constructors -----
 
     public Account() {}
 
     public Account(String email, String password, String firstName, String lastName,
-                   String identityNumber, String creditCardNumber, String cvv, Date creditCardValidUntil,String accountLevel) {
+                   String identityNumber, String creditCardNumber, String cvv, Date creditCardValidUntil,String accountLevel,String phoneNumber) {
         this.email = email;
         this.password = password;
         this.firstName = firstName;
@@ -55,6 +57,7 @@ public class Account implements Serializable {
         this.cvv = cvv;
         this.creditCardValidUntil = creditCardValidUntil;
         this.accountLevel = accountLevel;
+        this.phoneNumber = phoneNumber;
     }
 
     // ----- Getters and Setters -----
@@ -133,5 +136,13 @@ public class Account implements Serializable {
 
     public void setAccountLevel(String accountLevel) {
         this.accountLevel = accountLevel;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
     }
 }

@@ -23,8 +23,10 @@ public class SignUpRequest implements Serializable {
 
     private Date creditCardValidUntil;
 
+    private String phoneNumber;
+
     public SignUpRequest(String email, String password,String firstName, String lastName,String identityNumber,
-                         String creditCardNumber,String cvv,Date creditCardValidUntil) {
+                         String creditCardNumber,String cvv,Date creditCardValidUntil ,String phoneNumber) {
         this.email = email;
         this.password = password;
         this.firstName = firstName;
@@ -33,6 +35,7 @@ public class SignUpRequest implements Serializable {
         this.creditCardNumber = creditCardNumber;
         this.cvv = cvv;
         this.creditCardValidUntil = creditCardValidUntil;
+        this.phoneNumber = phoneNumber;
     }
     public String getEmail() {
         return email;
@@ -81,5 +84,11 @@ public class SignUpRequest implements Serializable {
     }
     public void setCreditCardValidUntil(Date creditCardValidUntil) {
         this.creditCardValidUntil = creditCardValidUntil;
+    }
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
     }
 }
