@@ -1,13 +1,13 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import com.sun.source.tree.TryTree;
-import il.cshaifasweng.OCSFMediatorExample.entities.Account;
-import il.cshaifasweng.OCSFMediatorExample.entities.LoginResponse;
+import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import org.greenrobot.eventbus.EventBus;
 
 import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
 import il.cshaifasweng.OCSFMediatorExample.entities.Warning;
 import java.io.IOException;
+import java.util.Map;
 
 
 public class SimpleClient extends AbstractClient {
@@ -28,6 +28,7 @@ public class SimpleClient extends AbstractClient {
 			if (loginResponse.isSuccess()) {
 				try {
 					App.setRoot("secondary");
+					client.sendToServer("RefreshList");
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -35,13 +36,21 @@ public class SimpleClient extends AbstractClient {
 				EventBus.getDefault().post(new ErrorMessageEvent("Login failed"));
 			}
 			account = loginResponse.getAccount();
-		} else if (msg instanceof String message) {
+		}
+		else if (msg instanceof String message) {
 			if (message.startsWith("Email already exists")) {
-				EventBus.getDefault().post(new ErrorMessageSignUpEvent(message));
+				new ErrorMessageSignUpEvent(message);
 			} else if (message.startsWith("Sign-up succeeded for email")) {
 				EventBus.getDefault().post(new SignUpSuccess());
 			}
-		} else {
+		}
+		else if (msg instanceof Map<?, ?> map && map.keySet().iterator().next() instanceof Flower) {
+			Map<Flower, byte[]> flowerImageMap = (Map<Flower, byte[]>) msg;
+			System.out.println("Posting FlowerListEventBus");
+			System.out.println("Registered subscribers: " + EventBus.getDefault().hasSubscriberForEvent(FlowerListEventBus.class));
+			EventBus.getDefault().post(new FlowerListEventBus(flowerImageMap));
+		}
+		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}
 	}

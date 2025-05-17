@@ -5,9 +5,8 @@ import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.io.InputStream;
+import java.util.*;
 
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
 import org.hibernate.HibernateException;
@@ -58,6 +57,8 @@ public class SimpleServer extends AbstractServer {
 						}
 					}
 				}
+			} else if (msgString.startsWith("RefreshList")) {
+				sendToClientRefreshedList(client);
 			}
 		}
 		else if (msg instanceof LoginRequest loginRequest) {
@@ -178,10 +179,43 @@ public class SimpleServer extends AbstractServer {
 		}
 	}
 
+	public void sendToClientRefreshedList(ConnectionToClient client) {
+		try {
+			session = sessionFactory.openSession();
+			session.beginTransaction();
+			List<Flower> flowerList = session.createQuery("FROM Flower", Flower.class).getResultList();
+			Map<Flower, byte[]> flowerImageMap = new HashMap<>();
+
+			for (Flower flower : flowerList) {
+				String imageFileName = flower.getImageId(); // e.g., "rose_red.jpg"
+				try (InputStream is = getClass().getClassLoader().getResourceAsStream("FlowerPicture/" + imageFileName)) {
+					if (is == null) {
+						System.err.println("Image not found for: " + imageFileName);
+						continue;
+					}
+
+					byte[] imageBytes = is.readAllBytes();
+					flowerImageMap.put(flower, imageBytes);
+
+				} catch (IOException e) {
+					System.err.println("Error reading image for flower: " + flower.getName());
+					e.printStackTrace();
+				}
+			}
+
+			client.sendToClient(flowerImageMap);
+
+		} catch (Exception e) {
+			System.err.println("Failed to send refreshed flower list");
+			e.printStackTrace();
+		}
+	}
+
 	public static SessionFactory getSessionFactory() throws HibernateException {
 		Configuration configuration = new Configuration();
 
 		configuration.addAnnotatedClass(Account.class);
+		configuration.addAnnotatedClass(Flower.class);
 
 		ServiceRegistry serviceRegistry = (new StandardServiceRegistryBuilder()).applySettings(configuration.getProperties()).build();
 		return configuration.buildSessionFactory(serviceRegistry);
