@@ -21,7 +21,7 @@ public class App extends Application {
     private static Scene scene;
     private SimpleClient client;
     private static Runnable onSecondaryReady;
-    private Stage primaryStage;
+    private static Stage primaryStage;
 
     @Override
     public void start(Stage stage) throws IOException {
@@ -77,7 +77,16 @@ public class App extends Application {
         }
     }
 
-	public static void main(String[] args) {
+    public static Stage getPrimaryStage() {
+        return primaryStage;
+    }
+
+    public static void setPrimaryStage(Stage stage) {
+        primaryStage = stage;
+    }
+
+
+    public static void main(String[] args) {
         launch();
     }
 

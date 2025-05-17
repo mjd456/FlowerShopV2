@@ -27,7 +27,7 @@ public class SimpleClient extends AbstractClient {
 		else if (msg instanceof LoginResponse loginResponse) {
 			if (loginResponse.isSuccess()) {
 				try {
-					App.setRoot("secondary");
+					StageManager.replaceScene("secondary", "Secondary Window");
 					client.sendToServer("RefreshList");
 				} catch (IOException e) {
 					e.printStackTrace();
