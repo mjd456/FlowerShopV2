@@ -20,6 +20,8 @@ import org.greenrobot.eventbus.Subscribe;
 public class App extends Application {
     private static Scene scene;
     private SimpleClient client;
+    private static Runnable onSecondaryReady;
+    private Stage primaryStage;
 
     @Override
     public void start(Stage stage) throws IOException {
@@ -27,8 +29,10 @@ public class App extends Application {
     	client = SimpleClient.getClient();
     	client.openConnection();
         scene = new Scene(loadFXML("primary"));
-        stage.setScene(scene);
-        stage.show();
+        primaryStage = stage;
+        primaryStage.setTitle("Authenticator");
+        primaryStage.setScene(scene);
+        primaryStage.show();
     }
 
     static void setRoot(String fxml) throws IOException {
@@ -39,8 +43,6 @@ public class App extends Application {
         FXMLLoader fxmlLoader = new FXMLLoader(App.class.getResource(fxml + ".fxml"));
         return fxmlLoader.load();
     }
-    
-    
 
     @Override
 	public void stop() throws Exception {
@@ -62,6 +64,17 @@ public class App extends Application {
         	alert.show();
     	});
     	
+    }
+
+    public static void setOnSecondaryReady(Runnable r) {
+        onSecondaryReady = r;
+    }
+
+    public static void notifySecondaryReady() {
+        if (onSecondaryReady != null) {
+            Platform.runLater(onSecondaryReady); // ensure safe thread
+            onSecondaryReady = null; // one-time
+        }
     }
 
 	public static void main(String[] args) {
