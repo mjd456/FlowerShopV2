@@ -39,9 +39,29 @@ public class SimpleClient extends AbstractClient {
 		}
 		else if (msg instanceof String message) {
 			if (message.startsWith("Email already exists")) {
-				new ErrorMessageSignUpEvent(message);
+				EventBus.getDefault().post(new ErrorMessageSignUpEvent(message));
 			} else if (message.startsWith("Sign-up succeeded for email")) {
 				EventBus.getDefault().post(new SignUpSuccess());
+			} else if (message.startsWith("Email for recovery found")) {
+				String[] tokens = message.split("\\s+");
+				EventBus.getDefault().post(new RecoveryMailFound(tokens[4]));
+			} else if (message.startsWith("Email for recovery not found")) {
+				EventBus.getDefault().post(new RecoveryMailNotFound("Invalid email address"));
+			}else if (message.startsWith("The code has expired. A new code was sent to")) {
+				EventBus.getDefault().post(new VerifyCodeError("The code has expired. A new code was sent to your email."));
+			} else if (message.startsWith("Invalid verification code.")) {
+				EventBus.getDefault().post(new VerifyCodeError("Invalid verification code."));
+			} else if (message.startsWith("Code verified successfully.")) {
+				EventBus.getDefault().post(new VerifiedCodeForRecovery());
+			} else if (message.startsWith("Changing password error : ")) {
+				String prefix = "Changing password error :";
+				if (message.startsWith(prefix)) {
+					String errorMessage = message.substring(prefix.length()).trim();
+					System.out.println("Error message: " + errorMessage);
+					EventBus.getDefault().post(new ChangingPasswordError(errorMessage));
+				}
+			} else if(message.startsWith("Password successfully changed.")) {
+				EventBus.getDefault().post(new ChangingPasswordSuccess());
 			}
 		}
 		else if (msg instanceof Map<?, ?> map && map.keySet().iterator().next() instanceof Flower) {
