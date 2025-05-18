@@ -24,7 +24,7 @@ public class Account implements Serializable {
     @Column(name = "last_name", nullable = false)
     private String lastName;
 
-    @Column(name = "identity_number", nullable = false, unique = true)
+    @Column(name = "identity_number", nullable = false)
     private String identityNumber;
 
     @Column(name = "credit_card_number", nullable = false)

@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.util.*;
 
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
+import jakarta.mail.MessagingException;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -59,7 +60,188 @@ public class SimpleServer extends AbstractServer {
 				}
 			} else if (msgString.startsWith("RefreshList")) {
 				sendToClientRefreshedList(client);
+			} else if (msgString.startsWith("Does this email exist?")) {
+				String[] tokens = msgString.split("\\s+");
+
+				String emailToCheck = tokens[4];
+
+				try (Session session = sessionFactory.openSession()) {
+					session.beginTransaction();
+
+					Query<Account> query = session.createQuery(
+							"FROM Account WHERE email = :email", Account.class);
+					query.setParameter("email", emailToCheck);
+
+					Account found = query.uniqueResult();
+
+					if (found != null) {
+						System.out.println("Email exists in the database: " + emailToCheck);
+
+						// Generate 6-digit code
+						String code = generate6DigitCode();
+
+						// Store the code in the DB (if you're using PasswordResetCode entity)
+						PasswordResetCode resetCode = new PasswordResetCode(found, code, getExpiryTimestamp());
+						session.save(resetCode);
+
+						// Send the email
+						EmailSender.sendEmail(
+								emailToCheck,
+								"Your Password Reset Code",
+								"Hello " + found.getFirstName() + ",\n\nYour password reset code is: " + code + "\n\n" +
+										"If you did not request a reset, please ignore this email."
+						);
+						client.sendToClient("Email for recovery found " + emailToCheck);
+					} else {
+						System.out.println("Email does not exist: " + emailToCheck);
+						client.sendToClient("Email for recovery not found");
+					}
+					session.getTransaction().commit();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			} else if (msgString.startsWith("Is the code correct?")) {
+				String[] tokens = msgString.split("\\s+");
+
+				if (tokens.length != 6) {
+					try {
+						client.sendToClient("Invalid verification code.");
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					return;
+				}
+
+				String code = tokens[4];
+				String emailToCheck = tokens[5];
+
+				try (Session session = sessionFactory.openSession()) {
+					session.beginTransaction();
+
+					// Get the user
+					Query<Account> userQuery = session.createQuery(
+							"FROM Account WHERE email = :email", Account.class);
+					userQuery.setParameter("email", emailToCheck);
+					Account account = userQuery.uniqueResult();
+
+					if (account == null) {
+						client.sendToClient("No such email exists.");
+						return;
+					}
+
+					// Get latest reset code for user
+					Query<PasswordResetCode> codeQuery = session.createQuery(
+							"FROM PasswordResetCode WHERE user = :user ORDER BY expiresAt DESC", PasswordResetCode.class);
+					codeQuery.setParameter("user", account);
+					codeQuery.setMaxResults(1);
+					PasswordResetCode latestCode = codeQuery.uniqueResult();
+
+					if (latestCode == null) {
+						client.sendToClient("No reset code found.");
+					} else {
+						Date now = new Date();
+
+						if (now.after(latestCode.getExpiresAt())) {
+							// Code expired → generate a new one and resend
+							String newCode = generate6DigitCode();
+							PasswordResetCode newResetCode = new PasswordResetCode(account, newCode, getExpiryTimestamp());
+							session.save(newResetCode);
+
+							EmailSender.sendEmail(
+									emailToCheck,
+									"Your New Password Reset Code",
+									"Your previous code expired. Here's a new one: " + newCode
+							);
+
+							client.sendToClient("The code has expired. A new code was sent to " + emailToCheck);
+						} else if (!latestCode.getCode().equals(code)) {
+							client.sendToClient("Invalid verification code.");
+						} else {
+							client.sendToClient("Code verified successfully.");
+						}
+					}
+
+					session.getTransaction().commit();
+				} catch (Exception e) {
+					e.printStackTrace();
+					try {
+						client.sendToClient("Server error during code verification.");
+					} catch (IOException e1) {
+						e1.printStackTrace();
+					}
+				}
+			} else if (msgString.startsWith("Is this password unique?")) {
+				String[] tokens = msgString.split("\\s+");
+				if (tokens.length < 6) {
+					try {
+						client.sendToClient("Changing password error : Invalid password uniqueness check request.");
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					return;
+				}
+
+				String newPassword = tokens[4];
+				String emailToCheck = tokens[5];
+
+				try (Session session = sessionFactory.openSession()) {
+					session.beginTransaction();
+
+					Query<Account> accountQuery = session.createQuery(
+							"FROM Account WHERE email = :email", Account.class);
+					accountQuery.setParameter("email", emailToCheck);
+					Account account = accountQuery.uniqueResult();
+
+					if (account == null) {
+						client.sendToClient("Changing password error : Account not found.");
+						session.getTransaction().commit();
+						return;
+					}
+
+					Query<PasswordHistory> historyQuery = session.createQuery(
+							"FROM PasswordHistory WHERE user = :user AND passwordHash = :pass", PasswordHistory.class);
+					historyQuery.setParameter("user", account);
+					historyQuery.setParameter("pass", newPassword); // or hashedPassword
+
+					if (!historyQuery.getResultList().isEmpty()) {
+						client.sendToClient("Changing password error : This password has already been used. Choose a new one.");
+						session.getTransaction().commit();
+						return;
+					}
+
+					Query<PasswordHistory> currentQuery = session.createQuery(
+							"FROM PasswordHistory WHERE user = :user AND isCurrent = true", PasswordHistory.class);
+					currentQuery.setParameter("user", account);
+					List<PasswordHistory> currentEntries = currentQuery.getResultList();
+
+					for (PasswordHistory entry : currentEntries) {
+						entry.setCurrent(false);
+						session.update(entry);
+					}
+
+					account.setPassword(newPassword);
+					session.update(account);
+
+					PasswordHistory newHistory = new PasswordHistory();
+					newHistory.setUser(account);
+					newHistory.setPasswordHash(newPassword); // or hashedPassword
+					newHistory.setCurrent(true);
+					newHistory.setCreatedAt(new Date());
+					session.save(newHistory);
+
+					client.sendToClient("Password successfully changed.");
+					session.getTransaction().commit();
+				} catch (Exception e) {
+					e.printStackTrace();
+					try {
+						client.sendToClient("Changing password error : Error occurred while changing password.");
+					} catch (IOException e1) {
+						e1.printStackTrace();
+					}
+				}
 			}
+
+
 		}
 		else if (msg instanceof LoginRequest loginRequest) {
 			String email = loginRequest.getUsername();
@@ -120,7 +302,6 @@ public class SimpleServer extends AbstractServer {
 				session = sessionFactory.openSession();
 				session.beginTransaction();
 
-				// 1. Check if email already exists
 				Query<Account> query = session.createQuery("FROM Account WHERE email = :email", Account.class);
 				query.setParameter("email", signupDetails.getEmail());
 
@@ -130,7 +311,6 @@ public class SimpleServer extends AbstractServer {
 					System.out.println("Email already exists: " + signupDetails.getEmail());
 					client.sendToClient("Email already exists");
 				} else {
-					// 2. Create new Account object
 					Account newAccount = new Account();
 					newAccount.setEmail(signupDetails.getEmail());
 					newAccount.setPassword(signupDetails.getPassword());
@@ -142,15 +322,34 @@ public class SimpleServer extends AbstractServer {
 					newAccount.setCreditCardValidUntil(signupDetails.getCreditCardValidUntil());
 					newAccount.setPhoneNumber(signupDetails.getPhoneNumber());
 
-					// 3. Set account level
 					newAccount.setAccountLevel("Customer");
 
-					// 4. Save to DB
 					session.save(newAccount);
+					session.flush();
+
+					PasswordHistory history = new PasswordHistory();
+					history.setUser(newAccount);
+					history.setPasswordHash(newAccount.getPassword()); // or hash if applicable
+					history.setCurrent(true);
+					history.setCreatedAt(new Date());
+					session.save(history);
 					session.getTransaction().commit();
 
+
+					try {
+						EmailSender.sendEmail(
+								signupDetails.getEmail(),
+								"Sign Up Successful",
+								"Hey "+ signupDetails.getFirstName() + "," + "\nWe are happy to have you as a customer."
+						);
+						System.out.println("Sign-up succeeded for email: " + signupDetails.getEmail());
+						client.sendToClient("Sign-up succeeded for email");
+					} catch (MessagingException e) {
+						e.printStackTrace();
+					}
 					System.out.println("Sign-up succeeded for email: " + signupDetails.getEmail());
 					client.sendToClient("Sign-up succeeded for email");
+					session.flush();
 				}
 
 			} catch (Exception e) {
@@ -216,9 +415,23 @@ public class SimpleServer extends AbstractServer {
 
 		configuration.addAnnotatedClass(Account.class);
 		configuration.addAnnotatedClass(Flower.class);
+		configuration.addAnnotatedClass(PasswordResetCode.class);
+		configuration.addAnnotatedClass(PasswordHistory.class);
 
 		ServiceRegistry serviceRegistry = (new StandardServiceRegistryBuilder()).applySettings(configuration.getProperties()).build();
 		return configuration.buildSessionFactory(serviceRegistry);
+	}
+
+	private String generate6DigitCode() {
+		Random rand = new Random();
+		int code = 100000 + rand.nextInt(900000);
+		return String.valueOf(code);
+	}
+
+	private Date getExpiryTimestamp() {
+		Calendar cal = Calendar.getInstance();
+		cal.add(Calendar.MINUTE, 10); // Code expires in 10 minutes
+		return cal.getTime();
 	}
 
 	public static void initializeSession() {
