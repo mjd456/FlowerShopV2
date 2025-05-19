@@ -239,9 +239,9 @@ public class SimpleServer extends AbstractServer {
 						e1.printStackTrace();
 					}
 				}
+			} else if (msgString.startsWith("MainUILoaded")) {
+
 			}
-
-
 		}
 		else if (msg instanceof LoginRequest loginRequest) {
 			String email = loginRequest.getUsername();
@@ -334,7 +334,6 @@ public class SimpleServer extends AbstractServer {
 					history.setCreatedAt(new Date());
 					session.save(history);
 					session.getTransaction().commit();
-
 
 					try {
 						EmailSender.sendEmail(

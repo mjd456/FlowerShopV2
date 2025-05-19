@@ -24,6 +24,7 @@ public class StageManager {
                 Stage newStage = new Stage();
                 newStage.setTitle(title);
                 newStage.setScene(scene);
+                newStage.setResizable(false);
                 newStage.show();
 
                 // Close the current stage

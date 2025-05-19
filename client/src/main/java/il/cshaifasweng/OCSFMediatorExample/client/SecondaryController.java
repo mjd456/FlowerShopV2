@@ -1,5 +1,6 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import il.cshaifasweng.OCSFMediatorExample.entities.Account;
 import il.cshaifasweng.OCSFMediatorExample.entities.Flower;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -11,6 +12,8 @@ import javafx.scene.control.TabPane;
 import javafx.scene.layout.*;
 
 import javafx.scene.image.ImageView;
+
+import java.util.Arrays;
 import java.util.Map;
 import javafx.scene.image.Image;
 import javafx.scene.control.Label;
@@ -44,7 +47,17 @@ public class SecondaryController {
     private AnchorPane SettingsAnchor;
 
     @FXML
+    private Tab ManagerPanel;
+
+    @FXML
+    private AnchorPane ManagerPanelAnchor;
+
+    @FXML
     private Tab SettingsTab;
+
+    private Tab[] ManagerTabs;
+
+    private String accountLevel;
 
     public void addFlowersToVBox(Map<Flower, byte[]> flowerImageMap) {
         FlowerPageVbox.getChildren().clear(); // clear old content
@@ -53,14 +66,14 @@ public class SecondaryController {
             Flower flower = entry.getKey();
             byte[] imageData = entry.getValue();
 
-            // ✅ Main horizontal container
-            HBox flowerBox = new HBox(10); // spacing between image and text
+
+            HBox flowerBox = new HBox(10);
             flowerBox.setStyle("-fx-border-color: lightgray; -fx-background-color: white;");
             flowerBox.setPadding(new Insets(10));
             flowerBox.setAlignment(Pos.CENTER_LEFT);
-            flowerBox.setPrefHeight(120); // Optional: for consistent height
+            flowerBox.setPrefHeight(120);
 
-            // ✅ ImageView
+
             ImageView imageView = new ImageView();
             try {
                 ByteArrayInputStream bais = new ByteArrayInputStream(imageData);
@@ -74,7 +87,7 @@ public class SecondaryController {
             imageView.setFitHeight(100);
             imageView.setPreserveRatio(true);
 
-            // ✅ Text + Button column
+
             VBox textBox = new VBox(5);
             Label name = new Label("Name: " + flower.getName());
             Label price = new Label("Price: $" + flower.getPrice());
@@ -85,12 +98,12 @@ public class SecondaryController {
 
             textBox.getChildren().addAll(name, price, buyButton);
 
-            // ✅ Assemble and add
+
             flowerBox.getChildren().addAll(imageView, textBox);
             FlowerPageVbox.getChildren().add(flowerBox);
         }
 
-        // ✅ Optional: scroll to bottom after layout
+
         Platform.runLater(() -> FlowersScrollPane.setVvalue(1.0));
     }
 
@@ -98,6 +111,26 @@ public class SecondaryController {
     public void onRefreshList(FlowerListEventBus event) {
         javafx.application.Platform.runLater(()-> {
             addFlowersToVBox(event.getFlowerMap());
+        });
+    }
+
+    public void setUserRole(String accountLevel) {
+        if (accountLevel.equals("Customer")) {
+            Platform.runLater(() -> {
+                for (Tab tab : ManagerTabs) {
+                    MainTabsFrame.getTabs().remove(tab);
+                }
+            });
+        }
+    }
+
+    @org.greenrobot.eventbus.Subscribe
+    public void onSetAccountLevel(SetAccountLevel event) {
+        javafx.application.Platform.runLater(()-> {
+            System.out.println("✅ Received sticky event for role: " + event.getAccountLevel());
+            accountLevel = event.getAccountLevel();
+            System.out.println("Account Level: " + accountLevel);
+            setUserRole(accountLevel);
         });
     }
 
@@ -110,8 +143,15 @@ public class SecondaryController {
         assert FlowersTab != null : "fx:id=\"FlowersTab\" was not injected: check your FXML file 'secondary.fxml'.";
         assert MainFrame != null : "fx:id=\"MainFrame\" was not injected: check your FXML file 'secondary.fxml'.";
         assert MainTabsFrame != null : "fx:id=\"MainTabsFrame\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ManagerPanel != null : "fx:id=\"ManagerPanel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ManagerPanelAnchor != null : "fx:id=\"ManagerPanelAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SettingsAnchor != null : "fx:id=\"SettingsAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SettingsTab != null : "fx:id=\"SettingsTab\" was not injected: check your FXML file 'secondary.fxml'.";
+
+
+        ManagerTabs = new Tab[] {
+                ManagerPanel
+        };
         EventBus.getDefault().register(this);
         FlowersScrollPane.setFitToWidth(true);
         FlowersScrollPane.setFitToHeight(false);
@@ -122,5 +162,4 @@ public class SecondaryController {
         System.out.println("[SecondaryController] Initialized");
         App.notifySecondaryReady();
     }
-
 }

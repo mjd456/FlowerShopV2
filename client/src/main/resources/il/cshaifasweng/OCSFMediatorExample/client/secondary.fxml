@@ -10,17 +10,11 @@
    <children>
       <TabPane fx:id="MainTabsFrame" prefHeight="400.0" prefWidth="600.0" tabClosingPolicy="UNAVAILABLE">
          <tabs>
-            <Tab fx:id="FlowersTab" text="Untitled Tab 1">
+            <Tab fx:id="FlowersTab" text="Catalog">
                <content>
                   <AnchorPane fx:id="FlowersAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
                      <children>
-                        <ScrollPane fx:id="FlowersScrollPane"
-                                    fitToWidth="true"
-                                    fitToHeight="false"
-                                    AnchorPane.topAnchor="0.0"
-                                    AnchorPane.leftAnchor="0.0"
-                                    AnchorPane.rightAnchor="0.0"
-                                    AnchorPane.bottomAnchor="0.0">
+                        <ScrollPane fx:id="FlowersScrollPane" fitToHeight="false" fitToWidth="true" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                            <content>
                               <VBox fx:id="FlowerPageVbox" spacing="5.0">
                               </VBox>
@@ -30,9 +24,14 @@
                   </AnchorPane>
                </content>
             </Tab>
-            <Tab fx:id="SettingsTab" text="Untitled Tab 2">
+            <Tab fx:id="SettingsTab" text="Profile/Settings">
                <content>
                   <AnchorPane fx:id="SettingsAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0" />
+               </content>
+            </Tab>
+            <Tab fx:id="ManagerPanel" text="Manager panel">
+               <content>
+                  <AnchorPane fx:id="ManagerPanelAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0" />
                </content>
             </Tab>
          </tabs>

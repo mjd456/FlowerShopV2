@@ -2,6 +2,8 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 
 import com.sun.source.tree.TryTree;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import org.greenrobot.eventbus.EventBus;
 
 import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
@@ -13,7 +15,7 @@ import java.util.Map;
 public class SimpleClient extends AbstractClient {
 	
 	private static SimpleClient client = null;
-	private static Account account = null;
+	static Account account = null;
 
 	private SimpleClient(String host, int port) {
 		super(host, port);
@@ -26,17 +28,31 @@ public class SimpleClient extends AbstractClient {
 		}
 		else if (msg instanceof LoginResponse loginResponse) {
 			if (loginResponse.isSuccess()) {
+				account = loginResponse.getAccount();
+
+				App.setOnSecondaryReady(() -> {
+					System.out.println("[✅ Scene ready] Logged in as: " + account.getFirstName());
+
+					EventBus.getDefault().postSticky(new SetAccountLevel(account.getAccountLevel()));
+
+					try {
+						SimpleClient.getClient().sendToServer("RefreshList");
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				});
+
 				try {
 					StageManager.replaceScene("secondary", "Secondary Window");
-					client.sendToServer("RefreshList");
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 			} else {
 				EventBus.getDefault().post(new ErrorMessageEvent("Login failed"));
 			}
-			account = loginResponse.getAccount();
 		}
+
+
 		else if (msg instanceof String message) {
 			if (message.startsWith("Email already exists")) {
 				EventBus.getDefault().post(new ErrorMessageSignUpEvent(message));
@@ -68,7 +84,7 @@ public class SimpleClient extends AbstractClient {
 			Map<Flower, byte[]> flowerImageMap = (Map<Flower, byte[]>) msg;
 			System.out.println("Posting FlowerListEventBus");
 			System.out.println("Registered subscribers: " + EventBus.getDefault().hasSubscriberForEvent(FlowerListEventBus.class));
-			EventBus.getDefault().post(new FlowerListEventBus(flowerImageMap));
+			EventBus.getDefault().postSticky(new FlowerListEventBus(flowerImageMap));
 		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
