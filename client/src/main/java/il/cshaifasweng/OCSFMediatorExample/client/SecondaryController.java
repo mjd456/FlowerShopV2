@@ -2,12 +2,14 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.Account;
 import il.cshaifasweng.OCSFMediatorExample.entities.Flower;
+import il.cshaifasweng.OCSFMediatorExample.entities.LogoutRequest;
 import il.cshaifasweng.OCSFMediatorExample.entities.UpdateFlowerRequest;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 
@@ -18,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import javafx.scene.image.Image;
 import javafx.util.Pair;
+import javassist.Loader;
 import org.greenrobot.eventbus.EventBus;
 
 import java.io.ByteArrayInputStream;
@@ -213,7 +216,13 @@ public class SecondaryController {
     }
 
     public void LogOut(javafx.event.ActionEvent actionEvent) {
-
+        try {
+            StageManager.replaceScene("primary", "Authenticator");
+            SimpleClient.getClient().sendToServer(new LogoutRequest(account));
+            account = null;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void populateManagerCatalog(List<Flower> flowerList) {
@@ -345,10 +354,10 @@ public class SecondaryController {
         assert SettingsAnchor != null : "fx:id=\"SettingsAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SettingsTab != null : "fx:id=\"SettingsTab\" was not injected: check your FXML file 'secondary.fxml'.";
 
-
         ManagerTabs = new Tab[] {
                 ManagerPanel
         };
+
         EventBus.getDefault().register(this);
         FlowersScrollPane.setFitToWidth(true);
         FlowersScrollPane.setFitToHeight(false);

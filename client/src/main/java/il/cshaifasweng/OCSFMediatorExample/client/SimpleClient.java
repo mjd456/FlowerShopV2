@@ -76,6 +76,8 @@ public class SimpleClient extends AbstractClient {
 				}
 			} else if(message.startsWith("Password successfully changed.")) {
 				EventBus.getDefault().post(new ChangingPasswordSuccess());
+			} else if (message.startsWith("Logout successful")) {
+				account = null;
 			}
 		}
 		else if (msg instanceof Map<?, ?> map && map.keySet().iterator().next() instanceof Flower) {
