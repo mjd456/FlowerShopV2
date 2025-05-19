@@ -252,48 +252,62 @@ public class SimpleServer extends AbstractServer {
 			System.out.println("email: " + email);
 			System.out.println("Password: " + password);
 
-			boolean success = false;
 			Account account = null;
 
-
-			try {
-				session = sessionFactory.openSession();
+			try (Session session = sessionFactory.openSession()) {
 				session.beginTransaction();
 
-				Query<Account> query = session.createQuery("FROM Account WHERE email = :email AND password = :password", Account.class);
+				Query<Account> query = session.createQuery(
+						"FROM Account WHERE email = :email AND password = :password", Account.class
+				);
 				query.setParameter("email", email);
 				query.setParameter("password", password);
 
-				List<Account> all = session.createQuery("FROM Account", Account.class).getResultList();
-				for (Account a : all) {
-					System.out.println(">> EMAIL in DB: '" + a.getEmail() + "'");
-				}
-
 				List<Account> results = query.getResultList();
+
 				session.getTransaction().commit();
 
 				if (!results.isEmpty()) {
 					account = results.get(0);
-					success = true;
 				}
 
 			} catch (Exception e) {
-				if (session != null && session.getTransaction().isActive()) {
-					session.getTransaction().rollback();
-				}
 				e.printStackTrace();
-			} finally {
-				if (session != null) {
-					session.close();
-				}
 			}
+
 			try {
-				System.out.println(success);
-				client.sendToClient(new LoginResponse(success, account != null ? account.getId() : -1,account != null ? account.getFirstName():"-" ,account));
-			} catch (IOException e) {
+				if (account == null) {
+					// Account not found → deny login
+					client.sendToClient(new LoginResponse(false, -1, "-", null));
+				} else if (account.isLogged()) {
+					// Already logged in → deny login
+					client.sendToClient(new LoginResponse(false, -1, "-", null));
+				} else {
+					// Not logged in → mark as logged in and update DB
+					try (Session session = sessionFactory.openSession()) {
+						Transaction tx = session.beginTransaction();
+
+						Account accountInDb = session.get(Account.class, account.getId()); // safer
+						accountInDb.setLogged(true); // set the flag on the managed object
+
+						tx.commit();
+
+						// Send success response
+						client.sendToClient(new LoginResponse(
+								true,
+								accountInDb.getId(),
+								accountInDb.getFirstName(),
+								accountInDb
+						));
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		}
+
 		else if (msg instanceof SignUpRequest signupDetails) {
 			System.out.println("Received SignUp request from client");
 
@@ -347,9 +361,6 @@ public class SimpleServer extends AbstractServer {
 					} catch (MessagingException e) {
 						e.printStackTrace();
 					}
-					System.out.println("Sign-up succeeded for email: " + signupDetails.getEmail());
-					client.sendToClient("Sign-up succeeded for email");
-					session.flush();
 				}
 
 			} catch (Exception e) {
@@ -362,7 +373,8 @@ public class SimpleServer extends AbstractServer {
 					session.close();
 				}
 			}
-		} else if (msg instanceof UpdateFlowerRequest updateRequest) {
+		}
+		else if (msg instanceof UpdateFlowerRequest updateRequest) {
 			System.out.println("Received UpdateFlowerRequest from client");
 
 			Flower updatedData = updateRequest.getFlower();
@@ -396,6 +408,36 @@ public class SimpleServer extends AbstractServer {
 				if (session != null) session.close();
 			}
 		}
+		else if (msg instanceof LogoutRequest logoutRequest) {
+			System.out.println("Logout request from client"); // ✅ Confirm this prints
+
+			Account requestAccount = logoutRequest.getAccount();
+			Session session = null;
+			Transaction tx = null;
+
+			try {
+				session = sessionFactory.openSession();
+				tx = session.beginTransaction();
+
+				// Re-fetch the account using the ID from the client
+				Account accountInDb = session.get(Account.class, requestAccount.getId());
+
+				if (accountInDb != null) {
+					accountInDb.setLogged(false); // ✅ modify the managed entity
+					client.sendToClient("Logout successful");
+				} else {
+					System.err.println("Account not found in DB (LogoutRequest).");
+				}
+
+				tx.commit();
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+			} finally {
+				if (session != null) session.close();
+			}
+		}
+
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}

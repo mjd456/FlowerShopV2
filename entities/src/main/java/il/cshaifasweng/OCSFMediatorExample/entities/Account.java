@@ -42,6 +42,9 @@ public class Account implements Serializable {
 
     @Column(name = "phone_number")
     private String phoneNumber;
+
+    @Column(name = "Logged")
+    private boolean logged;
     // ----- Constructors -----
 
     public Account() {}
@@ -58,6 +61,7 @@ public class Account implements Serializable {
         this.creditCardValidUntil = creditCardValidUntil;
         this.accountLevel = accountLevel;
         this.phoneNumber = phoneNumber;
+        this.logged = false;
     }
 
     // ----- Getters and Setters -----
@@ -144,5 +148,12 @@ public class Account implements Serializable {
 
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
+    }
+
+    public boolean isLogged() {
+        return logged;
+    }
+    public void setLogged(boolean logged) {
+        this.logged = logged;
     }
 }
