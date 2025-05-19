@@ -670,7 +670,7 @@ public class PrimaryController {
 		signUpButtons = new Button[] { BackBtn, SignUpFinal };
 		ErrorSignUpLabel.setVisible(false);
 		ErrorMessageLabel.setVisible(false);
-		// -- choose which screen is shown first (login in this example) --
-		showLoginScreen(true);    // true  -> show login, hide sign-up
+
+		showLoginScreen(true);
 	}
 }

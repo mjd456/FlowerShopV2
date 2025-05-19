@@ -32,6 +32,7 @@ public class App extends Application {
         primaryStage = stage;
         primaryStage.setTitle("Authenticator");
         primaryStage.setScene(scene);
+        primaryStage.setResizable(false);
         primaryStage.show();
     }
 
