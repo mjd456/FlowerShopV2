@@ -1,11 +1,14 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import il.cshaifasweng.OCSFMediatorExample.entities.Account;
+
 public class SetAccountLevel {
-    String accountLevel;
-    public SetAccountLevel(String accountLevel) {
-        this.accountLevel = accountLevel;
+    Account account;
+    public SetAccountLevel(Account accountLevel) {
+        this.account = accountLevel;
     }
-    public String getAccountLevel() {
-        return accountLevel;
+
+    public Account getAccount() {
+        return account;
     }
 }

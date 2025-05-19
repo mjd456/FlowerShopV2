@@ -31,9 +31,9 @@ public class SimpleClient extends AbstractClient {
 				account = loginResponse.getAccount();
 
 				App.setOnSecondaryReady(() -> {
-					System.out.println("[✅ Scene ready] Logged in as: " + account.getFirstName());
+					System.out.println("[Scene ready] Logged in as: " + account.getFirstName());
 
-					EventBus.getDefault().postSticky(new SetAccountLevel(account.getAccountLevel()));
+					EventBus.getDefault().postSticky(new SetAccountLevel(account));
 
 					try {
 						SimpleClient.getClient().sendToServer("RefreshList");
@@ -51,8 +51,6 @@ public class SimpleClient extends AbstractClient {
 				EventBus.getDefault().post(new ErrorMessageEvent("Login failed"));
 			}
 		}
-
-
 		else if (msg instanceof String message) {
 			if (message.startsWith("Email already exists")) {
 				EventBus.getDefault().post(new ErrorMessageSignUpEvent(message));
