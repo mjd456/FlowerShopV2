@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.VBox?>
 
 <AnchorPane fx:id="MainFrame" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="400.0" minWidth="600.0" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.SecondaryController">
@@ -24,14 +27,38 @@
                   </AnchorPane>
                </content>
             </Tab>
+            <Tab fx:id="CartTab" text="Cart">
+               <content>
+                  <AnchorPane fx:id="CartAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0" />
+               </content>
+            </Tab>
             <Tab fx:id="SettingsTab" text="Profile/Settings">
                <content>
-                  <AnchorPane fx:id="SettingsAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0" />
+                  <AnchorPane fx:id="SettingsAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                     <children>
+                        <Label fx:id="ProfileSayHelloLabel" layoutX="20.0" layoutY="21.0" text="Hello [Name,]" />
+                        <Button fx:id="LogOutButton" layoutX="530.0" layoutY="17.0" mnemonicParsing="false" onAction="#LogOut" text="LogOut" />
+                     </children></AnchorPane>
                </content>
             </Tab>
             <Tab fx:id="ManagerPanel" text="Manager panel">
                <content>
-                  <AnchorPane fx:id="ManagerPanelAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0" />
+                  <AnchorPane fx:id="ManagerPanelAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                     <children>
+                        <ScrollPane fx:id="ManagerPanelScroll" fitToHeight="false" fitToWidth="true" prefHeight="372.0" prefWidth="600.0">
+                           <content>
+                              <Pane fx:id="ManagerPanelPane" prefHeight="762.0" prefWidth="585.0">
+                                 <children>
+                                    <ScrollPane fx:id="ManagerCatalogSelector" fitToWidth="true" layoutX="77.0" layoutY="38.0" prefHeight="299.0" prefWidth="430.0">
+                                       <content>
+                                          <VBox fx:id="ManagerCatalogSelectorVbox" />
+                                       </content>
+                                    </ScrollPane>
+                                 </children>
+                              </Pane>
+                           </content>
+                        </ScrollPane>
+                     </children></AnchorPane>
                </content>
             </Tab>
          </tabs>

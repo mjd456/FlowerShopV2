@@ -13,6 +13,7 @@ import jakarta.mail.MessagingException;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.query.Query;
@@ -239,8 +240,8 @@ public class SimpleServer extends AbstractServer {
 						e1.printStackTrace();
 					}
 				}
-			} else if (msgString.startsWith("MainUILoaded")) {
-
+			} else if (msgString.startsWith("RequestFlowerCatalogForManager")) {
+				sendToClientRefreshedList(client);
 			}
 		}
 		else if (msg instanceof LoginRequest loginRequest) {
@@ -361,6 +362,39 @@ public class SimpleServer extends AbstractServer {
 					session.close();
 				}
 			}
+		} else if (msg instanceof UpdateFlowerRequest updateRequest) {
+			System.out.println("Received UpdateFlowerRequest from client");
+
+			Flower updatedData = updateRequest.getFlower();
+
+			Session session = null;
+			Transaction tx = null;
+
+			try {
+				session = sessionFactory.openSession();
+				tx = session.beginTransaction();
+
+				Flower flowerInDb = session.get(Flower.class, updatedData.getId());
+
+				if (flowerInDb != null) {
+					flowerInDb.setName(updatedData.getName());
+					flowerInDb.setPrice(updatedData.getPrice());
+					flowerInDb.setDescription(updatedData.getDescription());
+
+					session.update(flowerInDb);
+
+					tx.commit();
+					System.out.println("Updated flower in database: " + flowerInDb.getName());
+				} else {
+					System.err.println("Flower with ID " + updatedData.getId() + " not found in DB.");
+				}
+
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+			} finally {
+				if (session != null) session.close();
+			}
 		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
@@ -406,6 +440,10 @@ public class SimpleServer extends AbstractServer {
 		} catch (Exception e) {
 			System.err.println("Failed to send refreshed flower list");
 			e.printStackTrace();
+		}finally {
+			if (session != null) {
+				session.close();
+			}
 		}
 	}
 
