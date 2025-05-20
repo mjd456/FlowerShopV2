@@ -1,5 +1,6 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import il.cshaifasweng.OCSFMediatorExample.entities.LogoutRequest;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -26,12 +27,29 @@ public class StageManager {
                 newStage.setScene(scene);
                 newStage.setResizable(false);
                 newStage.show();
-
+                newStage.setOnCloseRequest(event -> {
+                    try {
+                        if (SimpleClient.account != null) {
+                            // Send logout request or disconnect message to server
+                            try {
+                                SimpleClient.getClient().sendToServer(new LogoutRequest(SimpleClient.account));
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            System.out.println("Sent logout request on window close.");
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
                 // Close the current stage
                 App.getPrimaryStage().close();
 
                 // Update the reference to the primary stage
                 App.setPrimaryStage(newStage);
+
+
+
 
             } catch (IOException e) {
                 e.printStackTrace();

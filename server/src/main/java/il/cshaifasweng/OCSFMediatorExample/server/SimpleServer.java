@@ -307,7 +307,6 @@ public class SimpleServer extends AbstractServer {
 				e.printStackTrace();
 			}
 		}
-
 		else if (msg instanceof SignUpRequest signupDetails) {
 			System.out.println("Received SignUp request from client");
 
@@ -423,8 +422,14 @@ public class SimpleServer extends AbstractServer {
 				Account accountInDb = session.get(Account.class, requestAccount.getId());
 
 				if (accountInDb != null) {
-					accountInDb.setLogged(false); // ✅ modify the managed entity
-					client.sendToClient("Logout successful");
+					accountInDb.setLogged(false);
+					try {
+						client.sendToClient("Logout successful");
+					} catch (IOException e) {
+						System.err.println("Client disconnected during send.");
+						e.printStackTrace();
+						SubscribersList.remove(client);
+					}
 				} else {
 					System.err.println("Account not found in DB (LogoutRequest).");
 				}

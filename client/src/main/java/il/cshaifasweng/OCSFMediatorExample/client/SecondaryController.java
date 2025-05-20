@@ -5,25 +5,27 @@ import il.cshaifasweng.OCSFMediatorExample.entities.Flower;
 import il.cshaifasweng.OCSFMediatorExample.entities.LogoutRequest;
 import il.cshaifasweng.OCSFMediatorExample.entities.UpdateFlowerRequest;
 import javafx.application.Platform;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 
 import javafx.scene.image.ImageView;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import javafx.scene.image.Image;
 import javafx.util.Pair;
-import javassist.Loader;
 import org.greenrobot.eventbus.EventBus;
 
 import java.io.ByteArrayInputStream;
+import java.util.stream.Collectors;
+
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
@@ -82,19 +84,27 @@ public class SecondaryController {
     private Label ProfileSayHelloLabel;
 
     @FXML
+    private Button SortCatalogBtn;
+
+    @FXML
+    private Button RefreshCatalogBtn;
+
+    @FXML
     private Button LogOutButton;
 
     private Tab[] ManagerTabs;
 
     private Account account;
 
-    private List<Node> cachedFlowerNodes = new ArrayList<>();
+    private List<Pair<Flower, HBox>> cachedFlowerNodes = new ArrayList<>();
 
     private final List<Pair<Flower, Integer>> cartList = new ArrayList<>();
 
+    private String Sorted = "Unsorted";
+
     public void addFlowersToVBox(Map<Flower, byte[]> flowerImageMap) {
-        FlowerPageVbox.getChildren().clear();         // Remove current nodes
-        cachedFlowerNodes.clear();                    // Clear old cache
+        FlowerPageVbox.getChildren().clear();
+        cachedFlowerNodes.clear();
         System.out.println("Adding flowers to VBox");
 
         for (Map.Entry<Flower, byte[]> entry : flowerImageMap.entrySet()) {
@@ -151,11 +161,12 @@ public class SecondaryController {
             textBox.getChildren().addAll(name, price, desc, supply, quantitySpinner, addToCartButton);
             flowerBox.getChildren().addAll(imageView, textBox);
 
-            cachedFlowerNodes.add(flowerBox);              // Cache it
-            FlowerPageVbox.getChildren().add(flowerBox);   // Show it
+            cachedFlowerNodes.add(new Pair<>(flower, flowerBox));
+            FlowerPageVbox.getChildren().add(flowerBox);
         }
-
-        Platform.runLater(() -> FlowersScrollPane.setVvalue(1.0));
+        Platform.runLater(() -> {
+            FlowersScrollPane.setVvalue(0.0);
+        });
     }
 
     @org.greenrobot.eventbus.Subscribe
@@ -173,6 +184,31 @@ public class SecondaryController {
             }
         });
     }
+
+    public void sortByPrice() {
+        FlowerPageVbox.getChildren().clear();
+
+        if (Sorted.equals("Unsorted") || Sorted.equals("LowToHigh")) {
+            // Sort ascending
+            cachedFlowerNodes.sort(Comparator.comparing(pair -> pair.getKey().getPrice()));
+
+            for (Pair<Flower, HBox> pair : cachedFlowerNodes) {
+                FlowerPageVbox.getChildren().add(pair.getValue());
+            }
+
+            Sorted = "HighToLow";
+        } else if (Sorted.equals("HighToLow")) {
+            // Sort descending
+            cachedFlowerNodes.sort(Comparator.comparing((Pair<Flower, HBox> pair) -> pair.getKey().getPrice()).reversed());
+
+            for (Pair<Flower, HBox> pair : cachedFlowerNodes) {
+                FlowerPageVbox.getChildren().add(pair.getValue());
+            }
+            Sorted = "LowToHigh";
+        }
+        Platform.runLater(() -> FlowersScrollPane.setVvalue(0.0));
+    }
+
 
 
     public void setUserRole() {
@@ -215,7 +251,8 @@ public class SecondaryController {
         });
     }
 
-    public void LogOut(javafx.event.ActionEvent actionEvent) {
+    @FXML
+    public void LogOut(ActionEvent event) {
         try {
             StageManager.replaceScene("primary", "Authenticator");
             SimpleClient.getClient().sendToServer(new LogoutRequest(account));
@@ -334,6 +371,19 @@ public class SecondaryController {
         }
     }
 
+    @FXML
+    void RefreshCatalog(ActionEvent event) {
+        try {
+            SimpleClient.getClient().sendToServer("RefreshList");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    void SortCatalog(ActionEvent event) {
+        sortByPrice();
+    }
 
     @FXML
     void initialize() {
@@ -376,7 +426,11 @@ public class SecondaryController {
                         e.printStackTrace();
                     }
                 } else {
-                    FlowerPageVbox.getChildren().setAll(cachedFlowerNodes);
+                    FlowerPageVbox.getChildren().setAll(
+                            cachedFlowerNodes.stream()
+                                    .map(Pair::getValue) // get the HBox
+                                    .collect(Collectors.toList())
+                    );
                 }
             }
             else if (oldTab == FlowersTab) {
