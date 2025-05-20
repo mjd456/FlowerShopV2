@@ -33,10 +33,28 @@ import javafx.scene.layout.VBox;
 public class SecondaryController {
 
     @FXML
+    private Button BuyCartButton;
+
+    @FXML
     private AnchorPane CartAnchor;
 
     @FXML
+    private ScrollPane CartScrollPane;
+
+    @FXML
     private Tab CartTab;
+
+    @FXML
+    private AnchorPane FeedBackAnchor;
+
+    @FXML
+    private TextArea FeedBackDetails;
+
+    @FXML
+    private Tab FeedBackTab;
+
+    @FXML
+    private TextField FeedBackTitle;
 
     @FXML
     private VBox FlowerPageVbox;
@@ -51,28 +69,25 @@ public class SecondaryController {
     private Tab FlowersTab;
 
     @FXML
+    private Button LogOutButton;
+
+    @FXML
     private AnchorPane MainFrame;
 
     @FXML
     private TabPane MainTabsFrame;
 
     @FXML
-    private AnchorPane SettingsAnchor;
+    private ScrollPane ManagerCatalogSelector;
+
+    @FXML
+    private VBox ManagerCatalogSelectorVbox;
 
     @FXML
     private Tab ManagerPanel;
 
     @FXML
     private AnchorPane ManagerPanelAnchor;
-
-    @FXML
-    private Tab SettingsTab;
-
-    @FXML
-    private ScrollPane ManagerCatalogSelector;
-
-    @FXML
-    private VBox ManagerCatalogSelectorVbox;
 
     @FXML
     private Pane ManagerPanelPane;
@@ -84,13 +99,31 @@ public class SecondaryController {
     private Label ProfileSayHelloLabel;
 
     @FXML
-    private Button SortCatalogBtn;
+    private Button PushFeedBack;
 
     @FXML
     private Button RefreshCatalogBtn;
 
     @FXML
-    private Button LogOutButton;
+    private AnchorPane SettingsAnchor;
+
+    @FXML
+    private Tab SettingsTab;
+
+    @FXML
+    private Button SortCatalogBtn;
+
+    @FXML
+    private Label TotalFlowersLabel;
+
+    @FXML
+    private Label TotalFlowersNum;
+
+    @FXML
+    private Label TotalPriceLabel;
+
+    @FXML
+    private Label TotalPriceNum;
 
     private Tab[] ManagerTabs;
 
@@ -385,14 +418,33 @@ public class SecondaryController {
         sortByPrice();
     }
 
+
+    @FXML
+    void BuyFlowersFromCart(ActionEvent event) {
+
+    }
+
+
+    @FXML
+    void SendFeedBack(ActionEvent event) {
+
+    }
+
     @FXML
     void initialize() {
+        assert BuyCartButton != null : "fx:id=\"BuyCartButton\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CartAnchor != null : "fx:id=\"CartAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CartScrollPane != null : "fx:id=\"CartScrollPane\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CartTab != null : "fx:id=\"CartTab\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FeedBackAnchor != null : "fx:id=\"FeedBackAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FeedBackDetails != null : "fx:id=\"FeedBackDetails\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FeedBackTab != null : "fx:id=\"FeedBackTab\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FeedBackTitle != null : "fx:id=\"FeedBackTitle\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FlowerPageVbox != null : "fx:id=\"FlowerPageVbox\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FlowersAnchor != null : "fx:id=\"FlowersAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FlowersScrollPane != null : "fx:id=\"FlowersScrollPane\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FlowersTab != null : "fx:id=\"FlowersTab\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert LogOutButton != null : "fx:id=\"LogOutButton\" was not injected: check your FXML file 'secondary.fxml'.";
         assert MainFrame != null : "fx:id=\"MainFrame\" was not injected: check your FXML file 'secondary.fxml'.";
         assert MainTabsFrame != null : "fx:id=\"MainTabsFrame\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ManagerCatalogSelector != null : "fx:id=\"ManagerCatalogSelector\" was not injected: check your FXML file 'secondary.fxml'.";
@@ -401,8 +453,16 @@ public class SecondaryController {
         assert ManagerPanelAnchor != null : "fx:id=\"ManagerPanelAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ManagerPanelPane != null : "fx:id=\"ManagerPanelPane\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ManagerPanelScroll != null : "fx:id=\"ManagerPanelScroll\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ProfileSayHelloLabel != null : "fx:id=\"ProfileSayHelloLabel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PushFeedBack != null : "fx:id=\"PushFeedBack\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert RefreshCatalogBtn != null : "fx:id=\"RefreshCatalogBtn\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SettingsAnchor != null : "fx:id=\"SettingsAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SettingsTab != null : "fx:id=\"SettingsTab\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert SortCatalogBtn != null : "fx:id=\"SortCatalogBtn\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert TotalFlowersLabel != null : "fx:id=\"TotalFlowersLabel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert TotalFlowersNum != null : "fx:id=\"TotalFlowersNum\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert TotalPriceLabel != null : "fx:id=\"TotalPriceLabel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert TotalPriceNum != null : "fx:id=\"TotalPriceNum\" was not injected: check your FXML file 'secondary.fxml'.";
 
         ManagerTabs = new Tab[] {
                 ManagerPanel

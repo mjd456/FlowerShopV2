@@ -5,6 +5,8 @@
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.VBox?>
@@ -40,6 +42,19 @@
                         </ScrollPane>
                      </children></AnchorPane>
                </content>
+            </Tab>
+            <Tab fx:id="FeedBackTab" text="Feedback">
+              <content>
+                <AnchorPane fx:id="FeedBackAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                     <children>
+                        <Label layoutX="20.0" layoutY="36.0" text="Title :" />
+                        <TextField fx:id="FeedBackTitle" layoutX="20.0" layoutY="53.0" prefHeight="25.0" prefWidth="560.0" />
+                        <Label layoutX="21.0" layoutY="78.0" text="Details :" />
+                        <TextArea fx:id="FeedBackDetails" layoutX="20.0" layoutY="96.0" prefHeight="180.0" prefWidth="560.0" />
+                        <Button fx:id="PushFeedBack" layoutX="486.0" layoutY="288.0" mnemonicParsing="false" onAction="#SendFeedBack" text="Send feedback" />
+                     </children>
+                  </AnchorPane>
+              </content>
             </Tab>
             <Tab fx:id="SettingsTab" text="Profile/Settings">
                <content>
