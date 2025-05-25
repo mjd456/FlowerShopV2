@@ -97,4 +97,22 @@ public class SimpleClient extends AbstractClient {
 		}
 		return client;
 	}
+
+	public static SimpleClient getClient(String host, int port) throws IOException {
+		if (client == null) {
+			client = new SimpleClient(host, port);
+		} else {
+			// If existing client has different host/port, create new
+			if (!client.getHost().equals(host) || client.getPort() != port) {
+				client.closeConnection(); // Cleanup old connection
+				client = new SimpleClient(host, port);
+			}
+		}
+
+		if (!client.isConnected()) {
+			client.openConnection();
+		}
+
+		return client;
+	}
 }
