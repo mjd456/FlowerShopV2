@@ -26,11 +26,9 @@ public class App extends Application {
     @Override
     public void start(Stage stage) throws IOException {
     	EventBus.getDefault().register(this);
-    	client = SimpleClient.getClient();
-    	client.openConnection();
-        scene = new Scene(loadFXML("primary"));
+        scene = new Scene(loadFXML("ConnectServer"));
         primaryStage = stage;
-        primaryStage.setTitle("Authenticator");
+        primaryStage.setTitle("Set Connection");
         primaryStage.setScene(scene);
         primaryStage.setResizable(false);
         primaryStage.show();
@@ -86,6 +84,32 @@ public class App extends Application {
         primaryStage = stage;
     }
 
+    @org.greenrobot.eventbus.Subscribe
+    public void onTurnUpdate(ConnectToServerEvent event) {
+        Platform.runLater(() -> {
+            try {
+                client = event.getClientId();
+                client.openConnection();
+
+                scene = new Scene(loadFXML("primary"));
+                primaryStage.setScene(scene);
+                primaryStage.show();
+
+            } catch (IOException e) {
+                client = null;
+                e.printStackTrace();
+                showConnectionError("Failed to connect to the server:\n" + e.getMessage());
+            }
+        });
+    }
+
+    private void showConnectionError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Connection Error");
+        alert.setHeaderText("Could not connect to the server");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
 
     public static void main(String[] args) {
         launch();
