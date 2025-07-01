@@ -12,7 +12,7 @@ public class FeedBackSQL implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int feedback_id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "account_id", nullable = false)
     private Account account;
 

@@ -45,9 +45,6 @@ public class SecondaryController {
     private Tab CartTab;
 
     @FXML
-    private VBox CartVbox;
-
-    @FXML
     private Button ContinueToBuyButton;
 
     @FXML
@@ -57,10 +54,16 @@ public class SecondaryController {
     private TextArea FeedBackDetails;
 
     @FXML
+    private Label FeedBackLabelText;
+
+    @FXML
     private Tab FeedBackTab;
 
     @FXML
     private TextField FeedBackTitle;
+
+    @FXML
+    private Tab CustomerServicePanel;
 
     @FXML
     private VBox FlowerPageVbox;
@@ -120,6 +123,9 @@ public class SecondaryController {
     private Button ResetMyPasswordButton;
 
     @FXML
+    private VBox ResolvedFeedbackVBOX;
+
+    @FXML
     private AnchorPane SettingsAnchor;
 
     @FXML
@@ -129,7 +135,7 @@ public class SecondaryController {
     private Button SortCatalogBtn;
 
     @FXML
-    private Label FeedBackLabelText;
+    private VBox UnresolvedFeedbackVBOX;
 
     private Tab[] ManagerTabs;
 
@@ -441,6 +447,101 @@ public class SecondaryController {
         });
     }
 
+    @org.greenrobot.eventbus.Subscribe
+    public void onAllFeedBackInfo(AllFeedBackInfo event) {
+        javafx.application.Platform.runLater(() -> {
+            ResolvedFeedbackVBOX.getChildren().clear();
+            UnresolvedFeedbackVBOX.getChildren().clear();
+
+            for (FeedBackSQL feedback : event.getResponse().getFeedbacks()) {
+                VBox feedbackBox = new VBox();
+                feedbackBox.setSpacing(5);
+                feedbackBox.setStyle(
+                        "-fx-padding: 10;" +
+                                "-fx-border-color: #bdbdbd;" +
+                                "-fx-border-radius: 8;" +
+                                "-fx-background-color: #F7F7F7;" +
+                                "-fx-background-radius: 8;"
+                );
+                feedbackBox.setMinHeight(Region.USE_PREF_SIZE);
+                feedbackBox.setFocusTraversable(false);
+
+                Label titleLabel = new Label("Title: " + feedback.getTitle());
+                titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14;");
+
+                Label descLabel = new Label("Details: " + feedback.getDetails());
+                descLabel.setWrapText(true);
+
+                Label emailLabel = new Label("From: " + feedback.getAccount().getEmail());
+                emailLabel.setStyle("-fx-font-size: 12; -fx-text-fill: #2196F3;");
+
+                Label sentLabel = new Label("Sent: " + feedback.getSubmittedAt());
+                sentLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #888;");
+
+                feedbackBox.getChildren().addAll(titleLabel, descLabel, emailLabel, sentLabel);
+
+                if (feedback.getStatus() == FeedBackSQL.FeedbackStatus.Pending) {
+                    HBox buttons = new HBox();
+                    buttons.setSpacing(10);
+
+                    Button rejectBtn = new Button("Reject");
+                    rejectBtn.setStyle("-fx-background-color: #F44336; -fx-text-fill: white; -fx-font-weight: bold;");
+                    Button doneBtn = new Button("Done");
+                    doneBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;");
+
+                    // Add your button logic here, e.g.:
+                    rejectBtn.setOnAction(e -> markFeedbackRejected(feedback));
+                    doneBtn.setOnAction(e -> markFeedbackResolved(feedback));
+
+                    buttons.getChildren().addAll(rejectBtn, doneBtn);
+                    feedbackBox.getChildren().add(buttons);
+
+                    UnresolvedFeedbackVBOX.getChildren().add(feedbackBox);
+                } else {
+                    String statusText = (feedback.getStatus() == FeedBackSQL.FeedbackStatus.Resolved) ? "Resolved" : "Rejected";
+                    String statusColor = (feedback.getStatus() == FeedBackSQL.FeedbackStatus.Resolved) ? "#4CAF50" : "#F44336";
+                    Label statusLabel = new Label("Status: " + statusText);
+                    statusLabel.setStyle("-fx-font-size: 12; -fx-font-weight: bold; -fx-text-fill: " + statusColor + ";");
+
+                    Label resolvedLabel = null;
+                    if (feedback.getResolvedAt() != null) {
+                        resolvedLabel = new Label("At: " + feedback.getResolvedAt());
+                        resolvedLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #888;");
+                    }
+
+                    feedbackBox.getChildren().add(statusLabel);
+                    if (resolvedLabel != null) feedbackBox.getChildren().add(resolvedLabel);
+
+                    ResolvedFeedbackVBOX.getChildren().add(feedbackBox);
+                }
+            }
+        });
+    }
+    // Mark feedback as rejected and notify the server
+    private void markFeedbackRejected(FeedBackSQL feedback) {
+        try {
+            // You may want to show a confirmation dialog here!
+            feedback.setStatus(FeedBackSQL.FeedbackStatus.Rejected);
+            feedback.setResolvedAt(java.time.LocalDateTime.now());
+            // Send update to server
+            SimpleClient.getClient().sendToServer(new UpdateFeedbackStatusRequest(feedback.getFeedback_id(), FeedBackSQL.FeedbackStatus.Rejected));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Mark feedback as resolved and notify the server
+    private void markFeedbackResolved(FeedBackSQL feedback) {
+        try {
+            feedback.setStatus(FeedBackSQL.FeedbackStatus.Resolved);
+            feedback.setResolvedAt(java.time.LocalDateTime.now());
+            // Send update to server
+            SimpleClient.getClient().sendToServer(new UpdateFeedbackStatusRequest(feedback.getFeedback_id(), FeedBackSQL.FeedbackStatus.Resolved));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 
     @FXML
     void SendFeedBack(ActionEvent event) {
@@ -487,6 +588,16 @@ public class SecondaryController {
         FeedBackTitle.clear();
         FeedBackDetails.clear();
 
+    }
+
+
+    @FXML
+    void CustomerServiceGatherInfo(Event event) {
+        try {
+            SimpleClient.getClient().sendToServer("Send all Feedbacks");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 
@@ -550,6 +661,72 @@ public class SecondaryController {
         });
     }
 
+    @Subscribe
+    public void onNewFeedBack(NewFeedBack event) {
+        Platform.runLater(() -> {
+            // Extract the feedback entity from the event
+            FeedBackSQL feedback = event.getNotification().getFeedback();
+
+            // Build the feedback card
+            VBox feedbackBox = new VBox();
+            feedbackBox.setSpacing(5);
+            feedbackBox.setStyle(
+                    "-fx-padding: 10;" +
+                            "-fx-border-color: #FFC107;" + // Amber/yellow border for new
+                            "-fx-border-radius: 8;" +
+                            "-fx-background-color: #FFFBEA;" +
+                            "-fx-background-radius: 8;"
+            );
+            feedbackBox.setMinHeight(Region.USE_PREF_SIZE);
+            feedbackBox.setFocusTraversable(false);
+
+            // Title with *new badge
+            Label titleLabel = new Label("Title: " + feedback.getTitle() + "   *new");
+            titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14;");
+
+            // Details
+            Label detailsLabel = new Label("Details: " + feedback.getDetails());
+            detailsLabel.setWrapText(true);
+
+            // Sender email
+            Label emailLabel = new Label("From: " + feedback.getAccount().getEmail());
+            emailLabel.setStyle("-fx-font-size: 12; -fx-text-fill: #2196F3;");
+
+            // Sent time
+            Label sentLabel = new Label("Sent: " + feedback.getSubmittedAt());
+            sentLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #888;");
+
+            // Status
+            Label statusLabel = new Label("Status: " + feedback.getStatus());
+            statusLabel.setStyle("-fx-font-size: 12; -fx-font-style: italic;");
+
+            // Buttons for customer service actions
+            HBox buttons = new HBox();
+            buttons.setSpacing(10);
+
+            Button rejectBtn = new Button("Reject");
+            rejectBtn.setStyle("-fx-background-color: #F44336; -fx-text-fill: white; -fx-font-weight: bold;");
+            Button doneBtn = new Button("Done");
+            doneBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;");
+
+            rejectBtn.setOnAction(e -> markFeedbackRejected(feedback));
+            doneBtn.setOnAction(e -> markFeedbackResolved(feedback));
+            buttons.getChildren().addAll(rejectBtn, doneBtn);
+
+            // Add all components to the box
+            feedbackBox.getChildren().addAll(titleLabel, detailsLabel, emailLabel, sentLabel, statusLabel, buttons);
+
+            // Add to the bottom of the unresolved feedbacks
+            UnresolvedFeedbackVBOX.getChildren().add(feedbackBox);
+
+            // Optionally, scroll to the bottom to show the new feedback:
+            // If UnresolvedFeedbackVBOX is inside a ScrollPane, you can do:
+            // ((ScrollPane)UnresolvedFeedbackVBOX.getParent().getParent()).setVvalue(1.0);
+
+            // You might also want to highlight or fade out the "*new" after it's been seen or acted upon.
+        });
+    }
+
 
 
 
@@ -583,12 +760,15 @@ public class SecondaryController {
         assert PushFeedBack != null : "fx:id=\"PushFeedBack\" was not injected: check your FXML file 'secondary.fxml'.";
         assert RefreshCatalogBtn != null : "fx:id=\"RefreshCatalogBtn\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ResetMyPasswordButton != null : "fx:id=\"ResetMyPasswordButton\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ResolvedFeedbackVBOX != null : "fx:id=\"ResolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SettingsAnchor != null : "fx:id=\"SettingsAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SettingsTab != null : "fx:id=\"SettingsTab\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SortCatalogBtn != null : "fx:id=\"SortCatalogBtn\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert UnresolvedFeedbackVBOX != null : "fx:id=\"UnresolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
 
         ManagerTabs = new Tab[] {
-                ManagerPanel
+                ManagerPanel,
+                CustomerServicePanel
         };
 
         EventBus.getDefault().register(this);

@@ -88,6 +88,22 @@ public class SimpleClient extends AbstractClient {
 		else if (msg instanceof GetUserFeedbacksResponse) {
 			GetUserFeedbacksResponse UserFeedbacksResponse = (GetUserFeedbacksResponse) msg;
 			EventBus.getDefault().postSticky(new ProfileFeedBacks(UserFeedbacksResponse));		}
+		else if (msg instanceof GetAllFeedbacksResponse) {
+			GetAllFeedbacksResponse AllFeedbacksResponses = (GetAllFeedbacksResponse) msg;
+			EventBus.getDefault().postSticky(new AllFeedBackInfo(AllFeedbacksResponses));
+		}
+		else if (msg instanceof NewFeedbackNotification) {
+			System.out.println("New feedback notification feedback");
+			if (account != null ) {
+				System.out.println("Account not null");
+
+				if(!"Customer".equals(account.getAccountLevel())){
+					NewFeedbackNotification notification = (NewFeedbackNotification) msg;
+					System.out.println("New feedback notification feedbackv2");
+					EventBus.getDefault().postSticky(new NewFeedBack(notification));
+				}
+			}
+		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}

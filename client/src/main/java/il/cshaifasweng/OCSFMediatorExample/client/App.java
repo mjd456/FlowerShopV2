@@ -88,6 +88,7 @@ public class App extends Application {
     public void onTurnUpdate(ConnectToServerEvent event) {
         Platform.runLater(() -> {
             try {
+                SimpleClient.getClient().sendToServer("add client");
                 client = event.getClientId();
                 client.openConnection();
 
