@@ -24,6 +24,7 @@ public class ConnectServerController {
     public void TryConnect(ActionEvent event) {
         try {
             EventBus.getDefault().post(new ConnectToServerEvent(HostID.getText(), Integer.parseInt(PortID.getText())));
+
         } catch (RuntimeException e) {
             e.printStackTrace(); // For debugging in the console
 

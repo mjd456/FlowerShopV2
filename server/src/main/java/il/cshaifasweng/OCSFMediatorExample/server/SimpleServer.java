@@ -243,7 +243,24 @@ public class SimpleServer extends AbstractServer {
 				}
 			} else if (msgString.startsWith("RequestFlowerCatalogForManager")) {
 				sendToClientRefreshedList(client);
+			}else if (msgString.startsWith("Send all Feedbacks")) {
+				Session session = sessionFactory.openSession();
+				List<FeedBackSQL> allFeedbacks = new ArrayList<>();
+				try {
+					allFeedbacks = session.createQuery("FROM FeedBackSQL", FeedBackSQL.class).getResultList();
+				} catch (Exception e) {
+					e.printStackTrace();
+				} finally {
+					session.close();
+				}
+
+				try {
+					client.sendToClient(new GetAllFeedbacksResponse(allFeedbacks));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
+
 		}
 		else if (msg instanceof LoginRequest loginRequest) {
 			String email = loginRequest.getUsername();
@@ -449,6 +466,8 @@ public class SimpleServer extends AbstractServer {
 			Session session = sessionFactory.openSession();
 			Transaction tx = null;
 
+			FeedBackSQL feedbackEntity = null;
+
 			try {
 				tx = session.beginTransaction();
 
@@ -462,16 +481,24 @@ public class SimpleServer extends AbstractServer {
 				}
 
 				// Create the feedback entity with the managed Account instance
-				FeedBackSQL feedbackEntity = new FeedBackSQL(
+				feedbackEntity = new FeedBackSQL(
 						account,
 						feedbackMsg.getfeedbackTtitle(),
 						feedbackMsg.getfeedbackTdesc()
 				);
 
 				session.save(feedbackEntity);
+
+				// Eager-load account fields that will be needed by clients
+				feedbackEntity.getAccount().getEmail();
+
 				tx.commit();
 				System.out.println("Feedback succeeded for account: " + accountId);
 				client.sendToClient("Feedback added successfully");
+
+				// SOFT UPDATE: Send only the new feedback to all customer service clients
+				NewFeedbackNotification notif = new NewFeedbackNotification(feedbackEntity);
+				sendToAllClients(notif);
 
 			} catch (Exception e) {
 				if (tx != null) tx.rollback();
@@ -511,7 +538,41 @@ public class SimpleServer extends AbstractServer {
 				e.printStackTrace();
 			}
 		}
+		else if (msg instanceof UpdateFeedbackStatusRequest) {
+			UpdateFeedbackStatusRequest req = (UpdateFeedbackStatusRequest) msg;
+			int feedbackId = req.getFeedbackId();
+			FeedBackSQL.FeedbackStatus newStatus = req.getStatus();
 
+			Session session = sessionFactory.openSession();
+			Transaction tx = null;
+
+			try {
+				tx = session.beginTransaction();
+
+				// Fetch feedback by ID
+				FeedBackSQL feedback = session.get(FeedBackSQL.class, feedbackId);
+				if (feedback != null) {
+					feedback.setStatus(newStatus);
+					feedback.setResolvedAt(java.time.LocalDateTime.now());
+					session.update(feedback);
+					tx.commit();
+
+					// Optionally: Send updated feedbacks list back to client(s)
+					List<FeedBackSQL> allFeedbacks = session.createQuery("FROM FeedBackSQL", FeedBackSQL.class).getResultList();
+					client.sendToClient(new GetAllFeedbacksResponse(allFeedbacks));
+				} else {
+					client.sendToClient("Error: Feedback not found.");
+					if (tx != null) tx.rollback();
+				}
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+				try { client.sendToClient("Error updating feedback: " + e.getMessage()); }
+				catch (Exception ex) { ex.printStackTrace(); }
+			} finally {
+				session.close();
+			}
+		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}
