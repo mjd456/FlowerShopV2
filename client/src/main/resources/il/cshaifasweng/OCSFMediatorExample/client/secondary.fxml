@@ -40,6 +40,9 @@
                               <VBox prefHeight="6.0" prefWidth="535.0" />
                            </content>
                         </ScrollPane>
+                        <Label layoutX="29.0" layoutY="298.0" prefHeight="17.0" prefWidth="69.0" text="Total price : " />
+                        <Label fx:id="CartPriceLabel" layoutX="98.0" layoutY="298.0" prefHeight="17.0" prefWidth="51.0" text="[Price]" />
+                        <Button fx:id="ContinueToBuyButton" layoutX="506.0" layoutY="294.0" mnemonicParsing="false" onAction="#ContinueToBuy" text="Continue" />
                      </children></AnchorPane>
                </content>
             </Tab>
@@ -52,16 +55,38 @@
                         <Label layoutX="21.0" layoutY="78.0" text="Details :" />
                         <TextArea fx:id="FeedBackDetails" layoutX="20.0" layoutY="96.0" prefHeight="180.0" prefWidth="560.0" />
                         <Button fx:id="PushFeedBack" layoutX="486.0" layoutY="288.0" mnemonicParsing="false" onAction="#SendFeedBack" text="Send feedback" />
+                        <Label fx:id="FeedBackLabelText" alignment="CENTER" contentDisplay="CENTER" layoutX="21.0" layoutY="285.0" prefHeight="57.0" prefWidth="455.0" text="[Message]" visible="false" />
                      </children>
                   </AnchorPane>
               </content>
             </Tab>
-            <Tab fx:id="SettingsTab" text="Profile/Settings">
+            <Tab fx:id="SettingsTab" onSelectionChanged="#GetProfileInformation" text="Profile/Settings">
                <content>
                   <AnchorPane fx:id="SettingsAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
                      <children>
-                        <Label fx:id="ProfileSayHelloLabel" layoutX="20.0" layoutY="21.0" text="Hello [Name,]" />
-                        <Button fx:id="LogOutButton" layoutX="530.0" layoutY="17.0" mnemonicParsing="false" onAction="#LogOut" text="LogOut" />
+                        <ScrollPane fitToWidth="true" prefHeight="372.0" prefWidth="600.0">
+                           <content>
+                              <Pane prefHeight="687.0" prefWidth="585.0">
+                                 <children>
+                                    <Label fx:id="ProfileSayHelloLabel" layoutX="26.0" layoutY="21.0" text="Hello [Name,]" />
+                                    <Button fx:id="LogOutButton" layoutX="509.0" layoutY="17.0" mnemonicParsing="false" onAction="#LogOut" text="LogOut" />
+                                    <ScrollPane fitToWidth="true" layoutX="60.0" layoutY="93.0" prefHeight="222.0">
+                                       <content>
+                                          <VBox fx:id="PurchaseHistoryVbox" prefHeight="0.0" prefWidth="469.0" />
+                                       </content>
+                                    </ScrollPane>
+                                    <Button fx:id="ResetMyPasswordButton" layoutX="26.0" layoutY="38.0" mnemonicParsing="false" onAction="#ResetMyPassword" prefHeight="25.0" prefWidth="121.0" text="Reset password" />
+                                    <Label layoutX="249.0" layoutY="70.0" text="Purchase history" />
+                                    <ScrollPane fitToWidth="true" layoutX="60.0" layoutY="350.0" prefHeight="222.0">
+                                       <content>
+                                          <VBox fx:id="MyFeedbacksVbox" prefHeight="0.0" prefWidth="469.0" />
+                                       </content>
+                                    </ScrollPane>
+                                    <Label layoutX="251.0" layoutY="327.0" text="Your Feedbacks" />
+                                 </children>
+                              </Pane>
+                           </content>
+                        </ScrollPane>
                      </children></AnchorPane>
                </content>
             </Tab>
@@ -78,6 +103,7 @@
                                           <VBox fx:id="ManagerCatalogSelectorVbox" />
                                        </content>
                                     </ScrollPane>
+                                    <Label layoutX="252.0" layoutY="21.0" text="Modify catalog" />
                                  </children>
                               </Pane>
                            </content>

@@ -1,11 +1,11 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
-import il.cshaifasweng.OCSFMediatorExample.entities.Account;
-import il.cshaifasweng.OCSFMediatorExample.entities.Flower;
-import il.cshaifasweng.OCSFMediatorExample.entities.LogoutRequest;
-import il.cshaifasweng.OCSFMediatorExample.entities.UpdateFlowerRequest;
+import il.cshaifasweng.OCSFMediatorExample.entities.*;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -20,6 +20,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import javafx.scene.image.Image;
+import javafx.scene.paint.Color;
+import javafx.util.Duration;
 import javafx.util.Pair;
 import org.greenrobot.eventbus.EventBus;
 
@@ -29,20 +31,24 @@ import java.util.stream.Collectors;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import org.greenrobot.eventbus.Subscribe;
 
 public class SecondaryController {
-
-    @FXML
-    private Button BuyCartButton;
 
     @FXML
     private AnchorPane CartAnchor;
 
     @FXML
-    private ScrollPane CartScrollPane;
+    private Label CartPriceLabel;
 
     @FXML
     private Tab CartTab;
+
+    @FXML
+    private VBox CartVbox;
+
+    @FXML
+    private Button ContinueToBuyButton;
 
     @FXML
     private AnchorPane FeedBackAnchor;
@@ -96,13 +102,22 @@ public class SecondaryController {
     private ScrollPane ManagerPanelScroll;
 
     @FXML
+    private VBox MyFeedbacksVbox;
+
+    @FXML
     private Label ProfileSayHelloLabel;
+
+    @FXML
+    private VBox PurchaseHistoryVbox;
 
     @FXML
     private Button PushFeedBack;
 
     @FXML
     private Button RefreshCatalogBtn;
+
+    @FXML
+    private Button ResetMyPasswordButton;
 
     @FXML
     private AnchorPane SettingsAnchor;
@@ -114,16 +129,7 @@ public class SecondaryController {
     private Button SortCatalogBtn;
 
     @FXML
-    private Label TotalFlowersLabel;
-
-    @FXML
-    private Label TotalFlowersNum;
-
-    @FXML
-    private Label TotalPriceLabel;
-
-    @FXML
-    private Label TotalPriceNum;
+    private Label FeedBackLabelText;
 
     private Tab[] ManagerTabs;
 
@@ -242,8 +248,6 @@ public class SecondaryController {
         Platform.runLater(() -> FlowersScrollPane.setVvalue(0.0));
     }
 
-
-
     public void setUserRole() {
         String role = account.getAccountLevel();
 
@@ -271,7 +275,6 @@ public class SecondaryController {
         }
     }
 
-
     @org.greenrobot.eventbus.Subscribe
     public void onSetAccountLevel(SetAccountLevel event) {
         javafx.application.Platform.runLater(()-> {
@@ -282,6 +285,7 @@ public class SecondaryController {
             setUserRole();
         });
     }
+
 
     @FXML
     public void LogOut(ActionEvent event) {
@@ -419,24 +423,145 @@ public class SecondaryController {
 
 
     @FXML
-    void BuyFlowersFromCart(ActionEvent event) {
+    void ResetMyPassword(ActionEvent event) {
 
+    }
+
+    @FXML
+    void ContinueToBuy(ActionEvent event) {
+
+    }
+
+    @org.greenrobot.eventbus.Subscribe
+    public void onFeedBackSuccess(FeedBackSuccess event) {
+        javafx.application.Platform.runLater(() -> {
+            FeedBackLabelText.setTextFill(javafx.scene.paint.Color.GREEN);
+            FeedBackLabelText.setText("Your feedback has been received.");
+            FeedBackLabelText.setVisible(true);
+        });
     }
 
 
     @FXML
     void SendFeedBack(ActionEvent event) {
+        boolean valid = true;
+
+        // Reset styles
+        FeedBackTitle.setStyle("");
+        FeedBackDetails.setStyle("");
+
+        String title = FeedBackTitle.getText().trim();
+        String details = FeedBackDetails.getText().trim();
+
+        // Validation
+        if (title.isEmpty()) {
+            FeedBackTitle.setStyle("-fx-border-color: red;");
+            valid = false;
+        }
+
+        if (details.isEmpty()) {
+            FeedBackDetails.setStyle("-fx-border-color: red;");
+            valid = false;
+        }
+
+        if (!valid) {
+            FeedBackLabelText.setTextFill(Color.RED);
+            FeedBackLabelText.setText("Please fill all fields correctly.");
+            FeedBackLabelText.setVisible(true);
+            return;
+        }
+
+        // Create feedback object
+        Feedback feedback = new Feedback(account, title, details);
+
+        // Here you should insert the code to send the feedback object to the server
+        try {
+            SimpleClient.getClient().sendToServer(feedback);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        FeedBackLabelText.setVisible(false);
+
+        // Clear inputs after sending
+        FeedBackTitle.clear();
+        FeedBackDetails.clear();
 
     }
 
+
+    @FXML
+    void GetProfileInformation(Event event) {
+        try {
+            SimpleClient.getClient().sendToServer(new GetUserFeedbacksRequest(account.getId()));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Subscribe
+    public void onProfileFeedBacks(ProfileFeedBacks event) {
+        GetUserFeedbacksResponse response = event.getResponse();
+        Platform.runLater(() -> {
+            MyFeedbacksVbox.getChildren().clear();
+            for (FeedBackSQL feedback : response.getFeedbacks()) {
+                VBox feedbackBox = new VBox();
+                feedbackBox.setFocusTraversable(false);
+                feedbackBox.setSpacing(4);
+                feedbackBox.setStyle(
+                        "-fx-padding: 10;" +
+                                "-fx-border-color: #ccc;" + // Gray border, not blue
+                                "-fx-border-radius: 8;" +
+                                "-fx-background-color: #F5F7FA;" +
+                                "-fx-background-radius: 8;" +
+                                "-fx-effect: dropshadow(two-pass-box, rgba(33,150,243,0.05), 5, 0, 0, 2);"
+                );
+                feedbackBox.setMinHeight(Region.USE_PREF_SIZE);
+
+                Label titleLabel = new Label("Title: " + feedback.getTitle());
+                titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14;");
+                titleLabel.setWrapText(true);
+                titleLabel.setFocusTraversable(false);
+
+                Label detailsLabel = new Label("Details: " + feedback.getDetails());
+                detailsLabel.setWrapText(true); // Ensures multi-line
+                detailsLabel.setStyle("-fx-font-size: 13;");
+                detailsLabel.setFocusTraversable(false);
+
+                Label sentLabel = new Label("Sent: " + feedback.getSubmittedAt());
+                sentLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #888;");
+                sentLabel.setFocusTraversable(false);
+
+                Label statusLabel = new Label("Status: " + feedback.getStatus());
+                statusLabel.setStyle("-fx-font-size: 12; -fx-font-style: italic;");
+                statusLabel.setFocusTraversable(false);
+
+                feedbackBox.getChildren().addAll(titleLabel, detailsLabel, sentLabel, statusLabel);
+
+                if (feedback.getStatus() == FeedBackSQL.FeedbackStatus.Resolved && feedback.getResolvedAt() != null) {
+                    Label resolvedLabel = new Label("Resolved at: " + feedback.getResolvedAt());
+                    resolvedLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #4CAF50;");
+                    resolvedLabel.setFocusTraversable(false);
+                    feedbackBox.getChildren().add(resolvedLabel);
+                }
+
+                MyFeedbacksVbox.getChildren().add(feedbackBox);
+            }
+        });
+    }
+
+
+
+
     @FXML
     void initialize() {
-        assert BuyCartButton != null : "fx:id=\"BuyCartButton\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CartAnchor != null : "fx:id=\"CartAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert CartScrollPane != null : "fx:id=\"CartScrollPane\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CartPriceLabel != null : "fx:id=\"CartPriceLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CartTab != null : "fx:id=\"CartTab\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ContinueToBuyButton != null : "fx:id=\"ContinueToBuyButton\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FeedBackAnchor != null : "fx:id=\"FeedBackAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FeedBackDetails != null : "fx:id=\"FeedBackDetails\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FeedBackLabelText != null : "fx:id=\"FeedBackLabelText\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FeedBackTab != null : "fx:id=\"FeedBackTab\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FeedBackTitle != null : "fx:id=\"FeedBackTitle\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FlowerPageVbox != null : "fx:id=\"FlowerPageVbox\" was not injected: check your FXML file 'secondary.fxml'.";
@@ -452,16 +577,15 @@ public class SecondaryController {
         assert ManagerPanelAnchor != null : "fx:id=\"ManagerPanelAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ManagerPanelPane != null : "fx:id=\"ManagerPanelPane\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ManagerPanelScroll != null : "fx:id=\"ManagerPanelScroll\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert MyFeedbacksVbox != null : "fx:id=\"MyFeedbacksVbox\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ProfileSayHelloLabel != null : "fx:id=\"ProfileSayHelloLabel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PurchaseHistoryVbox != null : "fx:id=\"PurchaseHistoryVbox\" was not injected: check your FXML file 'secondary.fxml'.";
         assert PushFeedBack != null : "fx:id=\"PushFeedBack\" was not injected: check your FXML file 'secondary.fxml'.";
         assert RefreshCatalogBtn != null : "fx:id=\"RefreshCatalogBtn\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ResetMyPasswordButton != null : "fx:id=\"ResetMyPasswordButton\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SettingsAnchor != null : "fx:id=\"SettingsAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SettingsTab != null : "fx:id=\"SettingsTab\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SortCatalogBtn != null : "fx:id=\"SortCatalogBtn\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert TotalFlowersLabel != null : "fx:id=\"TotalFlowersLabel\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert TotalFlowersNum != null : "fx:id=\"TotalFlowersNum\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert TotalPriceLabel != null : "fx:id=\"TotalPriceLabel\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert TotalPriceNum != null : "fx:id=\"TotalPriceNum\" was not injected: check your FXML file 'secondary.fxml'.";
 
         ManagerTabs = new Tab[] {
                 ManagerPanel

@@ -2,7 +2,6 @@ package il.cshaifasweng.OCSFMediatorExample.server;
 
 import jakarta.mail.*;
 import jakarta.mail.internet.*;
-
 import java.util.Properties;
 
 public class EmailSender {
