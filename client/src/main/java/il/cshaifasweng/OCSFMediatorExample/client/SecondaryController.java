@@ -261,14 +261,13 @@ public class SecondaryController {
             Platform.runLater(() -> {
                 MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
                     if (newTab == ManagerPanel) {
-                        // 👇 Ask server for flower list
+
                         try {
                             SimpleClient.getClient().sendToServer("RequestFlowerCatalogForManager");
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
                     } else if (oldTab == ManagerPanel) {
-                        // 👇 Clear flower catalog from UI to save memory
                         ManagerCatalogSelectorVbox.getChildren().clear();
                     }
                 });
