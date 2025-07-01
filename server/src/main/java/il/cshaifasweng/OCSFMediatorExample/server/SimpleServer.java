@@ -32,6 +32,7 @@ public class SimpleServer extends AbstractServer {
 
 	@Override
 	protected void handleMessageFromClient(Object msg, ConnectionToClient client) {
+		System.out.println("Message received: " + msg.getClass());
 
 		if (msg instanceof String msgString) {
 			if (msgString.startsWith("#warning")) {
@@ -442,6 +443,74 @@ public class SimpleServer extends AbstractServer {
 				if (session != null) session.close();
 			}
 		}
+		else if (msg instanceof Feedback) {
+			Feedback feedbackMsg = (Feedback) msg;
+
+			Session session = sessionFactory.openSession();
+			Transaction tx = null;
+
+			try {
+				tx = session.beginTransaction();
+
+				// Always fetch the Account from the DB using the ID sent from the client
+				int accountId = feedbackMsg.getAccount().getId();
+				Account account = session.get(Account.class, accountId);
+				if (account == null) {
+					client.sendToClient("Error: Account not found in database.");
+					tx.rollback();
+					return;
+				}
+
+				// Create the feedback entity with the managed Account instance
+				FeedBackSQL feedbackEntity = new FeedBackSQL(
+						account,
+						feedbackMsg.getfeedbackTtitle(),
+						feedbackMsg.getfeedbackTdesc()
+				);
+
+				session.save(feedbackEntity);
+				tx.commit();
+				System.out.println("Feedback succeeded for account: " + accountId);
+				client.sendToClient("Feedback added successfully");
+
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+				try {
+					client.sendToClient("Error adding feedback: " + e.getMessage());
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+			} finally {
+				session.close();
+			}
+		}
+		else if (msg instanceof GetUserFeedbacksRequest) {
+			GetUserFeedbacksRequest req = (GetUserFeedbacksRequest) msg;
+			int accountId = req.getAccountId();
+			List<FeedBackSQL> feedbacks = null;
+
+			Session session = sessionFactory.openSession();
+			try {
+				// Query all feedbacks for this account, order by submission time (newest first)
+				feedbacks = session.createQuery(
+								"FROM FeedBackSQL WHERE account.id = :id ORDER BY submittedAt DESC", FeedBackSQL.class)
+						.setParameter("id", accountId)
+						.getResultList();
+			} catch (Exception e) {
+				e.printStackTrace();
+				// Optionally send error message to client here
+			} finally {
+				session.close();
+			}
+
+			// Wrap in response object and send to client
+			try {
+				client.sendToClient(new GetUserFeedbacksResponse(feedbacks));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
 
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
@@ -501,6 +570,7 @@ public class SimpleServer extends AbstractServer {
 		configuration.addAnnotatedClass(Flower.class);
 		configuration.addAnnotatedClass(PasswordResetCode.class);
 		configuration.addAnnotatedClass(PasswordHistory.class);
+		configuration.addAnnotatedClass(FeedBackSQL.class);
 
 		ServiceRegistry serviceRegistry = (new StandardServiceRegistryBuilder()).applySettings(configuration.getProperties()).build();
 		return configuration.buildSessionFactory(serviceRegistry);

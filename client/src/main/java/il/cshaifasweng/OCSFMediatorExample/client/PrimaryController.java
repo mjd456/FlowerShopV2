@@ -23,9 +23,7 @@ public class PrimaryController {
 	@FXML
 	private URL location;
 
-
 	/* ---------- FXML-injected fields ---------- */
-
 
 	@FXML
 	private Button BackBtn;
@@ -260,13 +258,10 @@ public class PrimaryController {
 		ErrorSignUpLabel.setVisible(true);
 	}
 
-
-
 	@FXML
 	void ContinueAsGuest(ActionEvent event) {
 
 	}
-
 
 	@FXML
 	void Login(ActionEvent event) {

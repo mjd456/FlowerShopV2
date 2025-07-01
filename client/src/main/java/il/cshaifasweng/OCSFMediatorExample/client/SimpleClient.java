@@ -1,9 +1,6 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
-import com.sun.source.tree.TryTree;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
 import org.greenrobot.eventbus.EventBus;
 
 import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
@@ -78,6 +75,8 @@ public class SimpleClient extends AbstractClient {
 				EventBus.getDefault().post(new ChangingPasswordSuccess());
 			} else if (message.startsWith("Logout successful")) {
 				account = null;
+			}else if (message.startsWith("Feedback added successfully")) {
+				EventBus.getDefault().post(new FeedBackSuccess());
 			}
 		}
 		else if (msg instanceof Map<?, ?> map && map.keySet().iterator().next() instanceof Flower) {
@@ -86,6 +85,9 @@ public class SimpleClient extends AbstractClient {
 			System.out.println("Registered subscribers: " + EventBus.getDefault().hasSubscriberForEvent(FlowerListEventBus.class));
 			EventBus.getDefault().postSticky(new FlowerListEventBus(flowerImageMap));
 		}
+		else if (msg instanceof GetUserFeedbacksResponse) {
+			GetUserFeedbacksResponse UserFeedbacksResponse = (GetUserFeedbacksResponse) msg;
+			EventBus.getDefault().postSticky(new ProfileFeedBacks(UserFeedbacksResponse));		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}
