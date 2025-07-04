@@ -104,6 +104,14 @@ public class SimpleClient extends AbstractClient {
 				}
 			}
 		}
+		else if (msg instanceof UpdateFlowerNotification notification) {
+			Flower updatedFlower = notification.getFlower();
+			byte[] imageData = notification.getImageData();
+
+			// Call your update function!
+			EventBus.getDefault().postSticky(new updatedFlowerNotif(updatedFlower));
+			// If updating image: updateFlowerCardInVBox(updatedFlower, imageData);
+		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}

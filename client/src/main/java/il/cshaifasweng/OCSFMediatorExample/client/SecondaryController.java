@@ -157,7 +157,7 @@ public class SecondaryController {
             byte[] imageData = entry.getValue();
 
             HBox flowerBox = new HBox(10);
-            flowerBox.setStyle("-fx-border-color: lightgray; -fx-background-color: white;");
+            flowerBox.setStyle("-fx-border-color: #244060;");
             flowerBox.setPadding(new Insets(10));
             flowerBox.setAlignment(Pos.CENTER_LEFT);
             flowerBox.setPrefHeight(140);
@@ -309,7 +309,7 @@ public class SecondaryController {
 
         for (Flower flower : flowerList) {
             VBox flowerBox = new VBox(5);
-            flowerBox.setStyle("-fx-border-color: gray; -fx-padding: 10; -fx-background-color: #f0f0f0;");
+            flowerBox.setStyle("-fx-border-color: #4D8DFF; -fx-padding: 10;");
             flowerBox.setMaxWidth(Double.MAX_VALUE); // 🔁 makes it expand fully
             VBox.setVgrow(flowerBox, Priority.ALWAYS);
 
@@ -321,7 +321,7 @@ public class SecondaryController {
             Button editBtn = new Button("Edit");
             VBox editPane = new VBox(5);
             editPane.setVisible(false);
-            editPane.setStyle("-fx-background-color: #ffffff; -fx-padding: 10;");
+            editPane.setStyle("-fx-padding: 10;");
             editPane.setMaxWidth(Double.MAX_VALUE); // 👈 important for inner content
 
             TextField nameField = new TextField(flower.getName());
@@ -427,7 +427,6 @@ public class SecondaryController {
         sortByPrice();
     }
 
-
     @FXML
     void ResetMyPassword(ActionEvent event) {
 
@@ -458,9 +457,8 @@ public class SecondaryController {
                 feedbackBox.setSpacing(5);
                 feedbackBox.setStyle(
                         "-fx-padding: 10;" +
-                                "-fx-border-color: #bdbdbd;" +
+                                "-fx-border-color: #4D8DFF;" +
                                 "-fx-border-radius: 8;" +
-                                "-fx-background-color: #F7F7F7;" +
                                 "-fx-background-radius: 8;"
                 );
                 feedbackBox.setMinHeight(Region.USE_PREF_SIZE);
@@ -517,6 +515,7 @@ public class SecondaryController {
             }
         });
     }
+
     // Mark feedback as rejected and notify the server
     private void markFeedbackRejected(FeedBackSQL feedback) {
         try {
@@ -541,7 +540,6 @@ public class SecondaryController {
             e.printStackTrace();
         }
     }
-
 
     @FXML
     void SendFeedBack(ActionEvent event) {
@@ -572,10 +570,8 @@ public class SecondaryController {
             return;
         }
 
-        // Create feedback object
         Feedback feedback = new Feedback(account, title, details);
 
-        // Here you should insert the code to send the feedback object to the server
         try {
             SimpleClient.getClient().sendToServer(feedback);
         } catch (Exception e) {
@@ -590,7 +586,6 @@ public class SecondaryController {
 
     }
 
-
     @FXML
     void CustomerServiceGatherInfo(Event event) {
         try {
@@ -599,7 +594,6 @@ public class SecondaryController {
             e.printStackTrace();
         }
     }
-
 
     @FXML
     void GetProfileInformation(Event event) {
@@ -621,9 +615,8 @@ public class SecondaryController {
                 feedbackBox.setSpacing(4);
                 feedbackBox.setStyle(
                         "-fx-padding: 10;" +
-                                "-fx-border-color: #ccc;" + // Gray border, not blue
+                                "-fx-border-color: #4D8DFF;" + // Gray border, not blue
                                 "-fx-border-radius: 8;" +
-                                "-fx-background-color: #F5F7FA;" +
                                 "-fx-background-radius: 8;" +
                                 "-fx-effect: dropshadow(two-pass-box, rgba(33,150,243,0.05), 5, 0, 0, 2);"
                 );
@@ -664,43 +657,31 @@ public class SecondaryController {
     @Subscribe
     public void onNewFeedBack(NewFeedBack event) {
         Platform.runLater(() -> {
-            // Extract the feedback entity from the event
             FeedBackSQL feedback = event.getNotification().getFeedback();
 
-            // Build the feedback card
             VBox feedbackBox = new VBox();
             feedbackBox.setSpacing(5);
             feedbackBox.setStyle(
                     "-fx-padding: 10;" +
-                            "-fx-border-color: #FFC107;" + // Amber/yellow border for new
+                            "-fx-border-color: #00e2ff;" +
                             "-fx-border-radius: 8;" +
-                            "-fx-background-color: #FFFBEA;" +
                             "-fx-background-radius: 8;"
             );
             feedbackBox.setMinHeight(Region.USE_PREF_SIZE);
             feedbackBox.setFocusTraversable(false);
 
-            // Title with *new badge
-            Label titleLabel = new Label("Title: " + feedback.getTitle() + "   *new");
+            Label titleLabel = new Label("Title: " + feedback.getTitle() + "  | New");
             titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14;");
 
-            // Details
             Label detailsLabel = new Label("Details: " + feedback.getDetails());
             detailsLabel.setWrapText(true);
 
-            // Sender email
             Label emailLabel = new Label("From: " + feedback.getAccount().getEmail());
             emailLabel.setStyle("-fx-font-size: 12; -fx-text-fill: #2196F3;");
 
-            // Sent time
             Label sentLabel = new Label("Sent: " + feedback.getSubmittedAt());
             sentLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #888;");
 
-            // Status
-            Label statusLabel = new Label("Status: " + feedback.getStatus());
-            statusLabel.setStyle("-fx-font-size: 12; -fx-font-style: italic;");
-
-            // Buttons for customer service actions
             HBox buttons = new HBox();
             buttons.setSpacing(10);
 
@@ -713,22 +694,47 @@ public class SecondaryController {
             doneBtn.setOnAction(e -> markFeedbackResolved(feedback));
             buttons.getChildren().addAll(rejectBtn, doneBtn);
 
-            // Add all components to the box
-            feedbackBox.getChildren().addAll(titleLabel, detailsLabel, emailLabel, sentLabel, statusLabel, buttons);
+            feedbackBox.getChildren().addAll(titleLabel, detailsLabel, emailLabel, sentLabel, buttons);
 
-            // Add to the bottom of the unresolved feedbacks
             UnresolvedFeedbackVBOX.getChildren().add(feedbackBox);
-
-            // Optionally, scroll to the bottom to show the new feedback:
-            // If UnresolvedFeedbackVBOX is inside a ScrollPane, you can do:
-            // ((ScrollPane)UnresolvedFeedbackVBOX.getParent().getParent()).setVvalue(1.0);
-
-            // You might also want to highlight or fade out the "*new" after it's been seen or acted upon.
         });
     }
 
+    public void updateFlowerCardInVBox(Flower updatedFlower) {
+        for (int i = 0; i < cachedFlowerNodes.size(); i++) {
+            Pair<Flower, HBox> pair = cachedFlowerNodes.get(i);
+            Flower flower = pair.getKey();
+            if (flower.getId() == updatedFlower.getId()) {
+                HBox flowerBox = pair.getValue();
 
+                VBox textBox = (VBox) flowerBox.getChildren().get(1);
 
+                Label nameLabel = (Label) textBox.getChildren().get(0);
+                Label priceLabel = (Label) textBox.getChildren().get(1);
+                Label descLabel = (Label) textBox.getChildren().get(2);
+                Label supplyLabel = (Label) textBox.getChildren().get(3);
+                Spinner<Integer> quantitySpinner = (Spinner<Integer>) textBox.getChildren().get(4);
+
+                nameLabel.setText("Name: " + updatedFlower.getName());
+                priceLabel.setText("Price: $" + updatedFlower.getPrice());
+                descLabel.setText("Description: " + updatedFlower.getDescription());
+                supplyLabel.setText("Supply: " + updatedFlower.getSupply());
+                quantitySpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(
+                        1, updatedFlower.getSupply(), 1
+                ));
+
+                cachedFlowerNodes.set(i, new Pair<>(updatedFlower, flowerBox));
+                break;
+            }
+        }
+    }
+
+    @org.greenrobot.eventbus.Subscribe
+    public void onUpdatedFlowerNotif(updatedFlowerNotif event) {
+        javafx.application.Platform.runLater(() -> {
+            updateFlowerCardInVBox(event.getUpdatedFlower());
+        });
+    }
 
     @FXML
     void initialize() {
@@ -781,7 +787,6 @@ public class SecondaryController {
 
         MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (newTab == FlowersTab) {
-                // Refresh view when user comes back to the tab
                 if (cachedFlowerNodes.isEmpty()) {
                     try {
                         SimpleClient.getClient().sendToServer("RefreshList");
@@ -797,7 +802,6 @@ public class SecondaryController {
                 }
             }
             else if (oldTab == FlowersTab) {
-                // Clear UI to save memory
                 System.out.println("Removing flowers");
                 FlowerPageVbox.getChildren().clear();
                 cachedFlowerNodes.clear();

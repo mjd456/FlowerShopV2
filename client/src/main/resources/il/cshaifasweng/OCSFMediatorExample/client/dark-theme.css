@@ -1,0 +1,192 @@
+/* === BASE BACKGROUND & CONTAINERS === */
+.root, .anchor-pane, .tab-pane, .pane, .scroll-pane, .vbox, .hbox {
+    -fx-background-color: #181A1B;
+    -fx-text-fill: #F0F0F3;
+}
+
+/* === PANES === */
+.pane, .anchor-pane {
+    -fx-background-color: #181A1B;
+}
+
+/* === SCROLLPANE WITH DISTINCT BORDER === */
+.scroll-pane {
+    -fx-background-color: #181A1B;
+    -fx-border-color: #244060;  /* Dark, subtle blue */
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 0;
+}
+.scroll-pane .viewport {
+    -fx-background-color: #181A1B;
+    -fx-border-radius: 8px;
+}
+.scroll-bar, .scroll-bar .thumb {
+    -fx-background-color: #232846;
+}
+.scroll-bar .increment-arrow, .scroll-bar .decrement-arrow {
+    -fx-background-color: #22252B;
+}
+
+/* === TABS === */
+.tab-pane .tab-header-background {
+    -fx-background-color: #181A1B;
+}
+
+.tab {
+    -fx-background-color: #232846;
+    -fx-border-color: #232846;
+    -fx-border-width: 0 0 1px 0;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.tab .tab-label {
+    -fx-text-fill: #B0B9FF;
+    -fx-font-size: 13px;
+}
+
+.tab:selected {
+    -fx-background-color: #334467;       /* Brighter, but still dark */
+    -fx-border-color: #3883FF;           /* Thin blue border on active tab */
+    -fx-border-width: 0 0 2px 0;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+.tab:selected .tab-label {
+    -fx-text-fill: #FFFFFF;              /* White for maximum contrast */
+    -fx-font-weight: bold;
+}
+
+.tab:disabled .tab-label {
+    -fx-text-fill: #555e88;
+    -fx-opacity: 1.0;
+}
+.tab:disabled {
+    -fx-background-color: #23232B;
+}
+
+
+/* === LABELS === */
+.label {
+    -fx-text-fill: #F0F0F3;
+}
+.label:disabled {
+    -fx-text-fill: #7d8190;
+    -fx-opacity: 1.0;
+}
+
+/* === CARD / PRODUCT STYLE === */
+.card, .product-card, .flower-card {
+    -fx-background-color: #202228;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
+    -fx-padding: 15px;
+    -fx-border-color: #244060;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, #00000055, 7,0,0,3);
+}
+
+/* === BUTTONS: FLAT, SMALLER, DARKER BORDER === */
+.button {
+    -fx-font-size: 11px;
+    -fx-padding: 4 12 4 12;   /* smaller horizontal padding */
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-background-color: #232846;
+    -fx-border-color: #244060;
+    -fx-border-width: 0 0 1px 0;
+    -fx-text-fill: #B0B9FF;
+    -fx-font-weight: normal;
+    -fx-effect: none;
+    -fx-cursor: hand;
+    -fx-background-insets: 0;
+    -fx-focus-color: transparent;
+    -fx-opacity: 1.0;
+}
+.button:hover {
+    -fx-background-color: #244060;
+    -fx-text-fill: #fff;
+    -fx-border-color: #4D8DFF;
+}
+.button:pressed {
+    -fx-background-color: #12243B;
+    -fx-text-fill: #B0B9FF;
+}
+.button:disabled {
+    -fx-background-color: #232846;
+    -fx-text-fill: #545a78;
+    -fx-border-color: #232846;
+    -fx-opacity: 0.7;
+}
+
+/* === SPINNER & COMBO BOX === */
+.spinner .increment-arrow-button,
+.spinner .decrement-arrow-button,
+.combo-box-base {
+    -fx-background-color: #232846;
+    -fx-text-fill: #3883FF;
+    -fx-border-radius: 4;
+}
+.spinner .text-field, .combo-box .text-field {
+    -fx-background-color: #22252B;
+    -fx-text-fill: #F0F0F3;
+    -fx-border-color: #244060;
+    -fx-border-radius: 5;
+}
+.spinner .text-field:focused, .combo-box .text-field:focused {
+    -fx-border-color: #4D8DFF;
+}
+
+/* === TEXT FIELDS & TEXT AREAS === */
+.text-field, .text-area, .text-area .content {
+    -fx-background-color: #22252B;
+    -fx-text-fill: #F0F0F3;
+    -fx-border-color: #244060;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-highlight-fill: #3883FF33;
+    -fx-highlight-text-fill: #fff;
+    -fx-prompt-text-fill: #888fa8;
+}
+.text-field:focused, .text-area:focused {
+    -fx-border-color: #4D8DFF;
+}
+.text-area .scroll-bar, .text-area .scroll-bar .thumb {
+    -fx-background-color: #232846;
+}
+
+/* === DARK BLUE SCROLLBAR STYLE === */
+
+/* Whole scrollbar track */
+.scroll-bar {
+    -fx-background-color: #181A1B; /* Matches your dark base */
+    -fx-background-insets: 0;
+}
+
+/* Scrollbar "thumb" (the part you drag) */
+.scroll-bar .thumb {
+    -fx-background-color: #244060; /* Dark blue thumb */
+    -fx-background-radius: 8px;
+    -fx-effect: dropshadow(gaussian, #10182866, 3,0,0,1);
+}
+
+/* Optionally, style the buttons (arrows) at the ends */
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: #232846;
+    -fx-background-radius: 8px;
+}
+
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow {
+    -fx-background-color: #334467; /* lighter blue for arrows */
+    -fx-shape: "M0,0 L0,4 L4,2 Z"; /* simple triangle, default is OK */
+}
+
+
+/* === VBOX/HBOX LAYOUT SPACING === */
+.vbox > *, .hbox > * {
+    -fx-margin-bottom: 10px;
+}

@@ -92,17 +92,17 @@
             </Tab>
             <Tab fx:id="CustomerServicePanel" onSelectionChanged="#CustomerServiceGatherInfo" text="Customer-Service panel">
                <content>
-                  <ScrollPane prefHeight="200.0" prefWidth="200.0">
+                  <ScrollPane fitToWidth="true" prefHeight="200.0" prefWidth="200.0">
                      <content>
-                        <Pane prefHeight="714.0" prefWidth="600.0">
+                        <Pane prefHeight="714.0" prefWidth="594.0">
                            <children>
-                              <ScrollPane layoutX="54.0" layoutY="30.0" prefHeight="296.0" prefWidth="492.0">
+                              <ScrollPane fitToWidth="true" layoutX="54.0" layoutY="30.0" prefHeight="296.0" prefWidth="492.0">
                                  <content>
                                     <VBox fx:id="UnresolvedFeedbackVBOX" prefHeight="2.0" prefWidth="489.0" />
                                  </content>
                               </ScrollPane>
                               <Label layoutX="241.0" layoutY="14.0" text="Unresolved Feedbacks" />
-                              <ScrollPane layoutX="54.0" layoutY="367.0" prefHeight="296.0" prefWidth="492.0">
+                              <ScrollPane fitToWidth="true" layoutX="54.0" layoutY="367.0" prefHeight="296.0" prefWidth="492.0">
                                  <content>
                                     <VBox fx:id="ResolvedFeedbackVBOX" prefHeight="2.0" prefWidth="489.0" />
                                  </content>

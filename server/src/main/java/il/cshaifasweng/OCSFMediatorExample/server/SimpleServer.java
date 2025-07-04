@@ -414,6 +414,16 @@ public class SimpleServer extends AbstractServer {
 
 					tx.commit();
 					System.out.println("Updated flower in database: " + flowerInDb.getName());
+
+					// Notify all clients (except maybe the manager who sent the update, if you want)
+					UpdateFlowerNotification notification = new UpdateFlowerNotification(flowerInDb);
+					for (SubscribedClient sub : SubscribersList) {
+						try {
+							sub.getClient().sendToClient(notification);
+						} catch (Exception ex) {
+							ex.printStackTrace();
+						}
+					}
 				} else {
 					System.err.println("Flower with ID " + updatedData.getId() + " not found in DB.");
 				}
@@ -425,6 +435,7 @@ public class SimpleServer extends AbstractServer {
 				if (session != null) session.close();
 			}
 		}
+
 		else if (msg instanceof LogoutRequest logoutRequest) {
 			System.out.println("Logout request from client"); // ✅ Confirm this prints
 
