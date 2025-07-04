@@ -756,6 +756,7 @@ public class SecondaryController {
                     "-fx-padding: 10;" +
                             "-fx-border-color: #00e2ff;" +
                             "-fx-border-radius: 8;" +
+                            "-fx-background-color: #2b373e;" +
                             "-fx-background-radius: 8;"
             );
             feedbackBox.setMinHeight(Region.USE_PREF_SIZE);
