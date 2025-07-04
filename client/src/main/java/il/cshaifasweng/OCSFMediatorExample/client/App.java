@@ -27,6 +27,7 @@ public class App extends Application {
     public void start(Stage stage) throws IOException {
     	EventBus.getDefault().register(this);
         scene = new Scene(loadFXML("ConnectServer"));
+        scene.getStylesheets().add(getClass().getResource("dark-theme.css").toExternalForm());
         primaryStage = stage;
         primaryStage.setTitle("Set Connection");
         primaryStage.setScene(scene);
@@ -93,6 +94,7 @@ public class App extends Application {
                 client.openConnection();
 
                 scene = new Scene(loadFXML("primary"));
+                scene.getStylesheets().add(getClass().getResource("dark-theme.css").toExternalForm());
                 primaryStage.setScene(scene);
                 primaryStage.show();
 

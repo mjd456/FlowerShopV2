@@ -20,7 +20,7 @@ public class StageManager {
 
                 // Create a new scene
                 Scene scene = new Scene(root);
-
+                scene.getStylesheets().add(App.class.getResource("dark-theme.css").toExternalForm());
                 // Create a new stage
                 Stage newStage = new Stage();
                 newStage.setTitle(title);
