@@ -6,6 +6,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
 import java.io.IOException;
 
@@ -23,6 +24,7 @@ public class StageManager {
                 scene.getStylesheets().add(App.class.getResource("dark-theme.css").toExternalForm());
                 // Create a new stage
                 Stage newStage = new Stage();
+                newStage.initStyle(StageStyle.UNDECORATED);
                 newStage.setTitle(title);
                 newStage.setScene(scene);
                 newStage.setResizable(false);

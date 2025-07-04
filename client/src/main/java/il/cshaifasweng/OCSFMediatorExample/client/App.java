@@ -93,7 +93,11 @@ public class App extends Application {
                 client = event.getClientId();
                 client.openConnection();
 
-                scene = new Scene(loadFXML("primary"));
+                try {
+                    StageManager.replaceScene("primary", "Secondary Window");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 scene.getStylesheets().add(getClass().getResource("dark-theme.css").toExternalForm());
                 primaryStage.setScene(scene);
                 primaryStage.show();

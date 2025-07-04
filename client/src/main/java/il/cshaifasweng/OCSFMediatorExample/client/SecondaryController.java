@@ -15,12 +15,14 @@ import javafx.scene.layout.*;
 
 import javafx.scene.image.ImageView;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.Pair;
 import org.greenrobot.eventbus.EventBus;
@@ -36,6 +38,9 @@ import org.greenrobot.eventbus.Subscribe;
 public class SecondaryController {
 
     @FXML
+    private Button CancelRenewButton;
+
+    @FXML
     private AnchorPane CartAnchor;
 
     @FXML
@@ -45,7 +50,16 @@ public class SecondaryController {
     private Tab CartTab;
 
     @FXML
+    private Button CloseBtn;
+
+    @FXML
     private Button ContinueToBuyButton;
+
+    @FXML
+    private HBox CustomTitleBar;
+
+    @FXML
+    private Tab CustomerServicePanel;
 
     @FXML
     private AnchorPane FeedBackAnchor;
@@ -63,9 +77,6 @@ public class SecondaryController {
     private TextField FeedBackTitle;
 
     @FXML
-    private Tab CustomerServicePanel;
-
-    @FXML
     private VBox FlowerPageVbox;
 
     @FXML
@@ -78,10 +89,10 @@ public class SecondaryController {
     private Tab FlowersTab;
 
     @FXML
-    private Button LogOutButton;
+    private Label FreeUserLabel;
 
     @FXML
-    private AnchorPane MainFrame;
+    private Button LogOutButton;
 
     @FXML
     private TabPane MainTabsFrame;
@@ -105,19 +116,40 @@ public class SecondaryController {
     private ScrollPane ManagerPanelScroll;
 
     @FXML
+    private Button MinimizeBtn;
+
+    @FXML
+    private ScrollPane MyFeedBackScrollFrane;
+
+    @FXML
+    private Label MyFeedBacksText;
+
+    @FXML
     private VBox MyFeedbacksVbox;
 
     @FXML
+    private Label PlusLabelPayment;
+
+    @FXML
+    private Button PlusUpgradeButton;
+
+    @FXML
+    private Label PlusUserLabel;
+
+    @FXML
     private Label ProfileSayHelloLabel;
+
+    @FXML
+    private ScrollPane PurchaseHistoryScrollFrame;
+
+    @FXML
+    private Label PurchaseHistoryText;
 
     @FXML
     private VBox PurchaseHistoryVbox;
 
     @FXML
     private Button PushFeedBack;
-
-    @FXML
-    private Button RefreshCatalogBtn;
 
     @FXML
     private Button ResetMyPasswordButton;
@@ -135,11 +167,22 @@ public class SecondaryController {
     private Button SortCatalogBtn;
 
     @FXML
+    private Label SubscribtionLevelLabel;
+
+    @FXML
     private VBox UnresolvedFeedbackVBOX;
+
+
+    //==================CustomHeader=====================//
+
+    // For window dragging
+    private double xOffset = 0, yOffset = 0;
 
     private Tab[] ManagerTabs;
 
     private Account account;
+
+    private boolean Guest;
 
     private List<Pair<Flower, HBox>> cachedFlowerNodes = new ArrayList<>();
 
@@ -178,7 +221,7 @@ public class SecondaryController {
 
             VBox textBox = new VBox(5);
             Label name = new Label("Name: " + flower.getName());
-            Label price = new Label("Price: $" + flower.getPrice());
+            Label price = new Label("Price: ₪" + flower.getPrice());
             Label desc = new Label("Description: " + flower.getDescription());
             Label supply = new Label("Supply: " + flower.getSupply());
 
@@ -195,15 +238,17 @@ public class SecondaryController {
 
             quantitySpinner.setEditable(true);
             quantitySpinner.setMaxWidth(80);
-
-            Button addToCartButton = new Button("Add to Cart");
-            addToCartButton.setOnAction(e -> {
-                int amount = quantitySpinner.getValue();
-                cartList.add(new Pair<>(flower, amount));
-                System.out.println("Added to cart: " + flower.getName() + " x" + amount);
-            });
-
-            textBox.getChildren().addAll(name, price, desc, supply, quantitySpinner, addToCartButton);
+            if(!Guest) {
+                Button addToCartButton = new Button("Add to Cart");
+                addToCartButton.setOnAction(e -> {
+                    int amount = quantitySpinner.getValue();
+                    cartList.add(new Pair<>(flower, amount));
+                    System.out.println("Added to cart: " + flower.getName() + " x" + amount);
+                });
+                textBox.getChildren().addAll(name, price, desc, supply, quantitySpinner, addToCartButton);
+            }else {
+                textBox.getChildren().addAll(name, price, desc, supply, quantitySpinner);
+            }
             flowerBox.getChildren().addAll(imageView, textBox);
 
             cachedFlowerNodes.add(new Pair<>(flower, flowerBox));
@@ -255,9 +300,24 @@ public class SecondaryController {
     }
 
     public void setUserRole() {
-        String role = account.getAccountLevel();
-
-        if ("Customer".equalsIgnoreCase(role)) {
+        String role = account == null? "Guest":account.getAccountLevel();
+        if ("Guest".equalsIgnoreCase(role)){
+            Platform.runLater(() -> {
+                List<Tab> toRemove = new ArrayList<>();
+                for (Tab tab : MainTabsFrame.getTabs()) {
+                    String text = tab.getText();
+                    if (!"Catalog".equals(text) && !"Profile/Settings".equals(text)) {
+                        toRemove.add(tab);
+                    }
+                }
+                ResetMyPasswordButton.setVisible(false);
+                PurchaseHistoryScrollFrame.setVisible(false);
+                PurchaseHistoryText.setVisible(false);
+                MyFeedBacksText.setVisible(false);
+                MyFeedBackScrollFrane.setVisible(false);
+                MainTabsFrame.getTabs().removeAll(toRemove);
+            });
+        } else if ("Customer".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 for (Tab tab : ManagerTabs) {
                     MainTabsFrame.getTabs().remove(tab);
@@ -284,10 +344,18 @@ public class SecondaryController {
     @org.greenrobot.eventbus.Subscribe
     public void onSetAccountLevel(SetAccountLevel event) {
         javafx.application.Platform.runLater(()-> {
-            System.out.println("Received sticky event for role: " + event.getAccount().getAccountLevel());
             account = event.getAccount();
-            ProfileSayHelloLabel.setText("Hello " + account.getFirstName() + " " + account.getLastName() );
-            System.out.println("Account Level: " + account.getAccountLevel());
+            Guest = account == null;
+            if(!Guest) {
+                System.out.println("Received sticky event for role: " + event.getAccount().getAccountLevel());
+                ProfileSayHelloLabel.setText("Hello " + account.getFirstName() + " " + account.getLastName());
+                System.out.println("Account Level: " + account.getAccountLevel());
+            }else {
+                System.out.println("Received sticky event for role: guest");
+                ProfileSayHelloLabel.setText("Hello guest");
+                System.out.println("Account Level: guest");
+
+            }
             setUserRole();
         });
     }
@@ -297,11 +365,31 @@ public class SecondaryController {
     public void LogOut(ActionEvent event) {
         try {
             StageManager.replaceScene("primary", "Authenticator");
-            SimpleClient.getClient().sendToServer(new LogoutRequest(account));
+            if(!Guest) {
+                SimpleClient.getClient().sendToServer(new LogoutRequest(account));
+            }
             account = null;
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    @FXML
+    private void closeWindow() {
+        ((Stage) CustomTitleBar.getScene().getWindow()).close();
+        if(!Guest) {
+            try {
+                SimpleClient.getClient().sendToServer(new LogoutRequest(account));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        account = null;
+    }
+
+    @FXML
+    private void minimizeWindow() {
+        ((Stage) CustomTitleBar.getScene().getWindow()).setIconified(true);
     }
 
     public void populateManagerCatalog(List<Flower> flowerList) {
@@ -314,7 +402,7 @@ public class SecondaryController {
             VBox.setVgrow(flowerBox, Priority.ALWAYS);
 
             Label nameLabel = new Label("Name: " + flower.getName());
-            Label priceLabel = new Label("Price: $" + flower.getPrice());
+            Label priceLabel = new Label("Price: ₪" + flower.getPrice());
             Label descLabel = new Label("Description: " + flower.getDescription());
             descLabel.setWrapText(true);
 
@@ -414,15 +502,6 @@ public class SecondaryController {
     }
 
     @FXML
-    void RefreshCatalog(ActionEvent event) {
-        try {
-            SimpleClient.getClient().sendToServer("RefreshList");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    @FXML
     void SortCatalog(ActionEvent event) {
         sortByPrice();
     }
@@ -434,6 +513,16 @@ public class SecondaryController {
 
     @FXML
     void ContinueToBuy(ActionEvent event) {
+
+    }
+
+    @FXML
+    void UpgradeUserToPlus(ActionEvent event) {
+
+    }
+
+    @FXML
+    void CancelAutoRenewSub(ActionEvent event) {
 
     }
 
@@ -597,10 +686,12 @@ public class SecondaryController {
 
     @FXML
     void GetProfileInformation(Event event) {
-        try {
-            SimpleClient.getClient().sendToServer(new GetUserFeedbacksRequest(account.getId()));
-        } catch (Exception e) {
-            e.printStackTrace();
+        if(!Guest){
+            try {
+                SimpleClient.getClient().sendToServer(new GetUserFeedbacksRequest(account.getId()));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -716,7 +807,7 @@ public class SecondaryController {
                 Spinner<Integer> quantitySpinner = (Spinner<Integer>) textBox.getChildren().get(4);
 
                 nameLabel.setText("Name: " + updatedFlower.getName());
-                priceLabel.setText("Price: $" + updatedFlower.getPrice());
+                priceLabel.setText("Price: ₪" + updatedFlower.getPrice());
                 descLabel.setText("Description: " + updatedFlower.getDescription());
                 supplyLabel.setText("Supply: " + updatedFlower.getSupply());
                 quantitySpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(
@@ -738,10 +829,14 @@ public class SecondaryController {
 
     @FXML
     void initialize() {
+        assert CancelRenewButton != null : "fx:id=\"CancelRenewButton\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CartAnchor != null : "fx:id=\"CartAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CartPriceLabel != null : "fx:id=\"CartPriceLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CartTab != null : "fx:id=\"CartTab\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CloseBtn != null : "fx:id=\"CloseBtn\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ContinueToBuyButton != null : "fx:id=\"ContinueToBuyButton\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CustomTitleBar != null : "fx:id=\"CustomTitleBar\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CustomerServicePanel != null : "fx:id=\"CustomerServicePanel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FeedBackAnchor != null : "fx:id=\"FeedBackAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FeedBackDetails != null : "fx:id=\"FeedBackDetails\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FeedBackLabelText != null : "fx:id=\"FeedBackLabelText\" was not injected: check your FXML file 'secondary.fxml'.";
@@ -751,8 +846,8 @@ public class SecondaryController {
         assert FlowersAnchor != null : "fx:id=\"FlowersAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FlowersScrollPane != null : "fx:id=\"FlowersScrollPane\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FlowersTab != null : "fx:id=\"FlowersTab\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FreeUserLabel != null : "fx:id=\"FreeUserLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert LogOutButton != null : "fx:id=\"LogOutButton\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert MainFrame != null : "fx:id=\"MainFrame\" was not injected: check your FXML file 'secondary.fxml'.";
         assert MainTabsFrame != null : "fx:id=\"MainTabsFrame\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ManagerCatalogSelector != null : "fx:id=\"ManagerCatalogSelector\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ManagerCatalogSelectorVbox != null : "fx:id=\"ManagerCatalogSelectorVbox\" was not injected: check your FXML file 'secondary.fxml'.";
@@ -760,18 +855,36 @@ public class SecondaryController {
         assert ManagerPanelAnchor != null : "fx:id=\"ManagerPanelAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ManagerPanelPane != null : "fx:id=\"ManagerPanelPane\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ManagerPanelScroll != null : "fx:id=\"ManagerPanelScroll\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert MinimizeBtn != null : "fx:id=\"MinimizeBtn\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert MyFeedBackScrollFrane != null : "fx:id=\"MyFeedBackScrollFrane\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert MyFeedBacksText != null : "fx:id=\"MyFeedBacksText\" was not injected: check your FXML file 'secondary.fxml'.";
         assert MyFeedbacksVbox != null : "fx:id=\"MyFeedbacksVbox\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PlusLabelPayment != null : "fx:id=\"PlusLabelPayment\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PlusUpgradeButton != null : "fx:id=\"PlusUpgradeButton\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PlusUserLabel != null : "fx:id=\"PlusUserLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ProfileSayHelloLabel != null : "fx:id=\"ProfileSayHelloLabel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PurchaseHistoryScrollFrame != null : "fx:id=\"PurchaseHistoryScrollFrame\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PurchaseHistoryText != null : "fx:id=\"PurchaseHistoryText\" was not injected: check your FXML file 'secondary.fxml'.";
         assert PurchaseHistoryVbox != null : "fx:id=\"PurchaseHistoryVbox\" was not injected: check your FXML file 'secondary.fxml'.";
         assert PushFeedBack != null : "fx:id=\"PushFeedBack\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert RefreshCatalogBtn != null : "fx:id=\"RefreshCatalogBtn\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ResetMyPasswordButton != null : "fx:id=\"ResetMyPasswordButton\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ResolvedFeedbackVBOX != null : "fx:id=\"ResolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SettingsAnchor != null : "fx:id=\"SettingsAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SettingsTab != null : "fx:id=\"SettingsTab\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SortCatalogBtn != null : "fx:id=\"SortCatalogBtn\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert SubscribtionLevelLabel != null : "fx:id=\"SubscribtionLevelLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert UnresolvedFeedbackVBOX != null : "fx:id=\"UnresolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
 
+        // Drag support for custom bar:
+        CustomTitleBar.setOnMousePressed(event -> {
+            xOffset = event.getSceneX();
+            yOffset = event.getSceneY();
+        });
+        CustomTitleBar.setOnMouseDragged(event -> {
+            Stage stage = (Stage) CustomTitleBar.getScene().getWindow();
+            stage.setX(event.getScreenX() - xOffset);
+            stage.setY(event.getScreenY() - yOffset);
+        });
         ManagerTabs = new Tab[] {
                 ManagerPanel,
                 CustomerServicePanel

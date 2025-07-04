@@ -6,12 +6,15 @@ import java.time.LocalDate;
 import java.util.Date;
 import java.util.ResourceBundle;
 
+import il.cshaifasweng.OCSFMediatorExample.entities.LogoutRequest;
 import il.cshaifasweng.OCSFMediatorExample.entities.SignUpRequest;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.Node;
 import il.cshaifasweng.OCSFMediatorExample.entities.LoginRequest;
+import javafx.scene.layout.HBox;
+import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
 
 
@@ -157,6 +160,16 @@ public class PrimaryController {
 	@FXML
 	private Button ForgotPassLogBtn;
 
+
+	//==================CustomHeader=====================//
+	@FXML private HBox CustomTitleBar;
+	@FXML private Button MinimizeBtn;
+	@FXML private Button CloseBtn;
+
+	// For window dragging
+	private double xOffset = 0, yOffset = 0;
+
+
 	private String RecoveryMail;
 
 	/* ---------- Arrays that group the nodes ---------- */
@@ -259,8 +272,35 @@ public class PrimaryController {
 	}
 
 	@FXML
+	private void closeWindow() {
+		((Stage) CustomTitleBar.getScene().getWindow()).close();
+	}
+
+	@FXML
+	private void minimizeWindow() {
+		((Stage) CustomTitleBar.getScene().getWindow()).setIconified(true);
+	}
+
+	@FXML
 	void ContinueAsGuest(ActionEvent event) {
 
+		App.setOnSecondaryReady(() -> {
+			System.out.println("[Scene ready] Logged in as: guest");
+
+			EventBus.getDefault().postSticky(new SetAccountLevel(null));
+
+			try {
+				SimpleClient.getClient().sendToServer("RefreshList");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		});
+
+		try {
+			StageManager.replaceScene("secondary", "Secondary Window");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@FXML
@@ -348,10 +388,10 @@ public class PrimaryController {
 		setVisibility(forgotPassLabels, true);
 		setVisibility(forgotPassTextFields, true);
 		setVisibility(forgotPassButtons, true);
-		BackBtn.setVisible(true);
 		emptyFields(forgotPassTextFields);
-	}
+		BackBtn.setVisible(true);
 
+	}
 
 	private void showVerifyCodeTab() {
 		hideAllSections();
@@ -362,7 +402,6 @@ public class PrimaryController {
 		BackBtn.setVisible(true);
 		emptyFields(verifyCodeTextFields);
 	}
-
 
 	private void showSetNewPasswordTab() {
 		hideAllSections();
@@ -461,7 +500,6 @@ public class PrimaryController {
 		}
 	}
 
-	/** "Sign Up" */
 	@FXML
 	void SignUp(ActionEvent event) {
 		showLoginScreen(false);
@@ -609,6 +647,17 @@ public class PrimaryController {
 		assert VerifyCodeTextField != null : "fx:id=\"VerifyCodeTextField\" was not injected: check your FXML file 'primary.fxml'.";
 		assert VerifyNewPasswordField != null : "fx:id=\"VerifyNewPasswordField\" was not injected: check your FXML file 'primary.fxml'.";
 		assert VerifyPasswordLabel != null : "fx:id=\"VerifyPasswordLabel\" was not injected: check your FXML file 'primary.fxml'.";
+
+		// Drag support for custom bar:
+		CustomTitleBar.setOnMousePressed(event -> {
+			xOffset = event.getSceneX();
+			yOffset = event.getSceneY();
+		});
+		CustomTitleBar.setOnMouseDragged(event -> {
+			Stage stage = (Stage) CustomTitleBar.getScene().getWindow();
+			stage.setX(event.getScreenX() - xOffset);
+			stage.setY(event.getScreenY() - yOffset);
+		});
 
 		loginLabels     = new Label[]     { PasswordLabel, EmailLabel };
 		loginTextFields = new TextField[] { PasswordField,     EmailField };
