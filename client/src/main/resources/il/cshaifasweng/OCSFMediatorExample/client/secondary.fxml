@@ -8,134 +8,234 @@
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
 
-<AnchorPane fx:id="MainFrame" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="400.0" minWidth="600.0" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.SecondaryController">
-   <children>
-      <TabPane fx:id="MainTabsFrame" prefHeight="400.0" prefWidth="600.0" tabClosingPolicy="UNAVAILABLE">
-         <tabs>
-            <Tab fx:id="FlowersTab" text="Catalog">
-               <content>
-                  <AnchorPane fx:id="FlowersAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
-                     <children>
-                        <ScrollPane fx:id="FlowersScrollPane" fitToHeight="false" fitToWidth="true" layoutY="29.0" prefHeight="342.0" prefWidth="600.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="29.0">
-                           <content>
-                              <VBox fx:id="FlowerPageVbox" spacing="5.0">
-                              </VBox>
-                           </content>
-                        </ScrollPane>
-                        <Button fx:id="RefreshCatalogBtn" layoutX="542.0" layoutY="2.0" mnemonicParsing="false" onAction="#RefreshCatalog" prefHeight="0.0" prefWidth="58.0" text="Refresh" />
-                        <Button fx:id="SortCatalogBtn" layoutY="2.0" mnemonicParsing="false" onAction="#SortCatalog" text="Sort" />
-                     </children>
-                  </AnchorPane>
-               </content>
-            </Tab>
-            <Tab fx:id="CartTab" text="Cart">
-               <content>
-                  <AnchorPane fx:id="CartAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
-                     <children>
-                        <ScrollPane fitToWidth="true" layoutX="29.0" layoutY="14.0" prefHeight="269.0" prefWidth="542.0">
-                           <content>
-                              <VBox prefHeight="6.0" prefWidth="535.0" />
-                           </content>
-                        </ScrollPane>
-                        <Label layoutX="29.0" layoutY="298.0" prefHeight="17.0" prefWidth="69.0" text="Total price : " />
-                        <Label fx:id="CartPriceLabel" layoutX="98.0" layoutY="298.0" prefHeight="17.0" prefWidth="51.0" text="[Price]" />
-                        <Button fx:id="ContinueToBuyButton" layoutX="506.0" layoutY="294.0" mnemonicParsing="false" onAction="#ContinueToBuy" text="Continue" />
-                     </children></AnchorPane>
-               </content>
-            </Tab>
-            <Tab fx:id="FeedBackTab" text="Feedback">
-              <content>
-                <AnchorPane fx:id="FeedBackAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
-                     <children>
-                        <Label layoutX="20.0" layoutY="36.0" text="Title :" />
-                        <TextField fx:id="FeedBackTitle" layoutX="20.0" layoutY="53.0" prefHeight="25.0" prefWidth="560.0" />
-                        <Label layoutX="21.0" layoutY="78.0" text="Details :" />
-                        <TextArea fx:id="FeedBackDetails" layoutX="20.0" layoutY="96.0" prefHeight="180.0" prefWidth="560.0" />
-                        <Button fx:id="PushFeedBack" layoutX="486.0" layoutY="288.0" mnemonicParsing="false" onAction="#SendFeedBack" text="Send feedback" />
-                        <Label fx:id="FeedBackLabelText" alignment="CENTER" contentDisplay="CENTER" layoutX="21.0" layoutY="285.0" prefHeight="57.0" prefWidth="455.0" text="[Message]" visible="false" />
-                     </children>
-                  </AnchorPane>
-              </content>
-            </Tab>
-            <Tab fx:id="SettingsTab" onSelectionChanged="#GetProfileInformation" text="Profile/Settings">
-               <content>
-                  <AnchorPane fx:id="SettingsAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
-                     <children>
-                        <ScrollPane fitToWidth="true" prefHeight="372.0" prefWidth="600.0">
-                           <content>
-                              <Pane prefHeight="687.0" prefWidth="585.0">
-                                 <children>
-                                    <Label fx:id="ProfileSayHelloLabel" layoutX="26.0" layoutY="21.0" text="Hello [Name,]" />
-                                    <Button fx:id="LogOutButton" layoutX="509.0" layoutY="17.0" mnemonicParsing="false" onAction="#LogOut" text="LogOut" />
-                                    <ScrollPane fitToWidth="true" layoutX="60.0" layoutY="93.0" prefHeight="222.0">
-                                       <content>
-                                          <VBox fx:id="PurchaseHistoryVbox" prefHeight="0.0" prefWidth="469.0" />
-                                       </content>
-                                    </ScrollPane>
-                                    <Button fx:id="ResetMyPasswordButton" layoutX="26.0" layoutY="38.0" mnemonicParsing="false" onAction="#ResetMyPassword" prefHeight="25.0" prefWidth="121.0" text="Reset password" />
-                                    <Label layoutX="249.0" layoutY="70.0" text="Purchase history" />
-                                    <ScrollPane fitToWidth="true" layoutX="60.0" layoutY="350.0" prefHeight="222.0">
-                                       <content>
-                                          <VBox fx:id="MyFeedbacksVbox" prefHeight="0.0" prefWidth="469.0" />
-                                       </content>
-                                    </ScrollPane>
-                                    <Label layoutX="251.0" layoutY="327.0" text="Your Feedbacks" />
-                                 </children>
-                              </Pane>
-                           </content>
-                        </ScrollPane>
-                     </children></AnchorPane>
-               </content>
-            </Tab>
-            <Tab fx:id="CustomerServicePanel" onSelectionChanged="#CustomerServiceGatherInfo" text="Customer-Service panel">
-               <content>
-                  <ScrollPane fitToWidth="true" prefHeight="200.0" prefWidth="200.0">
-                     <content>
-                        <Pane prefHeight="714.0" prefWidth="594.0">
-                           <children>
-                              <ScrollPane fitToWidth="true" layoutX="54.0" layoutY="30.0" prefHeight="296.0" prefWidth="492.0">
-                                 <content>
-                                    <VBox fx:id="UnresolvedFeedbackVBOX" prefHeight="2.0" prefWidth="489.0" />
-                                 </content>
-                              </ScrollPane>
-                              <Label layoutX="241.0" layoutY="14.0" text="Unresolved Feedbacks" />
-                              <ScrollPane fitToWidth="true" layoutX="54.0" layoutY="367.0" prefHeight="296.0" prefWidth="492.0">
-                                 <content>
-                                    <VBox fx:id="ResolvedFeedbackVBOX" prefHeight="2.0" prefWidth="489.0" />
-                                 </content>
-                              </ScrollPane>
-                              <Label layoutX="247.0" layoutY="349.0" text="Resolved Feedbacks" />
-                           </children>
-                        </Pane>
-                     </content>
-                  </ScrollPane>
-               </content>
-            </Tab>
-            <Tab fx:id="ManagerPanel" text="Manager panel">
-               <content>
-                  <AnchorPane fx:id="ManagerPanelAnchor" minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
-                     <children>
-                        <ScrollPane fx:id="ManagerPanelScroll" fitToHeight="false" fitToWidth="true" prefHeight="372.0" prefWidth="600.0">
-                           <content>
-                              <Pane fx:id="ManagerPanelPane" prefHeight="762.0" prefWidth="585.0">
-                                 <children>
-                                    <ScrollPane fx:id="ManagerCatalogSelector" fitToHeight="true" fitToWidth="true" layoutX="77.0" layoutY="38.0" prefHeight="299.0" prefWidth="430.0">
-                                       <content>
-                                          <VBox fx:id="ManagerCatalogSelectorVbox" />
-                                       </content>
-                                    </ScrollPane>
-                                    <Label layoutX="252.0" layoutY="21.0" text="Modify catalog" />
-                                 </children>
-                              </Pane>
-                           </content>
-                        </ScrollPane>
-                     </children></AnchorPane>
-               </content>
-            </Tab>
-         </tabs>
-      </TabPane>
-   </children>
-</AnchorPane>
+<VBox spacing="0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.SecondaryController">
+
+   <!-- Custom Title Bar -->
+   <HBox fx:id="CustomTitleBar" prefHeight="36.0" spacing="10" style="-fx-background-color: #202228; -fx-padding: 6 12 6 12; -fx-alignment: CENTER_LEFT;">
+      <Label style="-fx-text-fill: #B0B9FF; -fx-font-size: 14px;" text="🌸 Flower Shop" />
+      <Pane HBox.hgrow="ALWAYS" />
+      <Button fx:id="MinimizeBtn" onAction="#minimizeWindow" style="-fx-background-color: transparent; -fx-text-fill: #7d8190; -fx-font-size: 14px; -fx-font-weight: bold;" text="—" />
+      <Button fx:id="CloseBtn" onAction="#closeWindow" style="-fx-background-color: transparent; -fx-text-fill: #FF5677; -fx-font-size: 14px; -fx-font-weight: bold;" text="✕" />
+   </HBox>
+
+   <!-- Main Content Area: TabPane -->
+   <TabPane fx:id="MainTabsFrame" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
+      <tabs>
+         <Tab fx:id="FlowersTab" text="Catalog">
+            <content>
+               <AnchorPane fx:id="FlowersAnchor">
+                  <children>
+                     <ScrollPane fx:id="FlowersScrollPane" fitToWidth="true" prefHeight="342.0" prefWidth="600.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="29.0">
+                        <content>
+                           <VBox fx:id="FlowerPageVbox" spacing="5.0" />
+                        </content>
+                     </ScrollPane>
+                     <Button fx:id="SortCatalogBtn" layoutY="2.0" onAction="#SortCatalog" text="Sort" />
+                  </children>
+               </AnchorPane>
+            </content>
+         </Tab>
+         <Tab fx:id="CartTab" text="Cart">
+            <content>
+               <AnchorPane fx:id="CartAnchor">
+                  <children>
+                     <ScrollPane fitToWidth="true" layoutX="29.0" layoutY="14.0" prefHeight="269.0" prefWidth="542.0">
+                        <content>
+                           <VBox prefHeight="6.0" prefWidth="535.0" />
+                        </content>
+                     </ScrollPane>
+                     <Label layoutX="29.0" layoutY="298.0" prefHeight="17.0" prefWidth="69.0" text="Total price : " />
+                     <Label fx:id="CartPriceLabel" layoutX="98.0" layoutY="298.0" prefHeight="17.0" prefWidth="51.0" text="[Price]" />
+                     <Button fx:id="ContinueToBuyButton" layoutX="506.0" layoutY="294.0" onAction="#ContinueToBuy" text="Continue" />
+                  </children>
+               </AnchorPane>
+            </content>
+         </Tab>
+         <Tab fx:id="FeedBackTab" text="Feedback">
+            <content>
+               <AnchorPane fx:id="FeedBackAnchor">
+                  <children>
+                     <Label layoutX="20.0" layoutY="36.0" text="Title :" />
+                     <TextField fx:id="FeedBackTitle" layoutX="20.0" layoutY="53.0" prefHeight="25.0" prefWidth="560.0" />
+                     <Label layoutX="21.0" layoutY="78.0" text="Details :" />
+                     <TextArea fx:id="FeedBackDetails" layoutX="20.0" layoutY="96.0" prefHeight="180.0" prefWidth="560.0" />
+                     <Button fx:id="PushFeedBack" layoutX="486.0" layoutY="288.0" onAction="#SendFeedBack" text="Send feedback" />
+                     <Label fx:id="FeedBackLabelText" alignment="CENTER" contentDisplay="CENTER" layoutX="21.0" layoutY="285.0" prefHeight="57.0" prefWidth="455.0" text="[Message]" visible="false" />
+                  </children>
+               </AnchorPane>
+            </content>
+         </Tab>
+         <Tab fx:id="SettingsTab" onSelectionChanged="#GetProfileInformation" text="Profile/Settings">
+            <content>
+               <AnchorPane fx:id="SettingsAnchor">
+                  <children>
+                     <ScrollPane fitToWidth="true" prefHeight="372.0" prefWidth="600.0">
+                        <content>
+                           <Pane prefHeight="1011.0" prefWidth="585.0">
+                              <children>
+                                 <Label fx:id="ProfileSayHelloLabel" layoutX="26.0" layoutY="21.0" text="Hello [Name,]" />
+                                 <Button fx:id="LogOutButton" layoutX="509.0" layoutY="17.0" onAction="#LogOut" text="LogOut" />
+                                 <ScrollPane fx:id="PurchaseHistoryScrollFrame" fitToWidth="true" layoutX="60.0" layoutY="93.0" prefHeight="222.0">
+                                    <content>
+                                       <VBox fx:id="PurchaseHistoryVbox" prefHeight="0.0" prefWidth="469.0" />
+                                    </content>
+                                 </ScrollPane>
+                                 <Button fx:id="ResetMyPasswordButton" layoutX="26.0" layoutY="38.0" onAction="#ResetMyPassword" prefHeight="25.0" prefWidth="121.0" text="Reset password" />
+                                 <Label fx:id="PurchaseHistoryText" layoutX="249.0" layoutY="70.0" text="Purchase history" />
+                                 <ScrollPane fx:id="MyFeedBackScrollFrane" fitToWidth="true" layoutX="60.0" layoutY="350.0" prefHeight="222.0">
+                                    <content>
+                                       <VBox fx:id="MyFeedbacksVbox" prefHeight="0.0" prefWidth="469.0" />
+                                    </content>
+                                 </ScrollPane>
+                                 <Label fx:id="MyFeedBacksText" layoutX="251.0" layoutY="327.0" text="Your Feedbacks" />
+                                 <HBox layoutX="38.0" layoutY="642.0" prefHeight="285.0" prefWidth="505.0">
+                                    <children>
+                                       <AnchorPane prefHeight="285.0" prefWidth="205.0">
+                                          <children>
+                                             <VBox layoutX="-1.0" layoutY="-1.0" prefHeight="288.0" prefWidth="189.0">
+                                                <children>
+                                                   <Label prefHeight="97.0" prefWidth="188.0" text="Discounts on purchases above 50₪ :" wrapText="true">
+                                                      <font>
+                                                         <Font size="13.0" />
+                                                      </font>
+                                                   </Label>
+                                                   <Label prefHeight="97.0" prefWidth="188.0" text="Free delivery :" wrapText="true">
+                                                      <font>
+                                                         <Font size="13.0" />
+                                                      </font>
+                                                   </Label>
+                                                   <Label layoutX="10.0" layoutY="107.0" prefHeight="96.0" prefWidth="189.0" text="Special offers and more :" wrapText="true">
+                                                      <font>
+                                                         <Font size="13.0" />
+                                                      </font>
+                                                   </Label>
+                                                </children>
+                                             </VBox>
+                                          </children>
+                                       </AnchorPane>
+                                       <AnchorPane prefHeight="156.0" prefWidth="105.0">
+                                          <children>
+                                             <VBox prefHeight="285.0" prefWidth="160.0">
+                                                <children>
+                                                   <Label alignment="CENTER" prefHeight="97.0" prefWidth="176.0" text="❌">
+                                                      <font>
+                                                         <Font size="30.0" />
+                                                      </font>
+                                                   </Label>
+                                                   <Label alignment="CENTER" layoutX="10.0" layoutY="10.0" prefHeight="97.0" prefWidth="176.0" text="❌">
+                                                      <font>
+                                                         <Font size="30.0" />
+                                                      </font>
+                                                   </Label>
+                                                   <Label alignment="CENTER" layoutX="10.0" layoutY="107.0" prefHeight="97.0" prefWidth="176.0" text="❌">
+                                                      <font>
+                                                         <Font size="30.0" />
+                                                      </font>
+                                                   </Label>
+                                                </children>
+                                             </VBox>
+                                          </children>
+                                       </AnchorPane>
+                                       <AnchorPane layoutX="10.0" layoutY="10.0" prefHeight="156.0" prefWidth="160.0">
+                                          <children>
+                                             <VBox prefHeight="285.0" prefWidth="160.0">
+                                                <children>
+                                                   <Label alignment="CENTER" prefHeight="97.0" prefWidth="176.0" text="✔">
+                                                      <font>
+                                                         <Font size="30.0" />
+                                                      </font>
+                                                   </Label>
+                                                   <Label alignment="CENTER" layoutX="10.0" layoutY="10.0" prefHeight="97.0" prefWidth="176.0" text="✔">
+                                                      <font>
+                                                         <Font size="30.0" />
+                                                      </font>
+                                                   </Label>
+                                                   <Label alignment="CENTER" layoutX="10.0" layoutY="107.0" prefHeight="97.0" prefWidth="176.0" text="✔">
+                                                      <font>
+                                                         <Font size="30.0" />
+                                                      </font>
+                                                   </Label>
+                                                </children>
+                                             </VBox>
+                                          </children>
+                                       </AnchorPane>
+                                    </children>
+                                 </HBox>
+                                 <Label alignment="CENTER" layoutX="223.0" layoutY="600.0" prefHeight="42.0" prefWidth="160.0" text="Free">
+                                    <font>
+                                       <Font size="27.0" />
+                                    </font>
+                                 </Label>
+                                 <Label alignment="CENTER" layoutX="386.0" layoutY="600.0" prefHeight="42.0" prefWidth="160.0" text="Plus+">
+                                    <font>
+                                       <Font size="27.0" />
+                                    </font>
+                                 </Label>
+                                 <Label fx:id="FreeUserLabel" alignment="CENTER" layoutX="225.0" layoutY="921.0" prefHeight="42.0" prefWidth="161.0" text="You are here" />
+                                 <Button fx:id="PlusUpgradeButton" layoutX="435.0" layoutY="930.0" mnemonicParsing="false" onAction="#UpgradeUserToPlus" text="Upgrade" />
+                                 <Label fx:id="PlusLabelPayment" layoutX="391.0" layoutY="963.0" text="Upgrading costs 100₪ yearly" />
+                                 <Label fx:id="PlusUserLabel" alignment="CENTER" layoutX="385.0" layoutY="921.0" prefHeight="42.0" prefWidth="161.0" text="Renew at [Date]" />
+                                 <Label fx:id="SubscribtionLevelLabel" layoutX="26.0" layoutY="6.0" text="[Subscribtion] User" />
+                                 <Button fx:id="CancelRenewButton" layoutX="409.0" layoutY="985.0" mnemonicParsing="false" onAction="#CancelAutoRenewSub" text="Cancel auto renew" />
+                              </children>
+                           </Pane>
+                        </content>
+                     </ScrollPane>
+                  </children>
+               </AnchorPane>
+            </content>
+         </Tab>
+         <Tab fx:id="CustomerServicePanel" onSelectionChanged="#CustomerServiceGatherInfo" text="Customer-Service panel">
+            <content>
+               <ScrollPane fitToWidth="true" prefHeight="200.0" prefWidth="200.0">
+                  <content>
+                     <Pane prefHeight="714.0" prefWidth="594.0">
+                        <children>
+                           <ScrollPane fitToWidth="true" layoutX="54.0" layoutY="30.0" prefHeight="296.0" prefWidth="492.0">
+                              <content>
+                                 <VBox fx:id="UnresolvedFeedbackVBOX" prefHeight="2.0" prefWidth="489.0" />
+                              </content>
+                           </ScrollPane>
+                           <Label layoutX="241.0" layoutY="14.0" text="Unresolved Feedbacks" />
+                           <ScrollPane fitToWidth="true" layoutX="54.0" layoutY="367.0" prefHeight="296.0" prefWidth="492.0">
+                              <content>
+                                 <VBox fx:id="ResolvedFeedbackVBOX" prefHeight="2.0" prefWidth="489.0" />
+                              </content>
+                           </ScrollPane>
+                           <Label layoutX="247.0" layoutY="349.0" text="Resolved Feedbacks" />
+                        </children>
+                     </Pane>
+                  </content>
+               </ScrollPane>
+            </content>
+         </Tab>
+         <Tab fx:id="ManagerPanel" text="Manager panel">
+            <content>
+               <AnchorPane fx:id="ManagerPanelAnchor">
+                  <children>
+                     <ScrollPane fx:id="ManagerPanelScroll" fitToWidth="true" prefHeight="372.0" prefWidth="600.0">
+                        <content>
+                           <Pane fx:id="ManagerPanelPane" prefHeight="762.0" prefWidth="585.0">
+                              <children>
+                                 <ScrollPane fx:id="ManagerCatalogSelector" fitToHeight="true" fitToWidth="true" layoutX="77.0" layoutY="38.0" prefHeight="299.0" prefWidth="430.0">
+                                    <content>
+                                       <VBox fx:id="ManagerCatalogSelectorVbox" />
+                                    </content>
+                                 </ScrollPane>
+                                 <Label layoutX="252.0" layoutY="21.0" text="Modify catalog" />
+                              </children>
+                           </Pane>
+                        </content>
+                     </ScrollPane>
+                  </children>
+               </AnchorPane>
+            </content>
+         </Tab>
+      </tabs>
+   </TabPane>
+</VBox>

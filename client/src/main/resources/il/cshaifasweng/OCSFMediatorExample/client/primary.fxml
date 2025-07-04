@@ -8,8 +8,26 @@
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.text.Font?>
 
+<?import javafx.scene.layout.HBox?>
 <Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="279.0" prefWidth="469.0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.PrimaryController">
    <children>
+      <HBox fx:id="CustomTitleBar"
+            style="-fx-background-color: #202228; -fx-padding: 6 12 6 12; -fx-alignment: CENTER_LEFT;"
+            prefHeight="36.0"
+            prefWidth="469.0"
+            spacing="10">
+         <Label text="🌸 Flower Shop" style="-fx-text-fill: #B0B9FF; -fx-font-size: 14px;"/>
+         <Pane HBox.hgrow="ALWAYS"/>
+         <Button fx:id="MinimizeBtn"
+                 text="—"
+                 style="-fx-background-color: transparent; -fx-text-fill: #7d8190; -fx-font-size: 14px; -fx-font-weight: bold;"
+                 onAction="#minimizeWindow"/>
+         <Button fx:id="CloseBtn"
+                 text="✕"
+                 style="-fx-background-color: transparent; -fx-text-fill: #FF5677; -fx-font-size: 14px; -fx-font-weight: bold;"
+                 onAction="#closeWindow"/>
+      </HBox>
+
       <TextField fx:id="EmailField" layoutX="181.0" layoutY="80.0" promptText="Email" />
       <PasswordField fx:id="PasswordField" layoutX="181.0" layoutY="116.0" promptText="Password" />
       <Button fx:id="LoginBtn" layoutX="203.0" layoutY="148.0" mnemonicParsing="false" onAction="#Login" prefHeight="35.0" prefWidth="67.0" text="Login" />
