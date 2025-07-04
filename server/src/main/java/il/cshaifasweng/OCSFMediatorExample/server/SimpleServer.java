@@ -664,10 +664,23 @@ public class SimpleServer extends AbstractServer {
 		try {
 			sessionFactory = getSessionFactory();
 			System.out.println("Hibernate session factory initialized.");
+
+			// Reset all Account.logged to false at server startup
+			try (Session session = sessionFactory.openSession()) {
+				Transaction tx = session.beginTransaction();
+				int updated = session.createQuery("UPDATE Account SET logged = false").executeUpdate();
+				tx.commit();
+				System.out.println("Reset logged status for " + updated + " accounts.");
+			} catch (Exception e) {
+				System.err.println("Failed to reset account logins:");
+				e.printStackTrace();
+			}
+
 		} catch (Exception exception) {
 			System.err.println("Failed to initialize Hibernate:");
 			exception.printStackTrace();
 		}
 	}
+
 
 }
