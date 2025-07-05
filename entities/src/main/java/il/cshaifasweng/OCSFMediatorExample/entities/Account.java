@@ -45,6 +45,15 @@ public class Account implements Serializable {
 
     @Column(name = "Logged")
     private boolean logged;
+
+    @Column(name = "subscription")
+    private String Subscribtion_level;
+
+    @Column(name = "subscription_expires_at")
+    private String Subscription_expires_at;
+
+    @Column(name = "auto_renew_subscription")
+    private String Auto_renew_subscription;
     // ----- Constructors -----
 
     public Account() {}
@@ -62,6 +71,7 @@ public class Account implements Serializable {
         this.accountLevel = accountLevel;
         this.phoneNumber = phoneNumber;
         this.logged = false;
+        this.Subscribtion_level = "Free";
     }
 
     // ----- Getters and Setters -----
@@ -153,7 +163,32 @@ public class Account implements Serializable {
     public boolean isLogged() {
         return logged;
     }
+
     public void setLogged(boolean logged) {
         this.logged = logged;
+    }
+
+    public String getSubscribtion_level() {
+        return Subscribtion_level;
+    }
+
+    public void setSubscribtion_level(String Subscribtion_level) {
+        this.Subscribtion_level = Subscribtion_level;
+    }
+
+    public String getSubscription_expires_at() {
+        return Subscription_expires_at;
+    }
+
+    public void setSubscription_expires_at(String Subscription_expires_at) {
+        this.Subscription_expires_at = Subscription_expires_at;
+    }
+
+    public String getAuto_renew_subscription() {
+        return Auto_renew_subscription;
+    }
+
+    public void setAuto_renew_subscription(String Auto_renew_subscription) {
+        this.Auto_renew_subscription = Auto_renew_subscription;
     }
 }
