@@ -16,10 +16,10 @@ import javafx.scene.layout.*;
 import javafx.scene.image.ImageView;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.*;
+
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -172,6 +172,8 @@ public class SecondaryController {
     @FXML
     private VBox UnresolvedFeedbackVBOX;
 
+    @FXML
+    private Label UpgradingAccountError;
 
     //==================CustomHeader=====================//
 
@@ -349,12 +351,32 @@ public class SecondaryController {
             if(!Guest) {
                 System.out.println("Received sticky event for role: " + event.getAccount().getAccountLevel());
                 ProfileSayHelloLabel.setText("Hello " + account.getFirstName() + " " + account.getLastName());
-                System.out.println("Account Level: " + account.getAccountLevel());
+                System.out.println("Account Level: " + account.getAccountLevel() + ", user : " + account.getSubscribtion_level());
+                SubscribtionLevelLabel.setText(account.getSubscribtion_level() + " user");
             }else {
                 System.out.println("Received sticky event for role: guest");
                 ProfileSayHelloLabel.setText("Hello guest");
-                System.out.println("Account Level: guest");
+                System.out.println("Account Level: guest , user : guest");
+                SubscribtionLevelLabel.setText("Guest user");
+                CancelRenewButton.setVisible(false);
+                PlusUserLabel.setVisible(false);
+                PlusUpgradeButton.setVisible(false);
+            }
 
+            if(account.getSubscribtion_level().equals("Free")){
+                FreeUserLabel.setVisible(true);
+                CancelRenewButton.setVisible(false);
+                PlusUserLabel.setVisible(false);
+            }else{
+                FreeUserLabel.setVisible(false);
+                PlusUpgradeButton.setVisible(false);
+                if(account.getAuto_renew_subscription().equals("Yes")){
+                    CancelRenewButton.setVisible(true);
+                    PlusUserLabel.setText("Renew at " + account.getSubscription_expires_at());
+                }else {
+                    CancelRenewButton.setVisible(false);
+                    PlusUserLabel.setText("Expires at " + account.getSubscription_expires_at());
+                }
             }
             setUserRole();
         });
@@ -518,12 +540,56 @@ public class SecondaryController {
 
     @FXML
     void UpgradeUserToPlus(ActionEvent event) {
+        if (
+                account.getCreditCardNumber() != null && !account.getCreditCardNumber().isEmpty() &&
+                        account.getCvv() != null && !account.getCvv().isEmpty() &&
+                        account.getCreditCardValidUntil() != null &&
+                        isCardStillValid(account)
+        ) {
+            try {
+                SimpleClient.getClient().sendToServer(new SubscriptionRequest(account));
+                UpgradingAccountError.setVisible(false);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }else {
+            System.err.println("Something went wrong. Please try again.");
+            System.out.println("CC: " + account.getCreditCardNumber());
+            System.out.println("CVV: " + account.getCvv());
+            System.out.println("ValidUntil: " + account.getCreditCardValidUntil());
+            System.out.println("isCardStillValid: " + isCardStillValid(account));
+            if(isCardStillValid(account) == false) {
+                UpgradingAccountError.setText("Error: Card is not valid.");
+                UpgradingAccountError.setVisible(true);
+            }
+        }
+    }
 
+    public boolean isCardStillValid(Account account) {
+        Date validUntil = account.getCreditCardValidUntil();
+        if (validUntil == null) return false;
+
+        // java.sql.Date has .toLocalDate()
+        LocalDate cardDate;
+        if (validUntil instanceof java.sql.Date) {
+            cardDate = ((java.sql.Date) validUntil).toLocalDate();
+        } else {
+            // fallback if it's java.util.Date (not likely, but for safety)
+            cardDate = validUntil.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        }
+        LocalDate today = LocalDate.now();
+        return !cardDate.isBefore(today); // true if today or after
     }
 
     @FXML
     void CancelAutoRenewSub(ActionEvent event) {
-
+        if(!account.getSubscribtion_level().equals("Free") && account.getAuto_renew_subscription().equals("Yes")){
+            try {
+                SimpleClient.getClient().sendToServer(new CancelAutoRenewRequest(account));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @org.greenrobot.eventbus.Subscribe
@@ -828,6 +894,32 @@ public class SecondaryController {
         });
     }
 
+    @org.greenrobot.eventbus.Subscribe
+    public void onAccountUpgrade(AccountUpgrade event) {
+        javafx.application.Platform.runLater(() -> {
+            account = event.getAccount();
+            if(account.getSubscribtion_level().equals("Plus")){
+                CancelRenewButton.setVisible(true);
+                PlusUserLabel.setVisible(true);
+                PlusUserLabel.setText("Expires at " + account.getSubscription_expires_at());
+                PlusUpgradeButton.setVisible(false);
+                FreeUserLabel.setVisible(false);
+                SubscribtionLevelLabel.setText("Plus user");
+            }
+        });
+    }
+
+    @org.greenrobot.eventbus.Subscribe
+    public void onAutoRenewResponse(AutoRenewResponse event) {
+        javafx.application.Platform.runLater(() -> {
+            account = event.getAccount();
+            if(account.getAuto_renew_subscription().equals("No")){
+                PlusUserLabel.setText("Expires at " + account.getSubscription_expires_at());
+                CancelRenewButton.setVisible(false);
+            }
+        });
+    }
+
     @FXML
     void initialize() {
         assert CancelRenewButton != null : "fx:id=\"CancelRenewButton\" was not injected: check your FXML file 'secondary.fxml'.";
@@ -875,6 +967,7 @@ public class SecondaryController {
         assert SortCatalogBtn != null : "fx:id=\"SortCatalogBtn\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SubscribtionLevelLabel != null : "fx:id=\"SubscribtionLevelLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert UnresolvedFeedbackVBOX != null : "fx:id=\"UnresolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert UpgradingAccountError != null : "fx:id=\"UpgradingAccountError\" was not injected: check your FXML file 'secondary.fxml'.";
 
         // Drag support for custom bar:
         CustomTitleBar.setOnMousePressed(event -> {
@@ -923,6 +1016,7 @@ public class SecondaryController {
         });
 
         System.out.println("[SecondaryController] Initialized");
+
         App.notifySecondaryReady();
     }
 }

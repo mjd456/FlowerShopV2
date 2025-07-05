@@ -6,6 +6,7 @@ import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDate;
 import java.util.*;
 
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
@@ -435,9 +436,8 @@ public class SimpleServer extends AbstractServer {
 				if (session != null) session.close();
 			}
 		}
-
 		else if (msg instanceof LogoutRequest logoutRequest) {
-			System.out.println("Logout request from client"); // ✅ Confirm this prints
+			System.out.println("Logout request from client");
 
 			Account requestAccount = logoutRequest.getAccount();
 			Session session = null;
@@ -456,14 +456,14 @@ public class SimpleServer extends AbstractServer {
 						client.sendToClient("Logout successful");
 					} catch (IOException e) {
 						System.err.println("Client disconnected during send.");
-						e.printStackTrace();
-						SubscribersList.remove(client);
+						// Do not crash, just remove from list
 					}
+					SubscribersList.remove(client); // Always remove, regardless of error
 				} else {
 					System.err.println("Account not found in DB (LogoutRequest).");
 				}
 
-				tx.commit();
+				tx.commit(); // Always commit the logout, even if client gone
 			} catch (Exception e) {
 				if (tx != null) tx.rollback();
 				e.printStackTrace();
@@ -584,6 +584,80 @@ public class SimpleServer extends AbstractServer {
 				session.close();
 			}
 		}
+		else if (msg instanceof SubscriptionRequest) {
+			SubscriptionRequest req = (SubscriptionRequest) msg;
+			int accountId = req.getAccount().getId();
+
+			Session session = null;
+			Transaction tx = null;
+
+			try {
+				session = sessionFactory.openSession();
+				tx = session.beginTransaction();
+
+				Account account = session.get(Account.class, accountId);
+				if (account == null) {
+					client.sendToClient("Error: Account not found.");
+					return;
+				}
+
+				account.setSubscribtion_level("Plus");
+
+				LocalDate expiresAt = LocalDate.now().plusYears(1);
+				Date expiresDate = java.sql.Date.valueOf(expiresAt);
+				account.setSubscription_expires_at(expiresDate.toString());
+
+				account.setAuto_renew_subscription("Yes");
+
+				session.update(account);
+				tx.commit();
+
+				client.sendToClient(new AccountUpgradeResponse(account));
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+				try { client.sendToClient("Error upgrading subscription."); } catch (Exception ex) { ex.printStackTrace(); }
+			} finally {
+				if (session != null) session.close();
+			}
+		}
+		else if (msg instanceof CancelAutoRenewRequest) {
+			CancelAutoRenewRequest req = (CancelAutoRenewRequest) msg;
+			int accountId = req.getAccount().getId();
+
+			Session session = null;
+			Transaction tx = null;
+
+			try {
+				session = sessionFactory.openSession();
+				tx = session.beginTransaction();
+
+				Account account = session.get(Account.class, accountId);
+				if (account == null) {
+					client.sendToClient("Error: Account not found.");
+					return;
+				}
+
+				// Check if auto-renew is 'Yes'
+				if ("Yes".equalsIgnoreCase(account.getAuto_renew_subscription())) {
+					account.setAuto_renew_subscription("No");
+					session.update(account);
+					tx.commit();
+					client.sendToClient(new AutoRenewDisableResponse(account));
+				} else {
+					tx.commit(); // Still commit if nothing changed, for consistency
+					client.sendToClient("Auto-renew was already disabled.");
+				}
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+				try {
+					client.sendToClient("Error canceling auto-renew.");
+				} catch (Exception ex) { ex.printStackTrace(); }
+			} finally {
+				if (session != null) session.close();
+			}
+		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}
@@ -681,6 +755,4 @@ public class SimpleServer extends AbstractServer {
 			exception.printStackTrace();
 		}
 	}
-
-
 }

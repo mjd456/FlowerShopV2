@@ -112,6 +112,14 @@ public class SimpleClient extends AbstractClient {
 			EventBus.getDefault().postSticky(new updatedFlowerNotif(updatedFlower));
 			// If updating image: updateFlowerCardInVBox(updatedFlower, imageData);
 		}
+		else if (msg instanceof AccountUpgradeResponse response){
+			account = response.getAccount();
+			EventBus.getDefault().postSticky(new AccountUpgrade(account));
+		}
+		else if (msg instanceof AutoRenewDisableResponse response){
+			account = response.getAccount();
+			EventBus.getDefault().postSticky(new AutoRenewResponse(account));
+		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}
