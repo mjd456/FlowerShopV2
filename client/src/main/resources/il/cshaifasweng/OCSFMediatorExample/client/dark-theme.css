@@ -176,3 +176,36 @@
 .vbox > *, .hbox > * {
     -fx-margin-bottom: 10px;
 }
+
+/* Change popup background */
+.date-picker-popup, .combo-box-popup {
+    -fx-background-color: #222438;
+}
+
+/* Style calendar cells (days) */
+.calendar-cell {
+    -fx-background-color: #26294a;
+    -fx-text-fill: #c5cae9;
+}
+
+.calendar-cell:hover {
+    -fx-background-color: #3949ab;
+    -fx-text-fill: #fff;
+}
+
+/* Header (month/year selectors) */
+.date-picker-popup > .month-year-pane {
+    -fx-background-color: #202228;
+    -fx-text-fill: #B0B9FF;
+}
+
+.date-picker-popup .button {
+    -fx-background-color: #232344;
+    -fx-text-fill: #B0B9FF;
+}
+
+/* Today cell */
+.calendar-cell.today {
+    -fx-background-color: #607d8b;
+    -fx-text-fill: #fff;
+}

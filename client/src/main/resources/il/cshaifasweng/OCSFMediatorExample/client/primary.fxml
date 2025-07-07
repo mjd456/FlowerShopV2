@@ -5,27 +5,17 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.PasswordField?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.text.Font?>
 
-<?import javafx.scene.layout.HBox?>
 <Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="279.0" prefWidth="469.0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.PrimaryController">
    <children>
-      <HBox fx:id="CustomTitleBar"
-            style="-fx-background-color: #202228; -fx-padding: 6 12 6 12; -fx-alignment: CENTER_LEFT;"
-            prefHeight="36.0"
-            prefWidth="469.0"
-            spacing="10">
-         <Label text="🌸 Flower Shop" style="-fx-text-fill: #B0B9FF; -fx-font-size: 14px;"/>
-         <Pane HBox.hgrow="ALWAYS"/>
-         <Button fx:id="MinimizeBtn"
-                 text="—"
-                 style="-fx-background-color: transparent; -fx-text-fill: #7d8190; -fx-font-size: 14px; -fx-font-weight: bold;"
-                 onAction="#minimizeWindow"/>
-         <Button fx:id="CloseBtn"
-                 text="✕"
-                 style="-fx-background-color: transparent; -fx-text-fill: #FF5677; -fx-font-size: 14px; -fx-font-weight: bold;"
-                 onAction="#closeWindow"/>
+      <HBox fx:id="CustomTitleBar" prefHeight="36.0" prefWidth="469.0" spacing="10" style="-fx-background-color: #202228; -fx-padding: 6 12 6 12; -fx-alignment: CENTER_LEFT;">
+         <Label style="-fx-text-fill: #B0B9FF; -fx-font-size: 14px;" text="🌸 Flower Shop" />
+         <Pane HBox.hgrow="ALWAYS" />
+         <Button fx:id="MinimizeBtn" onAction="#minimizeWindow" style="-fx-background-color: transparent; -fx-text-fill: #7d8190; -fx-font-size: 14px; -fx-font-weight: bold;" text="—" />
+         <Button fx:id="CloseBtn" onAction="#closeWindow" style="-fx-background-color: transparent; -fx-text-fill: #FF5677; -fx-font-size: 14px; -fx-font-weight: bold;" text="✕" />
       </HBox>
 
       <TextField fx:id="EmailField" layoutX="181.0" layoutY="80.0" promptText="Email" />
@@ -36,24 +26,24 @@
       <Label fx:id="PasswordLabel" layoutX="113.0" layoutY="116.0" prefHeight="25.0" prefWidth="61.0" text="Password :" />
       <Button fx:id="ContinueGuestBtn" layoutX="338.0" layoutY="229.0" mnemonicParsing="false" onAction="#ContinueAsGuest" prefHeight="35.0" prefWidth="122.0" text="Continue as guest" />
       <Button fx:id="SignupBtn" layoutX="15.0" layoutY="229.0" mnemonicParsing="false" onAction="#SignUp" prefHeight="35.0" prefWidth="67.0" text="Sign up" />
-      <Label fx:id="ErrorMessageLabel" alignment="CENTER" layoutX="64.0" layoutY="63.0" prefHeight="17.0" prefWidth="372.0" text="[Error Message]" textFill="RED" visible="false">
+      <Label fx:id="ErrorMessageLabel" alignment="CENTER" layoutX="52.0" layoutY="63.0" prefHeight="17.0" prefWidth="372.0" text="[Error Message]" textFill="RED" visible="false">
          <font>
             <Font name="System Bold" size="12.0" />
          </font>
       </Label>
-      <TextField fx:id="FirstNameField" layoutX="132.0" layoutY="38.0" prefHeight="25.0" prefWidth="89.0" visible="false" />
-      <TextField fx:id="LastNameField" layoutX="317.0" layoutY="38.0" prefHeight="25.0" prefWidth="89.0" visible="false" />
+      <TextField fx:id="FirstNameField" layoutX="132.0" layoutY="44.0" prefHeight="25.0" prefWidth="89.0" visible="false" />
+      <TextField fx:id="LastNameField" layoutX="317.0" layoutY="44.0" prefHeight="25.0" prefWidth="89.0" visible="false" />
       <TextField fx:id="EmailSignUpField" layoutX="178.0" layoutY="86.0" prefHeight="25.0" prefWidth="149.0" visible="false" />
       <TextField fx:id="IDField" layoutX="178.0" layoutY="116.0" prefHeight="25.0" prefWidth="149.0" visible="false" />
       <TextField fx:id="PhoneField" layoutX="178.0" layoutY="146.0" prefHeight="25.0" prefWidth="149.0" visible="false" />
-      <PasswordField fx:id="PasswordSignUpField" layoutX="178.0" layoutY="176.0" visible="false" />
+      <PasswordField fx:id="PasswordSignUpField" layoutX="178.0" layoutY="176.0" prefWidth="149.0" visible="false" />
       <TextField fx:id="CCNumberSignUp" layoutX="178.0" layoutY="206.0" prefHeight="25.0" prefWidth="149.0" visible="false" />
       <TextField fx:id="CVVNumber" layoutX="159.0" layoutY="242.0" prefHeight="25.0" prefWidth="52.0" visible="false" />
-      <Label fx:id="FirstNameSignUpLabel" layoutX="64.0" layoutY="42.0" prefHeight="17.0" prefWidth="61.0" text="First Name:" visible="false" />
+      <Label fx:id="FirstNameSignUpLabel" layoutX="64.0" layoutY="44.0" prefHeight="17.0" prefWidth="61.0" text="First Name:" visible="false" />
       <Button fx:id="SignUpFinal" layoutX="358.0" layoutY="177.0" mnemonicParsing="false" onAction="#CheckSignUp" prefHeight="35.0" prefWidth="82.0" text="Sign Up" visible="false" />
       <Button fx:id="BackBtn" layoutX="15.0" layoutY="242.0" mnemonicParsing="false" onAction="#GoToLogin" prefHeight="25.0" prefWidth="52.0" text="Back" visible="false" />
       <DatePicker fx:id="CCValidDate" layoutX="286.0" layoutY="242.0" prefHeight="25.0" prefWidth="113.0" visible="false" />
-      <Label fx:id="LastNameSignUpLabel" layoutX="249.0" layoutY="42.0" prefHeight="17.0" prefWidth="61.0" text="Last Name:" visible="false" />
+      <Label fx:id="LastNameSignUpLabel" layoutX="249.0" layoutY="44.0" prefHeight="17.0" prefWidth="61.0" text="Last Name:" visible="false" />
       <Label fx:id="EmailSignUpLabel" layoutX="129.0" layoutY="90.0" prefHeight="17.0" prefWidth="40.0" text="Email :" visible="false" />
       <Label fx:id="PNumberSignUpLabel" layoutX="80.0" layoutY="150.0" prefHeight="17.0" prefWidth="89.0" text="Phone Number :" visible="false" />
       <Label fx:id="PasswordSignUpLabel" layoutX="112.0" layoutY="182.0" prefHeight="17.0" prefWidth="61.0" text="Password :" visible="false" />
@@ -61,7 +51,7 @@
       <Label fx:id="CCLabel" layoutX="64.0" layoutY="211.0" prefHeight="17.0" prefWidth="113.0" text="CreditCard number :" visible="false" />
       <Label fx:id="CVV" layoutX="112.0" layoutY="246.0" prefHeight="17.0" prefWidth="40.0" text="CVV :" visible="false" />
       <Label fx:id="ValidUntilLabel" layoutX="220.0" layoutY="246.0" prefHeight="17.0" prefWidth="61.0" text="Valid Until :" visible="false" />
-      <Label fx:id="ErrorSignUpLabel" alignment="CENTER" layoutX="101.0" layoutY="14.0" prefHeight="17.0" prefWidth="233.0" text="[ErrorMessage]" textAlignment="CENTER" textFill="RED" visible="false" />
+      <Label fx:id="ErrorSignUpLabel" alignment="CENTER" layoutX="133.0" layoutY="66.0" prefHeight="17.0" prefWidth="233.0" text="[ErrorMessage]" textAlignment="CENTER" textFill="RED" visible="false" />
       <TextField fx:id="ForgotPassTextField" layoutX="147.0" layoutY="108.0" prefHeight="25.0" prefWidth="175.0" visible="false" />
       <Label fx:id="ForgotPassLabel" layoutX="192.0" layoutY="86.0" text="Enter your email:" visible="false" />
       <Button fx:id="SendVerifyCode" layoutX="168.0" layoutY="147.0" mnemonicParsing="false" onAction="#SendToEmailCode" text="Send verification code" visible="false" />
