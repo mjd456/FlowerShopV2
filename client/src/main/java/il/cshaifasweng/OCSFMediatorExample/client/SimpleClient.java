@@ -133,6 +133,9 @@ public class SimpleClient extends AbstractClient {
 		else if(msg instanceof NewFlowerNotification notification){
 			EventBus.getDefault().postSticky(notification);
 		}
+		if (msg instanceof UpdatePasswordResponse response) {
+			EventBus.getDefault().post(response);
+		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}
