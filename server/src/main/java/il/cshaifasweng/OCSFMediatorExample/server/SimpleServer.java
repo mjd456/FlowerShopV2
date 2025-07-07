@@ -6,7 +6,10 @@ import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
 import jakarta.mail.MessagingException;
@@ -21,13 +24,15 @@ import org.hibernate.service.ServiceRegistry;
 
 
 public class SimpleServer extends AbstractServer {
-	private static ArrayList<SubscribedClient> SubscribersList = new ArrayList<>();
+	private static final List<SubscribedClient> SubscribersList = new CopyOnWriteArrayList<>();
 	private static SessionFactory sessionFactory;
 	private static Session session;
 
 	public SimpleServer(int port) {
 		super(port);
 		initializeSession();
+
+		DailyTaskScheduler.scheduleDailyAtTime(0, 0, SimpleServer::expireAllSubscriptionsAndNotifyLoggedClients);
 	}
 
 	@Override
@@ -43,7 +48,8 @@ public class SimpleServer extends AbstractServer {
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
-			} else if (msgString.startsWith("add client")) {
+			}
+			else if (msgString.startsWith("add client")) {
 				SubscribedClient connection = new SubscribedClient(client);
 				SubscribersList.add(connection);
 				try {
@@ -51,7 +57,8 @@ public class SimpleServer extends AbstractServer {
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
-			} else if (msgString.startsWith("remove client")) {
+			}
+			else if (msgString.startsWith("remove client")) {
 				if (!SubscribersList.isEmpty()) {
 					for (SubscribedClient subscribedClient : SubscribersList) {
 						if (subscribedClient.getClient().equals(client)) {
@@ -60,9 +67,11 @@ public class SimpleServer extends AbstractServer {
 						}
 					}
 				}
-			} else if (msgString.startsWith("RefreshList")) {
+			}
+			else if (msgString.startsWith("RefreshList")) {
 				sendToClientRefreshedList(client);
-			} else if (msgString.startsWith("Does this email exist?")) {
+			}
+			else if (msgString.startsWith("Does this email exist?")) {
 				String[] tokens = msgString.split("\\s+");
 
 				String emailToCheck = tokens[4];
@@ -102,7 +111,8 @@ public class SimpleServer extends AbstractServer {
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
-			} else if (msgString.startsWith("Is the code correct?")) {
+			}
+			else if (msgString.startsWith("Is the code correct?")) {
 				String[] tokens = msgString.split("\\s+");
 
 				if (tokens.length != 6) {
@@ -172,7 +182,8 @@ public class SimpleServer extends AbstractServer {
 						e1.printStackTrace();
 					}
 				}
-			} else if (msgString.startsWith("Is this password unique?")) {
+			}
+			else if (msgString.startsWith("Is this password unique?")) {
 				String[] tokens = msgString.split("\\s+");
 				if (tokens.length < 6) {
 					try {
@@ -241,9 +252,11 @@ public class SimpleServer extends AbstractServer {
 						e1.printStackTrace();
 					}
 				}
-			} else if (msgString.startsWith("RequestFlowerCatalogForManager")) {
+			}
+			else if (msgString.startsWith("RequestFlowerCatalogForManager")) {
 				sendToClientRefreshedList(client);
-			}else if (msgString.startsWith("Send all Feedbacks")) {
+			}
+			else if (msgString.startsWith("Send all Feedbacks")) {
 				Session session = sessionFactory.openSession();
 				List<FeedBackSQL> allFeedbacks = new ArrayList<>();
 				try {
@@ -260,7 +273,6 @@ public class SimpleServer extends AbstractServer {
 					e.printStackTrace();
 				}
 			}
-
 		}
 		else if (msg instanceof LoginRequest loginRequest) {
 			String email = loginRequest.getUsername();
@@ -295,13 +307,13 @@ public class SimpleServer extends AbstractServer {
 
 			try {
 				if (account == null) {
-					// Account not found → deny login
+					// Account not found -> deny login
 					client.sendToClient(new LoginResponse(false, -1, "-", null));
 				} else if (account.isLogged()) {
-					// Already logged in → deny login
+					// Already logged in -> deny login
 					client.sendToClient(new LoginResponse(false, -1, "-", null));
 				} else {
-					// Not logged in → mark as logged in and update DB
+					// Not logged in -> mark as logged in and update DB
 					try (Session session = sessionFactory.openSession()) {
 						Transaction tx = session.beginTransaction();
 
@@ -309,6 +321,7 @@ public class SimpleServer extends AbstractServer {
 						accountInDb.setLogged(true); // set the flag on the managed object
 
 						tx.commit();
+						Account fresh = session.get(Account.class, accountInDb.getId());
 
 						// Send success response
 						client.sendToClient(new LoginResponse(
@@ -317,6 +330,17 @@ public class SimpleServer extends AbstractServer {
 								accountInDb.getFirstName(),
 								accountInDb
 						));
+
+						SubscribedClient sub = getSubscribedClientByConnection(client);
+						if (sub == null) {
+							// Not present, add new - to avoid bugs
+							sub = new SubscribedClient(client, fresh);
+							SubscribersList.add(sub);
+						} else {
+							// Already present, update account
+							sub.setAccount(fresh);
+						}
+
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -409,6 +433,8 @@ public class SimpleServer extends AbstractServer {
 					flowerInDb.setName(updatedData.getName());
 					flowerInDb.setPrice(updatedData.getPrice());
 					flowerInDb.setDescription(updatedData.getDescription());
+					flowerInDb.setColor(updatedData.getColor());
+					flowerInDb.setSupply(updatedData.getSupply());
 
 					session.update(flowerInDb);
 
@@ -435,9 +461,8 @@ public class SimpleServer extends AbstractServer {
 				if (session != null) session.close();
 			}
 		}
-
 		else if (msg instanceof LogoutRequest logoutRequest) {
-			System.out.println("Logout request from client"); // ✅ Confirm this prints
+			System.out.println("Logout request from client");
 
 			Account requestAccount = logoutRequest.getAccount();
 			Session session = null;
@@ -456,14 +481,24 @@ public class SimpleServer extends AbstractServer {
 						client.sendToClient("Logout successful");
 					} catch (IOException e) {
 						System.err.println("Client disconnected during send.");
-						e.printStackTrace();
-						SubscribersList.remove(client);
+						// Do not crash, just remove from list
+					}
+
+					SubscribedClient toRemove = null;
+					for (SubscribedClient sub : SubscribersList) {
+						if (sub.getClient().equals(client)) {
+							toRemove = sub;
+							break;
+						}
+					}
+					if (toRemove != null) {
+						SubscribersList.remove(toRemove);
 					}
 				} else {
 					System.err.println("Account not found in DB (LogoutRequest).");
 				}
 
-				tx.commit();
+				tx.commit(); // Always commit the logout, even if client gone
 			} catch (Exception e) {
 				if (tx != null) tx.rollback();
 				e.printStackTrace();
@@ -588,6 +623,10 @@ public class SimpleServer extends AbstractServer {
 		else if (msg instanceof Order orderMsg) {
 			System.out.println("Received Order from client!");
 
+		else if (msg instanceof SubscriptionRequest) {
+			SubscriptionRequest req = (SubscriptionRequest) msg;
+			int accountId = req.getAccount().getId();
+
 			Session session = null;
 			Transaction tx = null;
 
@@ -608,6 +647,66 @@ public class SimpleServer extends AbstractServer {
 			} catch (Exception e) {
 				if (tx != null) tx.rollback();
 				e.printStackTrace();
+
+				Account account = session.get(Account.class, accountId);
+				if (account == null) {
+					client.sendToClient("Error: Account not found.");
+					return;
+				}
+
+				account.setSubscribtion_level("Plus");
+
+				LocalDate expiresAt = LocalDate.now().plusYears(1);
+				Date expiresDate = java.sql.Date.valueOf(expiresAt);
+				account.setSubscription_expires_at(expiresDate.toString());
+
+				account.setAuto_renew_subscription("Yes");
+
+				session.update(account);
+				tx.commit();
+
+				client.sendToClient(new AccountUpgradeResponse(account));
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+				try { client.sendToClient("Error upgrading subscription."); } catch (Exception ex) { ex.printStackTrace(); }
+			} finally {
+				if (session != null) session.close();
+			}
+		}
+		else if (msg instanceof CancelAutoRenewRequest) {
+			CancelAutoRenewRequest req = (CancelAutoRenewRequest) msg;
+			int accountId = req.getAccount().getId();
+
+			Session session = null;
+			Transaction tx = null;
+
+			try {
+				session = sessionFactory.openSession();
+				tx = session.beginTransaction();
+
+				Account account = session.get(Account.class, accountId);
+				if (account == null) {
+					client.sendToClient("Error: Account not found.");
+					return;
+				}
+
+				// Check if auto-renew is 'Yes'
+				if ("Yes".equalsIgnoreCase(account.getAuto_renew_subscription())) {
+					account.setAuto_renew_subscription("No");
+					session.update(account);
+					tx.commit();
+					client.sendToClient(new AutoRenewDisableResponse(account));
+				} else {
+					tx.commit(); // Still commit if nothing changed, for consistency
+					client.sendToClient("Auto-renew was already disabled.");
+				}
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+				try {
+					client.sendToClient("Error canceling auto-renew.");
+				} catch (Exception ex) { ex.printStackTrace(); }
 			} finally {
 				if (session != null) session.close();
 			}
@@ -615,6 +714,31 @@ public class SimpleServer extends AbstractServer {
 
 		else if (msg instanceof UpdateFlowerSupplyRequest supplyRequest) {
 			System.out.println("Received UpdateFlowerSupplyRequest from client");
+
+		else if (msg instanceof DeleteFlowerRequest delReq) {
+			int idToDelete = delReq.getFlowerId();
+			try (Session session = sessionFactory.openSession()) {
+				Transaction tx = session.beginTransaction();
+				Flower flower = session.get(Flower.class, idToDelete);
+				if (flower != null) {
+					session.delete(flower);
+					tx.commit();
+					System.out.println("Flower deleted: " + flower.getName());
+					sendToAllClients(new FlowerDeleted(flower.getId()));
+						// Optionally send a refreshed list or a notification to all clients
+				} else {
+					tx.rollback();
+					System.out.println("Flower to delete not found");
+				}
+			} catch (Exception ex) {
+				ex.printStackTrace();
+			}
+			// Optionally: send back a confirmation or updated catalog
+		}
+		else if (msg instanceof AddFlowerRequest addFlowerRequest) {
+			System.out.println("Received AddFlowerRequest from client.");
+
+			Flower newFlower = addFlowerRequest.getNewFlower();
 
 			Session session = null;
 			Transaction tx = null;
@@ -638,9 +762,106 @@ public class SimpleServer extends AbstractServer {
 				tx.commit();
 				System.out.println("Flower supplies updated in database.");
 
+				session.save(newFlower); // Save to DB, ID assigned
+
+				tx.commit();
+				System.out.println("New flower added to DB: " + newFlower.getName());
+
+				// Notify the requesting client
+				client.sendToClient("Flower added successfully");
+
+				// Notify all clients (including sender) about the new flower
+				NewFlowerNotification notification = new NewFlowerNotification(newFlower);
+				for (SubscribedClient sub : SubscribersList) {
+					try {
+						sub.getClient().sendToClient(notification);
+					} catch (Exception ex) {
+						ex.printStackTrace();
+					}
+				}
 			} catch (Exception e) {
 				if (tx != null) tx.rollback();
 				e.printStackTrace();
+				try {
+					client.sendToClient("Failed to add flower: " + e.getMessage());
+				} catch (Exception ex) { ex.printStackTrace(); }
+			} finally {
+				if (session != null) session.close();
+			}
+		}
+		else if (msg instanceof UpdatePasswordRequest req) {
+			// Find the Account associated with this ConnectionToClient
+			Account account = null;
+			for (SubscribedClient sub : SubscribersList) {
+				if (sub.getClient().equals(client)) {
+					account = sub.getAccount();
+					break;
+				}
+			}
+			if (account == null) {
+				try {
+					client.sendToClient(new UpdatePasswordResponse(false, "Session error: account not found."));
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				return;
+			}
+
+			String newPassword = req.getNewPass();
+
+			Session session = null;
+			Transaction tx = null;
+
+			try {
+				session = sessionFactory.openSession();
+				tx = session.beginTransaction();
+
+				// Check if this password has ever been used for this account
+				Query<PasswordHistory> q = session.createQuery(
+						"FROM PasswordHistory WHERE user = :user AND passwordHash = :password", PasswordHistory.class
+				);
+				q.setParameter("user", account);
+				q.setParameter("password", newPassword);
+
+				if (!q.getResultList().isEmpty()) {
+					client.sendToClient(new UpdatePasswordResponse(false, "You cannot reuse an old password."));
+					tx.rollback();
+					return;
+				}
+
+				// Set previous current password entries to not current
+				Query<PasswordHistory> currQ = session.createQuery(
+						"FROM PasswordHistory WHERE user = :user AND isCurrent = true", PasswordHistory.class
+				);
+				currQ.setParameter("user", account);
+				for (PasswordHistory ph : currQ.getResultList()) {
+					ph.setCurrent(false);
+					session.update(ph);
+				}
+
+				// Set new password for Account and save new PasswordHistory
+				Account managedAccount = session.get(Account.class, account.getId());
+				managedAccount.setPassword(newPassword);
+
+				PasswordHistory newHist = new PasswordHistory(
+						managedAccount, newPassword, true, new Date()
+				);
+				session.save(newHist);
+
+				session.update(managedAccount);
+				tx.commit();
+
+				client.sendToClient(new UpdatePasswordResponse(true, "Password updated successfully."));
+
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+
+				try {
+					client.sendToClient(new UpdatePasswordResponse(false, "Server error during password update."));
+				} catch (IOException ex) {
+					ex.printStackTrace();
+				}
 			} finally {
 				if (session != null) session.close();
 			}
@@ -722,6 +943,88 @@ public class SimpleServer extends AbstractServer {
 		return cal.getTime();
 	}
 
+	public static void checkAllAccountsAtMidnight() {
+		try (Session session = sessionFactory.openSession()) {
+			session.beginTransaction();
+
+			// Example: find all expired accounts (subscription_expires_at <= today)
+			LocalDate today = LocalDate.now();
+			List<Account> expiredAccounts = session.createQuery(
+							"FROM Account WHERE subscription_expires_at <= :today", Account.class)
+					.setParameter("today", java.sql.Date.valueOf(today))
+					.getResultList();
+
+			// Do whatever you need with these accounts
+			for (Account account : expiredAccounts) {
+				account.setSubscribtion_level("Free");
+				account.setAuto_renew_subscription(null);
+				session.update(account);
+				// Optionally: Send email, etc.
+			}
+
+			session.getTransaction().commit();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private SubscribedClient getSubscribedClientByConnection(ConnectionToClient client) {
+		for (SubscribedClient sub : SubscribersList) {
+			if (sub.getClient().equals(client)) {
+				return sub;
+			}
+		}
+		return null;
+	}
+
+	public static void expireAllSubscriptionsAndNotifyLoggedClients() {
+		try (Session session = sessionFactory.openSession()) {
+			Transaction tx = session.beginTransaction();
+
+			LocalDate today = LocalDate.now();
+			java.sql.Date todaySql = java.sql.Date.valueOf(today);
+
+			List<Account> toExpire = session.createQuery(
+							"FROM Account WHERE subscription_expires_at IS NOT NULL AND subscription_expires_at <= :today", Account.class)
+					.setParameter("today", todaySql)
+					.getResultList();
+
+			for (Account account : toExpire) {
+				account.setSubscription_expires_at(null);
+				account.setAuto_renew_subscription(null);
+				account.setSubscribtion_level("Free");
+				session.update(account);
+			}
+
+			tx.commit();
+
+			System.out.println("Expired " + toExpire.size() + " subscriptions at " + LocalTime.now());
+
+			for (SubscribedClient sub : SubscribersList) {
+				Account acc = sub.getAccount();
+
+
+				if (acc != null && acc.isLogged()) {
+					System.out.println(acc.getEmail());
+					try (Session session2 = sessionFactory.openSession()) {
+						Account fresh = session2.get(Account.class, acc.getId());
+						if (fresh != null) {
+							sub.setAccount(fresh);
+							sub.getClient().sendToClient(new AccountUpdateNotification(fresh));
+						}
+					} catch (IOException e) {
+						System.err.println("Failed to notify client " + acc.getEmail());
+						e.printStackTrace();
+					}
+				}
+			}
+
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
 	public static void initializeSession() {
 		try {
 			sessionFactory = getSessionFactory();
@@ -743,6 +1046,4 @@ public class SimpleServer extends AbstractServer {
 			exception.printStackTrace();
 		}
 	}
-
-
 }

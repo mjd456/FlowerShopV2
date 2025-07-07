@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
@@ -63,7 +65,7 @@
                      <Label layoutX="20.0" layoutY="36.0" text="Title :" />
                      <TextField fx:id="FeedBackTitle" layoutX="20.0" layoutY="53.0" prefHeight="25.0" prefWidth="560.0" />
                      <Label layoutX="21.0" layoutY="78.0" text="Details :" />
-                     <TextArea fx:id="FeedBackDetails" layoutX="20.0" layoutY="96.0" prefHeight="180.0" prefWidth="560.0" />
+                     <TextArea fx:id="FeedBackDetails" layoutX="20.0" layoutY="96.0" prefHeight="180.0" prefWidth="560.0" wrapText="true" />
                      <Button fx:id="PushFeedBack" layoutX="486.0" layoutY="288.0" onAction="#SendFeedBack" text="Send feedback" />
                      <Label fx:id="FeedBackLabelText" alignment="CENTER" contentDisplay="CENTER" layoutX="21.0" layoutY="285.0" prefHeight="57.0" prefWidth="455.0" text="[Message]" visible="false" />
                   </children>
@@ -76,7 +78,7 @@
                   <children>
                      <ScrollPane fitToWidth="true" prefHeight="372.0" prefWidth="600.0">
                         <content>
-                           <Pane prefHeight="1011.0" prefWidth="585.0">
+                           <Pane fx:id="SettingsPane" prefHeight="1472.0" prefWidth="585.0">
                               <children>
                                  <Label fx:id="ProfileSayHelloLabel" layoutX="26.0" layoutY="21.0" text="Hello [Name,]" />
                                  <Button fx:id="LogOutButton" layoutX="509.0" layoutY="17.0" onAction="#LogOut" text="LogOut" />
@@ -92,6 +94,9 @@
                                  <!-- Feedback -->
                                  <Label fx:id="MyFeedBacksText" layoutX="251.0" layoutY="590.0" text="Your Feedbacks" />
                                  <ScrollPane fx:id="MyFeedBackScrollFrane" fitToWidth="true" layoutX="60.0" layoutY="613.0" prefHeight="222.0">
+
+                                 <Label fx:id="PurchaseHistoryText" layoutX="249.0" layoutY="70.0" text="Purchase history" />
+                                 <ScrollPane fx:id="MyFeedBackScrollFrane" fitToWidth="true" layoutX="60.0" layoutY="350.0" prefHeight="222.0">
                                     <content>
                                        <VBox fx:id="MyFeedbacksVbox" prefHeight="0.0" prefWidth="469.0" />
                                     </content>
@@ -142,7 +147,80 @@
                                  <Label fx:id="PlusLabelPayment" layoutX="391.0" layoutY="1163.0" text="Upgrading costs 100₪ yearly" />
                                  <Label fx:id="PlusUserLabel" alignment="CENTER" layoutX="385.0" layoutY="1121.0" prefHeight="42.0" prefWidth="161.0" text="Renew at [Date]" />
                                  <Label fx:id="SubscribtionLevelLabel" layoutX="26.0" layoutY="6.0" text="[Subscribtion] User" />
-                                 <Button fx:id="CancelRenewButton" layoutX="409.0" layoutY="1185.0" mnemonicParsing="false" onAction="#CancelAutoRenewSub" text="Cancel auto renew" />
+
+                                 <Button fx:id="CancelRenewButton" layoutX="409.0" layoutY="985.0" mnemonicParsing="false" onAction="#CancelAutoRenewSub" text="Cancel auto renew" />
+                                 <Label fx:id="UpgradingAccountError" layoutX="26.0" layoutY="977.0" prefHeight="17.0" prefWidth="351.0" visible="false" />
+                                 <VBox layoutX="14.0" layoutY="1050.0" prefHeight="128.0" prefWidth="270.0">
+                                    <children>
+                                       <Label alignment="CENTER" prefHeight="17.0" prefWidth="216.0" text="Account info">
+                                          <font>
+                                             <Font name="System Bold" size="12.0" />
+                                          </font>
+                                       </Label>
+                                       <Label fx:id="AccInfoPhoneNum" layoutX="10.0" layoutY="78.0" text="Phone number : [acc.Phonenumber]" />
+                                       <Label fx:id="AccInfoEmail" text="Email : [acc.email]" />
+                                       <Label fx:id="AccInfoPassword" text="Password : [acc.password]" />
+                                       <Label fx:id="AccInfoCCNum" layoutX="10.0" layoutY="44.0" text="Credit card number : [acc.CCNum]" />
+                                       <Label fx:id="AccInfoCCV" layoutX="10.0" layoutY="61.0" text="CCV : [acc.CCV]" />
+                                       <Label fx:id="AccInfoCCValidUntil" layoutX="10.0" layoutY="44.0" text="CC valid until  : [acc.CCValidDate]" />
+                                    </children>
+                                 </VBox>
+                                 <VBox fx:id="ProfileTabConfirmPassText" alignment="TOP_CENTER" layoutX="308.0" layoutY="1043.0" prefHeight="134.0" prefWidth="254.0" style="-fx-spacing: 20;">
+                                    <children>
+                                       <Label alignment="CENTER" prefHeight="17.0" prefWidth="253.0" text="Change password" textAlignment="CENTER">
+                                          <font>
+                                             <Font name="System Bold" size="12.0" />
+                                          </font>
+                                       </Label>
+                                       <HBox prefHeight="184.0" prefWidth="142.0">
+                                          <children>
+                                             <VBox prefHeight="60.0" prefWidth="127.0" style="-fx-spacing: 10;">
+                                                <children>
+                                                   <Label alignment="CENTER_RIGHT" prefHeight="23.0" prefWidth="127.0" text="New password :" />
+                                                   <Label alignment="CENTER_RIGHT" layoutX="10.0" layoutY="10.0" prefHeight="27.0" prefWidth="127.0" text="Confirm password :" />
+                                                </children>
+                                             </VBox>
+                                             <VBox prefHeight="200.0" prefWidth="127.0" style="-fx-spacing: 10;">
+                                                <children>
+                                                   <PasswordField fx:id="ProfileTabNewPassText" />
+                                                   <PasswordField fx:id="ProfileTabNewConfirmPassText" />
+                                                </children>
+                                             </VBox>
+                                          </children>
+                                       </HBox>
+                                       <Button fx:id="ResetMyPasswordButton" onAction="#ResetMyPassword" prefHeight="25.0" prefWidth="147.0" text="Set new password" />
+                                    </children>
+                                 </VBox>
+                                 <VBox alignment="TOP_CENTER" layoutX="7.0" layoutY="1214.0" prefHeight="170.0" prefWidth="239.0" style="-fx-spacing: 20;">
+                                    <children>
+                                       <Label alignment="CENTER" prefHeight="17.0" prefWidth="317.0" text="Update credit card info">
+                                          <font>
+                                             <Font name="System Bold" size="12.0" />
+                                          </font>
+                                       </Label>
+                                       <HBox prefHeight="136.0" prefWidth="239.0">
+                                          <children>
+                                             <VBox prefHeight="136.0" prefWidth="118.0" style="-fx-spacing: 10;">
+                                                <children>
+                                                   <Label alignment="CENTER_RIGHT" prefHeight="27.0" prefWidth="119.0" text="Credit card number :" />
+                                                   <Label alignment="CENTER_RIGHT" layoutX="10.0" layoutY="10.0" prefHeight="21.0" prefWidth="118.0" text="CCV :" />
+                                                   <Label alignment="CENTER_RIGHT" layoutX="10.0" layoutY="37.0" prefHeight="27.0" prefWidth="118.0" text="Card valid until :" />
+                                                </children>
+                                             </VBox>
+                                             <VBox layoutX="10.0" layoutY="10.0" prefHeight="136.0" prefWidth="121.0" style="-fx-spacing: 10;">
+                                                <children>
+                                                   <TextField fx:id="NewCardNumber" />
+                                                   <TextField fx:id="NewCardCCV" layoutX="10.0" layoutY="10.0" />
+                                                   <DatePicker fx:id="NewCardDate" />
+                                                </children>
+                                             </VBox>
+                                          </children>
+                                       </HBox>
+                                       <Button fx:id="UpdateNewCC" mnemonicParsing="false" onAction="#UpdateNewCCFunction" text="Update credit card info" />
+                                    </children>
+                                 </VBox>
+                                 <Label fx:id="NewPassError" alignment="CENTER" layoutX="301.0" layoutY="1191.0" prefHeight="17.0" prefWidth="268.0" text="[Error]" textFill="RED" visible="false" />
+                                 <Label fx:id="NewCCError" alignment="CENTER" layoutX="-2.0" layoutY="1398.0" prefHeight="17.0" prefWidth="256.0" text="[Error]" textFill="RED" visible="false" />
                               </children>
                            </Pane>
                         </content>
@@ -181,14 +259,31 @@
                   <children>
                      <ScrollPane fx:id="ManagerPanelScroll" fitToWidth="true" prefHeight="372.0" prefWidth="600.0">
                         <content>
-                           <Pane fx:id="ManagerPanelPane" prefHeight="762.0" prefWidth="585.0">
+                           <Pane fx:id="ManagerPanelPane" prefHeight="671.0" prefWidth="585.0">
                               <children>
-                                 <ScrollPane fx:id="ManagerCatalogSelector" fitToHeight="true" fitToWidth="true" layoutX="77.0" layoutY="38.0" prefHeight="299.0" prefWidth="430.0">
+                                 <ScrollPane fx:id="ManagerCatalogSelector" fitToWidth="true" layoutX="77.0" layoutY="46.0" prefHeight="291.0" prefWidth="430.0">
                                     <content>
                                        <VBox fx:id="ManagerCatalogSelectorVbox" />
                                     </content>
                                  </ScrollPane>
-                                 <Label layoutX="252.0" layoutY="21.0" text="Modify catalog" />
+                                 <Label layoutX="252.0" layoutY="21.0" text="Modify catalog" underline="true" />
+                                 <Label layoutX="217.0" layoutY="358.0" text="Add new flower to catalog" underline="true">
+                                    <font>
+                                       <Font name="System Bold" size="12.0" />
+                                    </font>
+                                 </Label>
+                                 <Label alignment="CENTER_RIGHT" layoutX="129.0" layoutY="375.0" prefHeight="32.0" prefWidth="100.0" text="Flower name :" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="129.0" layoutY="407.0" prefHeight="32.0" prefWidth="100.0" text="Color :" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="128.0" layoutY="437.0" prefHeight="32.0" prefWidth="100.0" text="Price :" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="127.0" layoutY="469.0" prefHeight="32.0" prefWidth="100.0" text="Supply :" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="30.0" layoutY="501.0" prefHeight="32.0" prefWidth="100.0" text="Description :" />
+                                 <TextField fx:id="NewFlowerName" layoutX="229.0" layoutY="378.0" promptText="Name" />
+                                 <TextField fx:id="NewFlowerColor" layoutX="229.0" layoutY="410.0" promptText="Color" />
+                                 <TextField fx:id="NewFlowerPrice" layoutX="229.0" layoutY="442.0" promptText="Price" />
+                                 <TextField fx:id="NewFlowerSupply" layoutX="229.0" layoutY="474.0" promptText="Amount in storage" />
+                                 <Label layoutX="115.0" layoutY="625.0" text="Note : To add a picture for the flower you need to access database." />
+                                 <TextArea fx:id="NewFlowerDesc" layoutX="133.0" layoutY="509.0" prefHeight="105.0" prefWidth="342.0" promptText="Ex. Flower looks in weddings..." />
+                                 <Button fx:id="AddNewFlower" layoutX="488.0" layoutY="589.0" mnemonicParsing="false" onAction="#RequestToAddNewFlower" prefHeight="25.0" prefWidth="84.0" text="Add" />
                               </children>
                            </Pane>
                         </content>

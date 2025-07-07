@@ -1,15 +1,12 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 
@@ -21,10 +18,14 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.net.URL;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.*;
+
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-import javafx.util.Duration;
 import javafx.util.Pair;
 import org.greenrobot.eventbus.EventBus;
 
@@ -41,6 +42,33 @@ import javafx.stage.Stage;
 
 
 public class SecondaryController {
+
+    @FXML
+    private ResourceBundle resources;
+
+    @FXML
+    private URL location;
+
+    @FXML
+    private Label AccInfoCCNum;
+
+    @FXML
+    private Label AccInfoCCV;
+
+    @FXML
+    private Label AccInfoCCValidUntil;
+
+    @FXML
+    private Label AccInfoEmail;
+
+    @FXML
+    private Label AccInfoPassword;
+
+    @FXML
+    private Label AccInfoPhoneNum;
+
+    @FXML
+    private Button AddNewFlower;
 
     @FXML
     private Button CancelRenewButton;
@@ -136,6 +164,36 @@ public class SecondaryController {
     private VBox MyFeedbacksVbox;
 
     @FXML
+    private Label NewCCError;
+
+    @FXML
+    private TextField NewCardCCV;
+
+    @FXML
+    private DatePicker NewCardDate;
+
+    @FXML
+    private TextField NewCardNumber;
+
+    @FXML
+    private TextField NewFlowerColor;
+
+    @FXML
+    private TextArea NewFlowerDesc;
+
+    @FXML
+    private TextField NewFlowerName;
+
+    @FXML
+    private TextField NewFlowerPrice;
+
+    @FXML
+    private TextField NewFlowerSupply;
+
+    @FXML
+    private Label NewPassError;
+
+    @FXML
     private Label PlusLabelPayment;
 
     @FXML
@@ -146,6 +204,15 @@ public class SecondaryController {
 
     @FXML
     private Label ProfileSayHelloLabel;
+
+    @FXML
+    private VBox ProfileTabConfirmPassText;
+
+    @FXML
+    private PasswordField ProfileTabNewConfirmPassText;
+
+    @FXML
+    private PasswordField ProfileTabNewPassText;
 
     @FXML
     private ScrollPane PurchaseHistoryScrollFrame;
@@ -219,6 +286,9 @@ public class SecondaryController {
     private AnchorPane SettingsAnchor;
 
     @FXML
+    private Pane SettingsPane;
+
+    @FXML
     private Tab SettingsTab;
 
     @FXML
@@ -230,10 +300,14 @@ public class SecondaryController {
     @FXML
     private VBox UnresolvedFeedbackVBOX;
 
+    @FXML
+    private Button UpdateNewCC;
+
+    @FXML
+    private Label UpgradingAccountError;
 
     //==================CustomHeader=====================//
 
-    // For window dragging
     private double xOffset = 0, yOffset = 0;
 
     private Tab[] ManagerTabs;
@@ -280,6 +354,7 @@ public class SecondaryController {
             VBox textBox = new VBox(5);
             Label name = new Label("Name: " + flower.getName());
             Label price = new Label("Price: ₪" + flower.getPrice());
+            Label color = new Label("Color: " + flower.getColor());
             Label desc = new Label("Description: " + flower.getDescription());
             Label supply = new Label("Supply: " + flower.getSupply());
 
@@ -296,16 +371,16 @@ public class SecondaryController {
 
             quantitySpinner.setEditable(true);
             quantitySpinner.setMaxWidth(80);
-            if(!Guest) {
+            if (!Guest) {
                 Button addToCartButton = new Button("Add to Cart");
                 addToCartButton.setOnAction(e -> {
                     int amount = quantitySpinner.getValue();
                     cartMap.merge(flower, amount, Integer::sum);
                     System.out.println("Added to cart: " + flower.getName() + " x" + amount);
                 });
-                textBox.getChildren().addAll(name, price, desc, supply, quantitySpinner, addToCartButton);
-            }else {
-                textBox.getChildren().addAll(name, price, desc, supply, quantitySpinner);
+                textBox.getChildren().addAll(name, price, color, desc, supply, quantitySpinner, addToCartButton);
+            } else {
+                textBox.getChildren().addAll(name, price, color, desc, supply, quantitySpinner);
             }
             flowerBox.getChildren().addAll(imageView, textBox);
 
@@ -374,8 +449,20 @@ public class SecondaryController {
                 MyFeedBacksText.setVisible(false);
                 MyFeedBackScrollFrane.setVisible(false);
                 MainTabsFrame.getTabs().removeAll(toRemove);
+
+                List<javafx.scene.Node> toRemoveNodes = new ArrayList<>();
+                for (javafx.scene.Node node : SettingsPane.getChildren()) {
+                    if (node != LogOutButton && node != ProfileSayHelloLabel) {
+                        toRemoveNodes.add(node);
+                    }
+                }
+                SettingsPane.getChildren().removeAll(toRemoveNodes);
+                SettingsPane.setPrefWidth(585);
+                SettingsPane.setPrefHeight(300);
+
             });
-        } else if ("Customer".equalsIgnoreCase(role)) {
+        }
+        else if ("Customer".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 for (Tab tab : ManagerTabs) {
                     MainTabsFrame.getTabs().remove(tab);
@@ -396,6 +483,14 @@ public class SecondaryController {
                     }
                 });
             });
+        } else if ("Customer service".equalsIgnoreCase(role)) {
+            Platform.runLater(() -> {
+                for (Tab tab : ManagerTabs) {
+                    if(tab != CustomerServicePanel){
+                        MainTabsFrame.getTabs().remove(tab);
+                    }
+                }
+            });
         }
     }
 
@@ -407,17 +502,37 @@ public class SecondaryController {
             if(!Guest) {
                 System.out.println("Received sticky event for role: " + event.getAccount().getAccountLevel());
                 ProfileSayHelloLabel.setText("Hello " + account.getFirstName() + " " + account.getLastName());
-                System.out.println("Account Level: " + account.getAccountLevel());
+                System.out.println("Account Level: " + account.getAccountLevel() + ", user : " + account.getSubscribtion_level());
+                SubscribtionLevelLabel.setText(account.getSubscribtion_level() + " user");
+                if(account.getSubscribtion_level().equals("Free")){
+                    FreeUserLabel.setVisible(true);
+                    CancelRenewButton.setVisible(false);
+                    PlusUserLabel.setVisible(false);
+                }else{
+                    FreeUserLabel.setVisible(false);
+                    PlusUpgradeButton.setVisible(false);
+                    if(account.getAuto_renew_subscription().equals("Yes")){
+                        CancelRenewButton.setVisible(true);
+                        PlusUserLabel.setText("Renew at " + account.getSubscription_expires_at());
+                    }else {
+                        CancelRenewButton.setVisible(false);
+                        PlusUserLabel.setText("Expires at " + account.getSubscription_expires_at());
+                    }
+                }
             }else {
                 System.out.println("Received sticky event for role: guest");
                 ProfileSayHelloLabel.setText("Hello guest");
-                System.out.println("Account Level: guest");
-
+                System.out.println("Account Level: guest , user : guest");
+                SubscribtionLevelLabel.setText("Guest user");
+                CancelRenewButton.setVisible(false);
+                PlusUserLabel.setVisible(false);
+                PlusUpgradeButton.setVisible(false);
             }
+
+
             setUserRole();
         });
     }
-
 
     @FXML
     public void LogOut(ActionEvent event) {
@@ -452,58 +567,84 @@ public class SecondaryController {
 
     public void populateManagerCatalog(List<Flower> flowerList) {
         ManagerCatalogSelectorVbox.getChildren().clear();
+        ManagerCatalogSelector.setFitToWidth(true);
 
         for (Flower flower : flowerList) {
-            VBox flowerBox = new VBox(5);
-            flowerBox.setStyle("-fx-border-color: #4D8DFF; -fx-padding: 10;");
-            flowerBox.setMaxWidth(Double.MAX_VALUE); // 🔁 makes it expand fully
-            VBox.setVgrow(flowerBox, Priority.ALWAYS);
+            // Main Pane for the flower, vertical orientation
+            VBox flowerBox = new VBox(8);
+            flowerBox.setStyle("-fx-border-color: #4D8DFF; -fx-padding: 14 16 14 16; -fx-background-radius: 8;");
+            flowerBox.setMaxWidth(430);
 
+            // Name, Price, and Description (Label with wrap)
             Label nameLabel = new Label("Name: " + flower.getName());
             Label priceLabel = new Label("Price: ₪" + flower.getPrice());
+            Label colorLabel = new Label("Color: " + flower.getColor());           // <---- ADD THIS
+            Label supplyLabel = new Label("Supply: " + flower.getSupply());        // <---- AND THIS
             Label descLabel = new Label("Description: " + flower.getDescription());
             descLabel.setWrapText(true);
 
             Button editBtn = new Button("Edit");
-            VBox editPane = new VBox(5);
+            VBox editPane = new VBox(10);
+            editPane.setStyle("-fx-background-color: #242b3b; -fx-padding: 12; -fx-background-radius: 0 0 8 8;");
+            editPane.setMaxWidth(Double.MAX_VALUE);
             editPane.setVisible(false);
-            editPane.setStyle("-fx-padding: 10;");
-            editPane.setMaxWidth(Double.MAX_VALUE); // 👈 important for inner content
+            editPane.setManaged(false); // So the VBox height is correct when not expanded
 
+            Button deleteBtn = new Button("Delete");
+
+            // Input fields
             TextField nameField = new TextField(flower.getName());
+            TextField colorField = new TextField(flower.getColor());
             TextField priceField = new TextField(String.valueOf(flower.getPrice()));
+            TextField supplyField = new TextField(String.valueOf(flower.getSupply()));
             TextArea descField = new TextArea(flower.getDescription());
-            descField.setPrefHeight(60);
+            descField.setPrefHeight(80);
             descField.setWrapText(true);
             descField.setMaxWidth(Double.MAX_VALUE);
 
             Button saveBtn = new Button("Save");
             Button cancelBtn = new Button("Cancel");
+            HBox buttonBox = new HBox(8, saveBtn, cancelBtn);
 
-            HBox buttonBox = new HBox(10, saveBtn, cancelBtn);
-            buttonBox.setAlignment(Pos.CENTER_LEFT);
-
+            // --- Input validation on Save ---
             saveBtn.setOnAction(e -> {
                 String newName = nameField.getText().trim();
                 String newDesc = descField.getText().trim();
                 String priceText = priceField.getText().trim();
-
+                String supplyText = supplyField.getText().trim();
+                String newColor = colorField.getText().trim();
+                int newSupply = -1;
                 boolean valid = true;
 
-                // Validate name
-                if (newName.isEmpty()) {
+                try {
+                    newSupply = Integer.parseInt(supplyText);
+                    if (newSupply < 0) throw new NumberFormatException();
+                    supplyField.setStyle("");
+                } catch (NumberFormatException ex) {
+                    supplyField.setStyle("-fx-border-color: red;");
+                    valid = false;
+                }
+
+                if (newName.isEmpty() || !newName.matches("^[A-Za-z\\s]+$")) {
                     nameField.setStyle("-fx-border-color: red;");
                     valid = false;
                 } else {
-                    nameField.setStyle(""); // reset style
+                    nameField.setStyle("");
                 }
 
-                // Validate price
-                if (!priceText.matches("\\d+(\\.\\d+)?")) {
+                if (newColor.isEmpty() || !newColor.matches("^[A-Za-z\\s]+$")) {
+                    colorField.setStyle("-fx-border-color: red;");
+                    valid = false;
+                } else {
+                    colorField.setStyle("");
+                }
+
+                // Price: only digits, at most one dot, no leading dot
+                if (!priceText.matches("^\\d+(\\.\\d{1,2})?$")) {
                     priceField.setStyle("-fx-border-color: red;");
                     valid = false;
                 } else {
-                    priceField.setStyle(""); // reset style
+                    priceField.setStyle("");
                 }
 
                 if (!valid) {
@@ -513,41 +654,92 @@ public class SecondaryController {
 
                 double newPrice = Double.parseDouble(priceText);
 
-                // Update flower object
+                // Update and send
                 flower.setName(newName);
                 flower.setDescription(newDesc);
                 flower.setPrice(newPrice);
+                flower.setColor(newColor);
+                flower.setSupply(newSupply);
 
-                // Send to server
                 try {
                     SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
                     System.out.println("Flower updated and sent to server.");
                 } catch (Exception ex) {
                     ex.printStackTrace();
-                    System.err.println("Failed to send flower update.");
                 }
 
-                // Refresh UI
                 populateManagerCatalog(flowerList);
             });
 
+            cancelBtn.setOnAction(e -> {
+                editPane.setVisible(false);
+                editPane.setManaged(false);
+            });
+
+            deleteBtn.setOnAction(e -> {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Delete Confirmation");
+                alert.setHeaderText(null);
+                alert.setGraphic(null);
+                alert.setContentText("Are you sure you want to delete this flower?\n\n" + "Flower name : "+  flower.getName());
+
+                DialogPane dialogPane = alert.getDialogPane();
+                URL cssUrl = getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/dark-theme.css");
+                if (cssUrl != null) {
+                    dialogPane.getStylesheets().add(cssUrl.toExternalForm());
+                } else {
+                    System.err.println("Could not find dark-theme.css!");
+                }
 
 
-            cancelBtn.setOnAction(e -> editPane.setVisible(false));
-            editBtn.setOnAction(e -> editPane.setVisible(!editPane.isVisible()));
+                Optional<ButtonType> result = alert.showAndWait();
+                if (result.isPresent() && result.get() == ButtonType.OK) {
+                    // Send delete request to server
+                    try {
+                        SimpleClient.getClient().sendToServer(new DeleteFlowerRequest(flower.getId()));
+                        System.out.println("Sent delete request for flower: " + flower.getName());
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
 
-            editPane.getChildren().addAll(
+
+            // --- Show/Hide edit pane with animation (optional) ---
+            editBtn.setOnAction(e -> {
+                boolean nowVisible = !editPane.isVisible();
+                editPane.setVisible(nowVisible);
+                editPane.setManaged(nowVisible);
+                if (nowVisible) {
+                    // Optionally focus first input field
+                    nameField.requestFocus();
+                }
+            });
+
+            // Layout for edit pane
+            editPane.getChildren().setAll(
                     new Label("Edit Name:"), nameField,
                     new Label("Edit Price:"), priceField,
+                    new Label("Edit Supply:"), supplyField,
+                    new Label("Edit Color:"), colorField,
                     new Label("Edit Description:"), descField,
                     buttonBox
             );
 
-            flowerBox.getChildren().addAll(nameLabel, priceLabel, descLabel, editBtn, editPane);
+            // Add components to the main flower box
+            HBox actionsBox = new HBox(8, editBtn, deleteBtn);
+            flowerBox.getChildren().addAll(
+                    nameLabel,
+                    priceLabel,
+                    colorLabel,
+                    supplyLabel,
+                    descLabel,
+                    actionsBox,
+                    editPane
+            );
+            // Add to VBox
             ManagerCatalogSelectorVbox.getChildren().add(flowerBox);
         }
-
-        // Force VBox to fill the ScrollPane width
         ManagerCatalogSelectorVbox.setFillWidth(true);
     }
 
@@ -566,8 +758,29 @@ public class SecondaryController {
 
     @FXML
     void ResetMyPassword(ActionEvent event) {
+        String newPass = ProfileTabNewPassText.getText();
+        String confirmPass = ProfileTabNewConfirmPassText.getText();
 
+        NewPassError.setVisible(false);
+
+        if (!newPass.equals(confirmPass)) {
+            NewPassError.setText("Passwords do not match.");
+            NewPassError.setVisible(true);
+            return;
+        }
+
+        try {
+            SimpleClient.getClient().sendToServer(
+                    new UpdatePasswordRequest(newPass)
+            );
+            System.out.println("Requested password update");
+        } catch (Exception e) {
+            e.printStackTrace();
+            NewPassError.setText("Failed to send password update.");
+            NewPassError.setVisible(true);
+        }
     }
+
 
     @FXML
     void ContinueToBuy(ActionEvent event) {
@@ -603,12 +816,61 @@ public class SecondaryController {
 
     @FXML
     void UpgradeUserToPlus(ActionEvent event) {
+        if (
+                account.getCreditCardNumber() != null && !account.getCreditCardNumber().isEmpty() &&
+                        account.getCvv() != null && !account.getCvv().isEmpty() &&
+                        account.getCreditCardValidUntil() != null &&
+                        isCardStillValid(account)
+        ) {
+            try {
+                SimpleClient.getClient().sendToServer(new SubscriptionRequest(account));
+                UpgradingAccountError.setVisible(false);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }else {
+            System.err.println("Something went wrong. Please try again.");
+            System.out.println("CC: " + account.getCreditCardNumber());
+            System.out.println("CVV: " + account.getCvv());
+            System.out.println("ValidUntil: " + account.getCreditCardValidUntil());
+            System.out.println("isCardStillValid: " + isCardStillValid(account));
+            if(isCardStillValid(account) == false) {
+                UpgradingAccountError.setText("Error: Card is not valid.");
+                UpgradingAccountError.setVisible(true);
+            }
+        }
+    }
+    
+    @FXML
+    void UpdateNewCCFunction(ActionEvent event) {
 
+    }
+
+    public boolean isCardStillValid(Account account) {
+        Date validUntil = account.getCreditCardValidUntil();
+        if (validUntil == null) return false;
+
+        // java.sql.Date has .toLocalDate()
+        LocalDate cardDate;
+        if (validUntil instanceof java.sql.Date) {
+            cardDate = ((java.sql.Date) validUntil).toLocalDate();
+        } else {
+            // fallback if it's java.util.Date (not likely, but for safety)
+            cardDate = validUntil.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        }
+        LocalDate today = LocalDate.now();
+        return !cardDate.isBefore(today); // true if today or after
     }
 
     @FXML
     void CancelAutoRenewSub(ActionEvent event) {
-
+        if(!account.getSubscribtion_level().equals("Free") && account.getAuto_renew_subscription().equals("Yes")){
+            try {
+                SimpleClient.getClient().sendToServer(new CancelAutoRenewRequest(account));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @org.greenrobot.eventbus.Subscribe
@@ -774,9 +1036,22 @@ public class SecondaryController {
         if(!Guest){
             try {
                 SimpleClient.getClient().sendToServer(new GetUserFeedbacksRequest(account.getId()));
+                AccInfoPhoneNum.setText("Phone Number: " + account.getPhoneNumber());
+                AccInfoEmail.setText("Email: " + account.getEmail());
+                AccInfoPassword.setText("Password: " + account.getPassword());
+                AccInfoCCNum.setText("Credit card number : " + account.getCreditCardNumber());
+                AccInfoCCV.setText("CCV : " + account.getCvv());
+                AccInfoCCValidUntil.setText("CC valid until : " + account.getCreditCardValidUntil().toString());
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }else{
+            AccInfoPhoneNum.setText("");
+            AccInfoEmail.setText("");
+            AccInfoPassword.setText("");
+            AccInfoCCNum.setText("");
+            AccInfoCCV.setText("");
+            AccInfoCCValidUntil.setText("");
         }
     }
 
@@ -941,6 +1216,7 @@ public class SecondaryController {
         });
     }
 
+
     public static void clearCart() {
         if (instance != null) {
             instance.cartMap.clear();
@@ -989,8 +1265,251 @@ public class SecondaryController {
 
 
 
+    @org.greenrobot.eventbus.Subscribe
+    public void onAccountUpgrade(AccountUpgrade event) {
+        javafx.application.Platform.runLater(() -> {
+            account = event.getAccount();
+            if(account.getSubscribtion_level().equals("Plus")){
+                CancelRenewButton.setVisible(true);
+                PlusUserLabel.setVisible(true);
+                PlusUserLabel.setText("Expires at " + account.getSubscription_expires_at());
+                PlusUpgradeButton.setVisible(false);
+                FreeUserLabel.setVisible(false);
+                SubscribtionLevelLabel.setText("Plus user");
+            }
+        });
+    }
+
+    @org.greenrobot.eventbus.Subscribe
+    public void onAutoRenewResponse(AutoRenewResponse event) {
+        javafx.application.Platform.runLater(() -> {
+            account = event.getAccount();
+            if(account.getAuto_renew_subscription().equals("No")){
+                PlusUserLabel.setText("Expires at " + account.getSubscription_expires_at());
+                CancelRenewButton.setVisible(false);
+            }
+        });
+    }
+
+    @org.greenrobot.eventbus.Subscribe
+    public void onAccountUpdate(AccountUpdate event) {
+        javafx.application.Platform.runLater(() -> {
+            account = event.getAccount();
+            System.out.println("Updating");
+            UpdateAccountSubscriptionStatus();
+        });
+    }
+
+    @org.greenrobot.eventbus.Subscribe
+    public void onUpdateDeletedFlower(UpdateDeletedFlower event) {
+        javafx.application.Platform.runLater(() -> {
+            int flowerID = event.getFlowerID();
+
+            // Remove from cachedFlowerNodes
+            cachedFlowerNodes.removeIf(pair -> pair.getKey().getId() == flowerID);
+
+            // Remove from cartList
+            cartList.removeIf(pair -> pair.getKey().getId() == flowerID);
+            try {
+                SimpleClient.getClient().sendToServer("RequestFlowerCatalogForManager");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    public void UpdateAccountSubscriptionStatus() {
+        SubscribtionLevelLabel.setText(account.getSubscribtion_level() + "user");
+        if(account.getSubscribtion_level().equals("Free")){
+            FreeUserLabel.setVisible(true);
+            PlusUpgradeButton.setVisible(true);
+            CancelRenewButton.setVisible(false);
+            PlusUserLabel.setVisible(false);
+        }else{
+            PlusUserLabel.setVisible(true);
+            PlusUserLabel.setText((account.getAuto_renew_subscription().equals("Yes")?"Renew at ":"Expires at") + account.getSubscription_expires_at());
+            CancelRenewButton.setVisible(true);
+            FreeUserLabel.setVisible(false);
+            PlusUpgradeButton.setVisible(false);
+        }
+    }
+
+
+    @org.greenrobot.eventbus.Subscribe
+    public void onUpdatePasswordResponse(UpdatePasswordResponse event) {
+        javafx.application.Platform.runLater(() -> {
+            NewPassError.setText(event.getMessage());
+            NewPassError.setVisible(true);
+
+            if (event.isSuccess()) {
+                ProfileTabNewPassText.clear();
+                ProfileTabNewConfirmPassText.clear();
+            }
+        });
+    }
+
+    @FXML
+    void RequestToAddNewFlower(ActionEvent event) {
+        String name = NewFlowerName.getText().trim();
+        String color = NewFlowerColor.getText().trim();
+        String priceText = NewFlowerPrice.getText().trim();
+        String supplyText = NewFlowerSupply.getText().trim();
+        String desc = NewFlowerDesc.getText().trim();
+        String imageId = "";
+
+        boolean valid = true;
+
+        if (name.isEmpty() || !name.matches("^[A-Za-z\\s]+$")) {
+            NewFlowerName.setStyle("-fx-border-color: red;");
+            valid = false;
+        } else {
+            NewFlowerName.setStyle("");
+        }
+
+        if (color.isEmpty() || !color.matches("^[A-Za-z\\s]+$")) {
+            NewFlowerColor.setStyle("-fx-border-color: red;");
+            valid = false;
+        } else {
+            NewFlowerColor.setStyle("");
+        }
+
+        double price = -1;
+        int supply = -1;
+
+        try {
+            price = Double.parseDouble(priceText);
+            NewFlowerPrice.setStyle("");
+        } catch (NumberFormatException e) {
+            NewFlowerPrice.setStyle("-fx-border-color: red;");
+            valid = false;
+        }
+
+        try {
+            supply = Integer.parseInt(supplyText);
+            if (supply < 0) throw new NumberFormatException();
+            NewFlowerSupply.setStyle("");
+        } catch (NumberFormatException e) {
+            NewFlowerSupply.setStyle("-fx-border-color: red;");
+            valid = false;
+        }
+
+        if (desc.isEmpty()) {
+            NewFlowerDesc.setStyle("-fx-border-color: red;");
+            valid = false;
+        } else {
+            NewFlowerDesc.setStyle("");
+        }
+
+        if (!valid) {
+            System.err.println("Validation failed.");
+            return;
+        }
+
+        Flower newFlower = new Flower(
+                name,
+                color,
+                desc,
+                imageId,
+                price,
+                supply
+        );
+
+        try {
+            SimpleClient.getClient().sendToServer(new AddFlowerRequest(newFlower));
+            System.out.println("Requested to add new flower: " + name);
+
+            NewFlowerName.setText("");
+            NewFlowerColor.setText("");
+            NewFlowerPrice.setText("");
+            NewFlowerSupply.setText("");
+            NewFlowerDesc.setText("");
+            //Cleared the fields after sending request
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Subscribe
+    public void onNewFlowerNotification(NewFlowerNotification notif) {
+        Platform.runLater(() -> {
+            Flower newFlower = notif.getFlower();
+
+            Tab selectedTab = MainTabsFrame.getSelectionModel().getSelectedItem();
+            if (selectedTab == null) return;
+
+            // Catalog tab: Add flower visually, with highlight
+            if (selectedTab.getId().equals("FlowersTab")) {
+                HBox flowerBox = new HBox(10);
+                flowerBox.setStyle("-fx-border-color: #2fc4ca; -fx-background-color: #222;"); // Distinct border for new
+                flowerBox.setPadding(new Insets(10));
+                flowerBox.setAlignment(Pos.CENTER_LEFT);
+                flowerBox.setPrefHeight(140);
+                flowerBox.setMaxWidth(Double.MAX_VALUE);
+
+                // [NEW] badge
+                Label newBadge = new Label("[NEW]");
+                newBadge.setStyle("-fx-background-color: #2fc4ca; -fx-text-fill: #222; -fx-font-weight: bold; -fx-padding: 3 8 3 8; -fx-background-radius: 8;");
+
+                // Image (placeholder, since none available)
+                ImageView imageView = new ImageView();
+                imageView.setFitWidth(100);
+                imageView.setFitHeight(100);
+                imageView.setPreserveRatio(true);
+                // You can use a "no_image.png" in your resources or just leave blank
+
+                VBox textBox = new VBox(5);
+                Label name = new Label("Name: " + newFlower.getName());
+                name.setStyle("-fx-font-weight: bold;");
+                Label price = new Label("Price: ₪" + newFlower.getPrice());
+                Label color = new Label("Color: " + newFlower.getColor());
+                Label desc = new Label("Description: " + newFlower.getDescription());
+                Label supply = new Label("Supply: " + newFlower.getSupply());
+
+                Spinner<Integer> quantitySpinner = new Spinner<>(1, newFlower.getSupply(), 1);
+                quantitySpinner.setEditable(true);
+                quantitySpinner.setMaxWidth(80);
+
+                if (!Guest) {
+                    Button addToCartButton = new Button("Add to Cart");
+                    addToCartButton.setOnAction(e -> {
+                        int amount = quantitySpinner.getValue();
+                        cartList.add(new Pair<>(newFlower, amount));
+                        System.out.println("Added to cart: " + newFlower.getName() + " x" + amount);
+                    });
+                    textBox.getChildren().addAll(newBadge, name, price, color, desc, supply, quantitySpinner, addToCartButton);
+                } else {
+                    textBox.getChildren().addAll(newBadge, name, price, color, desc, supply, quantitySpinner);
+                }
+
+                flowerBox.getChildren().addAll(imageView, textBox);
+
+                // Optionally add at the top:
+                FlowerPageVbox.getChildren().add(0, flowerBox);
+                cachedFlowerNodes.add(new Pair<>(newFlower, flowerBox));
+
+                // Scroll to top so user sees the new flower
+                FlowersScrollPane.setVvalue(0.0);
+
+            } else if (selectedTab.getId().equals("ManagerPanel")) {
+                // Manager panel: ask server for updated catalog
+                try {
+                    SimpleClient.getClient().sendToServer("RequestFlowerCatalogForManager");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
     @FXML
     void initialize() {
+        assert AccInfoCCNum != null : "fx:id=\"AccInfoCCNum\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert AccInfoCCV != null : "fx:id=\"AccInfoCCV\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert AccInfoCCValidUntil != null : "fx:id=\"AccInfoCCValidUntil\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert AccInfoEmail != null : "fx:id=\"AccInfoEmail\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert AccInfoPassword != null : "fx:id=\"AccInfoPassword\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert AccInfoPhoneNum != null : "fx:id=\"AccInfoPhoneNum\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert AddNewFlower != null : "fx:id=\"AddNewFlower\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CancelRenewButton != null : "fx:id=\"CancelRenewButton\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CartAnchor != null : "fx:id=\"CartAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CartPriceLabel != null : "fx:id=\"CartPriceLabel\" was not injected: check your FXML file 'secondary.fxml'.";
@@ -1021,10 +1540,22 @@ public class SecondaryController {
         assert MyFeedBackScrollFrane != null : "fx:id=\"MyFeedBackScrollFrane\" was not injected: check your FXML file 'secondary.fxml'.";
         assert MyFeedBacksText != null : "fx:id=\"MyFeedBacksText\" was not injected: check your FXML file 'secondary.fxml'.";
         assert MyFeedbacksVbox != null : "fx:id=\"MyFeedbacksVbox\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewCCError != null : "fx:id=\"NewCCError\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewCardCCV != null : "fx:id=\"NewCardCCV\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewCardDate != null : "fx:id=\"NewCardDate\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewCardNumber != null : "fx:id=\"NewCardNumber\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewFlowerColor != null : "fx:id=\"NewFlowerColor\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewFlowerDesc != null : "fx:id=\"NewFlowerDesc\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewFlowerName != null : "fx:id=\"NewFlowerName\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewFlowerPrice != null : "fx:id=\"NewFlowerPrice\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewFlowerSupply != null : "fx:id=\"NewFlowerSupply\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewPassError != null : "fx:id=\"NewPassError\" was not injected: check your FXML file 'secondary.fxml'.";
         assert PlusLabelPayment != null : "fx:id=\"PlusLabelPayment\" was not injected: check your FXML file 'secondary.fxml'.";
         assert PlusUpgradeButton != null : "fx:id=\"PlusUpgradeButton\" was not injected: check your FXML file 'secondary.fxml'.";
         assert PlusUserLabel != null : "fx:id=\"PlusUserLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ProfileSayHelloLabel != null : "fx:id=\"ProfileSayHelloLabel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ProfileTabConfirmPassText != null : "fx:id=\"ProfileTabConfirmPassText\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ProfileTabNewPassText != null : "fx:id=\"ProfileTabNewPassText\" was not injected: check your FXML file 'secondary.fxml'.";
         assert PurchaseHistoryScrollFrame != null : "fx:id=\"PurchaseHistoryScrollFrame\" was not injected: check your FXML file 'secondary.fxml'.";
         assert PurchaseHistoryText != null : "fx:id=\"PurchaseHistoryText\" was not injected: check your FXML file 'secondary.fxml'.";
         assert PurchaseHistoryVbox != null : "fx:id=\"PurchaseHistoryVbox\" was not injected: check your FXML file 'secondary.fxml'.";
@@ -1032,11 +1563,17 @@ public class SecondaryController {
         assert ResetMyPasswordButton != null : "fx:id=\"ResetMyPasswordButton\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ResolvedFeedbackVBOX != null : "fx:id=\"ResolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SettingsAnchor != null : "fx:id=\"SettingsAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert SettingsPane != null : "fx:id=\"SettingsPane\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SettingsTab != null : "fx:id=\"SettingsTab\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SortCatalogBtn != null : "fx:id=\"SortCatalogBtn\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SubscribtionLevelLabel != null : "fx:id=\"SubscribtionLevelLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert UnresolvedFeedbackVBOX != null : "fx:id=\"UnresolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
+
         instance = this;
+
+        assert UpdateNewCC != null : "fx:id=\"UpdateNewCC\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert UpgradingAccountError != null : "fx:id=\"UpgradingAccountError\" was not injected: check your FXML file 'secondary.fxml'.";
+
 
         // Drag support for custom bar:
         CustomTitleBar.setOnMousePressed(event -> {
@@ -1081,6 +1618,7 @@ public class SecondaryController {
 
 
         System.out.println("[SecondaryController] Initialized");
+
         App.notifySecondaryReady();
     }
 
