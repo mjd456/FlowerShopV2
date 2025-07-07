@@ -908,19 +908,15 @@ public class SimpleServer extends AbstractServer {
 		try (Session session = sessionFactory.openSession()) {
 			session.beginTransaction();
 
-			// Example: find all expired accounts (subscription_expires_at <= today)
 			LocalDate today = LocalDate.now();
-			List<Account> expiredAccounts = session.createQuery(
-							"FROM Account WHERE subscription_expires_at <= :today", Account.class)
+			List<Account> expiredAccounts = session.createQuery("FROM Account WHERE Subscription_expires_at <= :today", Account.class)
 					.setParameter("today", java.sql.Date.valueOf(today))
 					.getResultList();
 
-			// Do whatever you need with these accounts
 			for (Account account : expiredAccounts) {
 				account.setSubscribtion_level("Free");
 				account.setAuto_renew_subscription(null);
 				session.update(account);
-				// Optionally: Send email, etc.
 			}
 
 			session.getTransaction().commit();
@@ -946,7 +942,7 @@ public class SimpleServer extends AbstractServer {
 			java.sql.Date todaySql = java.sql.Date.valueOf(today);
 
 			List<Account> toExpire = session.createQuery(
-							"FROM Account WHERE subscription_expires_at IS NOT NULL AND subscription_expires_at <= :today", Account.class)
+							"FROM Account WHERE Subscription_expires_at IS NOT NULL AND Subscription_expires_at <= :today", Account.class)
 					.setParameter("today", todaySql)
 					.getResultList();
 
