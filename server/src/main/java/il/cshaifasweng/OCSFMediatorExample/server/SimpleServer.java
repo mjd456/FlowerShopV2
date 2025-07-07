@@ -584,6 +584,68 @@ public class SimpleServer extends AbstractServer {
 				session.close();
 			}
 		}
+		
+		else if (msg instanceof Order orderMsg) {
+			System.out.println("Received Order from client!");
+
+			Session session = null;
+			Transaction tx = null;
+
+			try {
+				session = sessionFactory.openSession();
+				tx = session.beginTransaction();
+
+				// Fetch managed customer object from DB
+				Account customerInDb = session.get(Account.class, orderMsg.getCustomer().getId());
+				orderMsg.setCustomer(customerInDb);
+
+				// Save the order
+				session.save(orderMsg);
+
+				tx.commit();
+				System.out.println("Order saved to database!");
+
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+			} finally {
+				if (session != null) session.close();
+			}
+		}
+
+		else if (msg instanceof UpdateFlowerSupplyRequest supplyRequest) {
+			System.out.println("Received UpdateFlowerSupplyRequest from client");
+
+			Session session = null;
+			Transaction tx = null;
+
+			try {
+				session = sessionFactory.openSession();
+				tx = session.beginTransaction();
+
+				for (Flower updatedFlower : supplyRequest.getUpdatedFlowers()) {
+					Flower flowerInDb = session.get(Flower.class, updatedFlower.getId());
+
+					if (flowerInDb != null) {
+						flowerInDb.setSupply(updatedFlower.getSupply());
+						session.update(flowerInDb);
+						System.out.println("Updated supply for: " + flowerInDb.getName() + " to " + flowerInDb.getSupply());
+					} else {
+						System.err.println("Flower with ID " + updatedFlower.getId() + " not found.");
+					}
+				}
+
+				tx.commit();
+				System.out.println("Flower supplies updated in database.");
+
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+			} finally {
+				if (session != null) session.close();
+			}
+		}
+
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}
