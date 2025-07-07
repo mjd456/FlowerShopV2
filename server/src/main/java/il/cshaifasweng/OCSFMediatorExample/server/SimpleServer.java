@@ -619,6 +619,10 @@ public class SimpleServer extends AbstractServer {
 				session.close();
 			}
 		}
+		
+		else if (msg instanceof Order orderMsg) {
+			System.out.println("Received Order from client!");
+
 		else if (msg instanceof SubscriptionRequest) {
 			SubscriptionRequest req = (SubscriptionRequest) msg;
 			int accountId = req.getAccount().getId();
@@ -629,6 +633,20 @@ public class SimpleServer extends AbstractServer {
 			try {
 				session = sessionFactory.openSession();
 				tx = session.beginTransaction();
+
+				// Fetch managed customer object from DB
+				Account customerInDb = session.get(Account.class, orderMsg.getCustomer().getId());
+				orderMsg.setCustomer(customerInDb);
+
+				// Save the order
+				session.save(orderMsg);
+
+				tx.commit();
+				System.out.println("Order saved to database!");
+
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
 
 				Account account = session.get(Account.class, accountId);
 				if (account == null) {
@@ -693,6 +711,10 @@ public class SimpleServer extends AbstractServer {
 				if (session != null) session.close();
 			}
 		}
+
+		else if (msg instanceof UpdateFlowerSupplyRequest supplyRequest) {
+			System.out.println("Received UpdateFlowerSupplyRequest from client");
+
 		else if (msg instanceof DeleteFlowerRequest delReq) {
 			int idToDelete = delReq.getFlowerId();
 			try (Session session = sessionFactory.openSession()) {
@@ -724,6 +746,21 @@ public class SimpleServer extends AbstractServer {
 			try {
 				session = sessionFactory.openSession();
 				tx = session.beginTransaction();
+
+				for (Flower updatedFlower : supplyRequest.getUpdatedFlowers()) {
+					Flower flowerInDb = session.get(Flower.class, updatedFlower.getId());
+
+					if (flowerInDb != null) {
+						flowerInDb.setSupply(updatedFlower.getSupply());
+						session.update(flowerInDb);
+						System.out.println("Updated supply for: " + flowerInDb.getName() + " to " + flowerInDb.getSupply());
+					} else {
+						System.err.println("Flower with ID " + updatedFlower.getId() + " not found.");
+					}
+				}
+
+				tx.commit();
+				System.out.println("Flower supplies updated in database.");
 
 				session.save(newFlower); // Save to DB, ID assigned
 
@@ -819,6 +856,7 @@ public class SimpleServer extends AbstractServer {
 			} catch (Exception e) {
 				if (tx != null) tx.rollback();
 				e.printStackTrace();
+
 				try {
 					client.sendToClient(new UpdatePasswordResponse(false, "Server error during password update."));
 				} catch (IOException ex) {
@@ -828,6 +866,7 @@ public class SimpleServer extends AbstractServer {
 				if (session != null) session.close();
 			}
 		}
+
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}

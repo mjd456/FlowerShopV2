@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane xmlns:fx="http://javafx.com/fxml" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.OrderDetailsController" prefWidth="600.0" prefHeight="400.0">
+    <children>
+        <VBox alignment="TOP_LEFT" spacing="10" layoutX="20.0" layoutY="20.0">
+            <children>
+                <Label text="Greeting message (optional):" />
+                <TextField fx:id="GreetingField" prefWidth="400" />
+
+                <Label text="Delivery address:" />
+                <TextField fx:id="AddressField" prefWidth="400" />
+
+                <Label text="Delivery date:" />
+                <DatePicker fx:id="DatePicker" />
+
+                <Label text="Delivery time (e.g., 12:00):" />
+                <TextField fx:id="TimeField" prefWidth="100" />
+
+                <Button text="Confirm Order" onAction="#confirmOrder" />
+            </children>
+        </VBox>
+    </children>
+</AnchorPane>
