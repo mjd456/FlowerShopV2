@@ -752,6 +752,82 @@ public class SimpleServer extends AbstractServer {
 				if (session != null) session.close();
 			}
 		}
+		else if (msg instanceof UpdatePasswordRequest req) {
+			// Find the Account associated with this ConnectionToClient
+			Account account = null;
+			for (SubscribedClient sub : SubscribersList) {
+				if (sub.getClient().equals(client)) {
+					account = sub.getAccount();
+					break;
+				}
+			}
+			if (account == null) {
+				try {
+					client.sendToClient(new UpdatePasswordResponse(false, "Session error: account not found."));
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				return;
+			}
+
+			String newPassword = req.getNewPass();
+
+			Session session = null;
+			Transaction tx = null;
+
+			try {
+				session = sessionFactory.openSession();
+				tx = session.beginTransaction();
+
+				// Check if this password has ever been used for this account
+				Query<PasswordHistory> q = session.createQuery(
+						"FROM PasswordHistory WHERE user = :user AND passwordHash = :password", PasswordHistory.class
+				);
+				q.setParameter("user", account);
+				q.setParameter("password", newPassword);
+
+				if (!q.getResultList().isEmpty()) {
+					client.sendToClient(new UpdatePasswordResponse(false, "You cannot reuse an old password."));
+					tx.rollback();
+					return;
+				}
+
+				// Set previous current password entries to not current
+				Query<PasswordHistory> currQ = session.createQuery(
+						"FROM PasswordHistory WHERE user = :user AND isCurrent = true", PasswordHistory.class
+				);
+				currQ.setParameter("user", account);
+				for (PasswordHistory ph : currQ.getResultList()) {
+					ph.setCurrent(false);
+					session.update(ph);
+				}
+
+				// Set new password for Account and save new PasswordHistory
+				Account managedAccount = session.get(Account.class, account.getId());
+				managedAccount.setPassword(newPassword);
+
+				PasswordHistory newHist = new PasswordHistory(
+						managedAccount, newPassword, true, new Date()
+				);
+				session.save(newHist);
+
+				session.update(managedAccount);
+				tx.commit();
+
+				client.sendToClient(new UpdatePasswordResponse(true, "Password updated successfully."));
+
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+				try {
+					client.sendToClient(new UpdatePasswordResponse(false, "Server error during password update."));
+				} catch (IOException ex) {
+					ex.printStackTrace();
+				}
+			} finally {
+				if (session != null) session.close();
+			}
+		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}

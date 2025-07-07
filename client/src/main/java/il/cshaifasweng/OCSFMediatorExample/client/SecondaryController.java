@@ -696,8 +696,29 @@ public class SecondaryController {
 
     @FXML
     void ResetMyPassword(ActionEvent event) {
+        String newPass = ProfileTabNewPassText.getText();
+        String confirmPass = ProfileTabNewConfirmPassText.getText();
 
+        NewPassError.setVisible(false);
+
+        if (!newPass.equals(confirmPass)) {
+            NewPassError.setText("Passwords do not match.");
+            NewPassError.setVisible(true);
+            return;
+        }
+
+        try {
+            SimpleClient.getClient().sendToServer(
+                    new UpdatePasswordRequest(newPass)
+            );
+            System.out.println("Requested password update");
+        } catch (Exception e) {
+            e.printStackTrace();
+            NewPassError.setText("Failed to send password update.");
+            NewPassError.setVisible(true);
+        }
     }
+
 
     @FXML
     void ContinueToBuy(ActionEvent event) {
@@ -1145,6 +1166,20 @@ public class SecondaryController {
             FreeUserLabel.setVisible(false);
             PlusUpgradeButton.setVisible(false);
         }
+    }
+
+
+    @org.greenrobot.eventbus.Subscribe
+    public void onUpdatePasswordResponse(UpdatePasswordResponse event) {
+        javafx.application.Platform.runLater(() -> {
+            NewPassError.setText(event.getMessage());
+            NewPassError.setVisible(true);
+
+            if (event.isSuccess()) {
+                ProfileTabNewPassText.clear();
+                ProfileTabNewConfirmPassText.clear();
+            }
+        });
     }
 
     @FXML
