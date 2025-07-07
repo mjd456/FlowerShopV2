@@ -13,11 +13,6 @@ import javafx.scene.layout.*;
 import javafx.scene.image.ImageView;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
 import java.net.URL;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -36,10 +31,6 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import org.greenrobot.eventbus.Subscribe;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.layout.AnchorPane;
-import javafx.stage.Stage;
-
 
 public class SecondaryController {
 
@@ -75,9 +66,6 @@ public class SecondaryController {
 
     @FXML
     private AnchorPane CartAnchor;
-
-    @FXML
-    private VBox CartVBox;
 
     @FXML
     private Label CartPriceLabel;
@@ -224,56 +212,6 @@ public class SecondaryController {
     private VBox PurchaseHistoryVbox;
 
     @FXML
-    private VBox UpcomingDeliveriesVbox;
-
-    private final List<Order> orderHistory = new ArrayList<>();
-
-    public void addOrderToHistory(Order order) {
-        orderHistory.add(order);
-
-        VBox orderBox = new VBox(5);
-        orderBox.setStyle("-fx-border-color: #4D8DFF; -fx-padding: 8; -fx-background-radius: 5;");
-
-        Label titleLabel = new Label("Order on " + order.getDeliveryDate() + " at " + order.getDeliveryTime());
-        titleLabel.setStyle("-fx-font-weight: bold;");
-
-        Label priceLabel = new Label("Total: ₪" + order.getTotalPrice());
-
-        StringBuilder itemsText = new StringBuilder();
-        for (Map.Entry<Flower, Integer> entry : order.getItems().entrySet()) {
-            itemsText.append("- ").append(entry.getKey().getName()).append(" x").append(entry.getValue()).append("\n");
-        }
-        Label itemsLabel = new Label(itemsText.toString());
-        itemsLabel.setStyle("-fx-font-size: 12;");
-
-        Button cancelButton = new Button("Cancel");
-
-        // Check if order can be canceled
-        boolean canCancel = order.canBeCancelled();
-        cancelButton.setDisable(!canCancel);
-
-        cancelButton.setOnAction(e -> {
-            if (order.canBeCancelled()) {
-                // Remove from VBox
-                PurchaseHistoryVbox.getChildren().remove(orderBox);
-                System.out.println("Order canceled: " + order.getId());
-            } else {
-                System.out.println("Cannot cancel: delivery time passed");
-                cancelButton.setDisable(true);
-            }
-        });
-
-        orderBox.getChildren().addAll(titleLabel, priceLabel, itemsLabel);
-
-        if (canCancel) {
-            orderBox.getChildren().add(cancelButton);
-        }
-
-        PurchaseHistoryVbox.getChildren().add(orderBox);
-    }
-
-
-    @FXML
     private Button PushFeedBack;
 
     @FXML
@@ -318,7 +256,7 @@ public class SecondaryController {
 
     private List<Pair<Flower, HBox>> cachedFlowerNodes = new ArrayList<>();
 
-    private final Map<Flower, Integer> cartMap = new HashMap<>();
+    private final List<Pair<Flower, Integer>> cartList = new ArrayList<>();
 
     private String Sorted = "Unsorted";
 
@@ -375,7 +313,7 @@ public class SecondaryController {
                 Button addToCartButton = new Button("Add to Cart");
                 addToCartButton.setOnAction(e -> {
                     int amount = quantitySpinner.getValue();
-                    cartMap.merge(flower, amount, Integer::sum);
+                    cartList.add(new Pair<>(flower, amount));
                     System.out.println("Added to cart: " + flower.getName() + " x" + amount);
                 });
                 textBox.getChildren().addAll(name, price, color, desc, supply, quantitySpinner, addToCartButton);
@@ -784,35 +722,8 @@ public class SecondaryController {
 
     @FXML
     void ContinueToBuy(ActionEvent event) {
-        if (cartMap.isEmpty()) {
-            System.out.println("Cart is empty! Cannot proceed to order.");
-            return;
-        }
 
-        double totalPrice = 0;
-        for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
-            Flower flower = entry.getKey();
-            int quantity = entry.getValue();
-            totalPrice += flower.getPrice() * quantity;
-        }
-
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/order_details.fxml"));
-            AnchorPane pane = loader.load();
-
-            OrderDetailsController controller = loader.getController();
-            controller.setOrderData(new HashMap<>(cartMap), totalPrice, account);
-
-            Stage stage = new Stage();
-            stage.setTitle("Order Details");
-            stage.setScene(new javafx.scene.Scene(pane));
-            stage.show();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
-
-
 
     @FXML
     void UpgradeUserToPlus(ActionEvent event) {
@@ -1181,89 +1092,12 @@ public class SecondaryController {
         }
     }
 
-
-    public void updateFlowerCardsAfterPurchase() {
-        for (Pair<Flower, HBox> pair : cachedFlowerNodes) {
-            Flower flower = pair.getKey();
-            HBox flowerBox = pair.getValue();
-            VBox textBox = (VBox) flowerBox.getChildren().get(1);
-            Label supplyLabel = (Label) textBox.getChildren().get(3);
-
-            supplyLabel.setText("Supply: " + flower.getSupply());
-
-            Spinner<Integer> spinner = (Spinner<Integer>) textBox.getChildren().get(4);
-            spinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(
-                    1, flower.getSupply(), 1
-            ));
-        }
-    }
-
-
-    public static SecondaryController instance;
-
-    public static void refreshCartStatic() {
-        if (instance != null) {
-            instance.showCart();
-        }
-    }
-
-
-
     @org.greenrobot.eventbus.Subscribe
     public void onUpdatedFlowerNotif(updatedFlowerNotif event) {
         javafx.application.Platform.runLater(() -> {
             updateFlowerCardInVBox(event.getUpdatedFlower());
         });
     }
-
-
-    public static void clearCart() {
-        if (instance != null) {
-            instance.cartMap.clear();
-            instance.showCart();
-        }
-    }
-
-    public void showCart() {
-        CartVBox.getChildren().clear();
-        double totalPrice = 0;
-
-        for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
-            Flower flower = entry.getKey();
-            int quantity = entry.getValue();
-            double price = flower.getPrice() * quantity;
-
-            HBox itemBox = new HBox(10);
-            Label nameLabel = new Label(flower.getName() + " x" + quantity);
-            Label priceLabel = new Label("₪" + price);
-
-            Button plusBtn = new Button("+");
-            Button minusBtn = new Button("-");
-
-            plusBtn.setOnAction(e -> {
-                cartMap.put(flower, quantity + 1);
-                showCart();
-            });
-
-            minusBtn.setOnAction(e -> {
-                if (quantity > 1) {
-                    cartMap.put(flower, quantity - 1);
-                } else {
-                    cartMap.remove(flower);
-                }
-                showCart();
-            });
-
-            itemBox.getChildren().addAll(nameLabel, priceLabel, minusBtn, plusBtn);
-            CartVBox.getChildren().add(itemBox);
-
-            totalPrice += price;
-        }
-
-        CartPriceLabel.setText("₪" + totalPrice);
-    }
-
-
 
     @org.greenrobot.eventbus.Subscribe
     public void onAccountUpgrade(AccountUpgrade event) {
@@ -1568,12 +1402,8 @@ public class SecondaryController {
         assert SortCatalogBtn != null : "fx:id=\"SortCatalogBtn\" was not injected: check your FXML file 'secondary.fxml'.";
         assert SubscribtionLevelLabel != null : "fx:id=\"SubscribtionLevelLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert UnresolvedFeedbackVBOX != null : "fx:id=\"UnresolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
-
-        instance = this;
-
         assert UpdateNewCC != null : "fx:id=\"UpdateNewCC\" was not injected: check your FXML file 'secondary.fxml'.";
         assert UpgradingAccountError != null : "fx:id=\"UpgradingAccountError\" was not injected: check your FXML file 'secondary.fxml'.";
-
 
         // Drag support for custom bar:
         CustomTitleBar.setOnMousePressed(event -> {
@@ -1600,29 +1430,29 @@ public class SecondaryController {
 
         MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (newTab == FlowersTab) {
-                FlowerPageVbox.getChildren().setAll(
-                        cachedFlowerNodes.stream()
-                                .map(Pair::getValue)
-                                .collect(Collectors.toList())
-                );
+                if (cachedFlowerNodes.isEmpty()) {
+                    try {
+                        SimpleClient.getClient().sendToServer("RefreshList");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    FlowerPageVbox.getChildren().setAll(
+                            cachedFlowerNodes.stream()
+                                    .map(Pair::getValue) // get the HBox
+                                    .collect(Collectors.toList())
+                    );
+                }
             }
             else if (oldTab == FlowersTab) {
-                System.out.println("Leaving flowers tab");
+                System.out.println("Removing flowers");
                 FlowerPageVbox.getChildren().clear();
-                // Do NOT clear cachedFlowerNodes!
-            }
-            if (newTab == CartTab) {
-                showCart();
+                cachedFlowerNodes.clear();
             }
         });
-
 
         System.out.println("[SecondaryController] Initialized");
 
         App.notifySecondaryReady();
     }
-
-
 }
-
-
