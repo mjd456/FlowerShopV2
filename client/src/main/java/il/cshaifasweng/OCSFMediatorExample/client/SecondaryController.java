@@ -35,6 +35,12 @@ import org.greenrobot.eventbus.Subscribe;
 public class SecondaryController {
 
     @FXML
+    private ResourceBundle resources;
+
+    @FXML
+    private URL location;
+
+    @FXML
     private Label AccInfoCCNum;
 
     @FXML
@@ -191,7 +197,10 @@ public class SecondaryController {
     private VBox ProfileTabConfirmPassText;
 
     @FXML
-    private TextField ProfileTabNewPassText;
+    private PasswordField ProfileTabNewConfirmPassText;
+
+    @FXML
+    private PasswordField ProfileTabNewPassText;
 
     @FXML
     private ScrollPane PurchaseHistoryScrollFrame;
@@ -237,7 +246,6 @@ public class SecondaryController {
 
     //==================CustomHeader=====================//
 
-    // For window dragging
     private double xOffset = 0, yOffset = 0;
 
     private Tab[] ManagerTabs;
