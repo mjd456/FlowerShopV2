@@ -274,6 +274,46 @@ public class SimpleServer extends AbstractServer {
 				}
 			}
 		}
+		else if (msg instanceof OrderSQL orderSQL) {
+			System.out.println("Received OrderSQL from client: " + orderSQL.getDetails());
+
+			Session session = null;
+			Transaction tx = null;
+
+			try {
+				session = sessionFactory.openSession();
+				tx = session.beginTransaction();
+
+				// Fetch the account by ID to attach
+				Account managedAccount = session.get(Account.class, orderSQL.getAccount().getId());
+				if (managedAccount == null) {
+					System.err.println("Account not found for OrderSQL: " + orderSQL.getAccount().getId());
+					tx.rollback();
+					return;
+				}
+
+				orderSQL.setAccount(managedAccount);
+
+				session.save(orderSQL);
+				tx.commit();
+				client.sendToClient(new OrderSavedConfirmation());
+				System.out.println("OrderSQL saved successfully.");
+				client.sendToClient("Order saved successfully");
+				List<OrderSQL> orders = session.createQuery(
+								"FROM OrderSQL WHERE account.id = :id ORDER BY deliveryDate DESC", OrderSQL.class)
+						.setParameter("id", managedAccount.getId())
+						.getResultList();
+
+				client.sendToClient(new GetUserOrdersResponse(orders));
+
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+			} finally {
+				if (session != null) session.close();
+			}
+		}
+
 		else if (msg instanceof LoginRequest loginRequest) {
 			String email = loginRequest.getUsername();
 			String password = loginRequest.getPassword();
@@ -415,6 +455,26 @@ public class SimpleServer extends AbstractServer {
 				}
 			}
 		}
+		else if (msg instanceof GetUserOrdersRequest req) {
+			int accountId = req.getAccountId();
+			List<OrderSQL> orders = null;
+
+			try (Session session = sessionFactory.openSession()) {
+				orders = session.createQuery(
+								"FROM OrderSQL WHERE account.id = :id ORDER BY deliveryDate DESC", OrderSQL.class)
+						.setParameter("id", accountId)
+						.getResultList();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+			try {
+				client.sendToClient(new GetUserOrdersResponse(orders));
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+
 		else if (msg instanceof UpdateFlowerRequest updateRequest) {
 			System.out.println("Received UpdateFlowerRequest from client");
 
@@ -887,6 +947,7 @@ public class SimpleServer extends AbstractServer {
 		configuration.addAnnotatedClass(PasswordResetCode.class);
 		configuration.addAnnotatedClass(PasswordHistory.class);
 		configuration.addAnnotatedClass(FeedBackSQL.class);
+		configuration.addAnnotatedClass(OrderSQL.class);
 
 		ServiceRegistry serviceRegistry = (new StandardServiceRegistryBuilder()).applySettings(configuration.getProperties()).build();
 		return configuration.buildSessionFactory(serviceRegistry);

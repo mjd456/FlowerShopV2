@@ -5,6 +5,7 @@ import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -31,6 +32,9 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import org.greenrobot.eventbus.Subscribe;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 public class SecondaryController {
 
@@ -242,7 +246,11 @@ public class SecondaryController {
     private Button UpdateNewCC;
 
     @FXML
+    private VBox CartVBox;
+
+    @FXML
     private Label UpgradingAccountError;
+
 
     //==================CustomHeader=====================//
 
@@ -256,9 +264,89 @@ public class SecondaryController {
 
     private List<Pair<Flower, HBox>> cachedFlowerNodes = new ArrayList<>();
 
-    private final List<Pair<Flower, Integer>> cartList = new ArrayList<>();
+    private final Map<Flower, Integer> cartMap = new HashMap<>();
 
     private String Sorted = "Unsorted";
+
+    private List<OrderSQL> purchaseHistoryList = new ArrayList<>();
+
+    public static SecondaryController instance;
+    public Map<Flower, Integer> getCartMap() {
+        return cartMap;
+    }
+
+    public void addOrderToHistory(OrderSQL order) {
+        purchaseHistoryList.add(order);
+        updatePurchaseHistoryUI();
+    }
+
+    @org.greenrobot.eventbus.Subscribe
+    public void onOrderSavedConfirmation(OrderSavedConfirmation event) {
+        Platform.runLater(() -> {
+            if (account != null) {
+                try {
+                    SimpleClient.getClient().sendToServer(new GetUserOrdersRequest(account.getId()));
+                    System.out.println("Requested updated orders after server confirmed save");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+
+    public void updatePurchaseHistoryUI() {
+        Platform.runLater(() -> {
+            PurchaseHistoryVbox.getChildren().clear();
+
+            for (OrderSQL order : purchaseHistoryList) {
+                VBox orderBox = new VBox(5);
+                orderBox.setStyle("-fx-padding: 10; -fx-border-color: #4D8DFF; -fx-border-radius: 8; -fx-background-radius: 8;");
+
+                Label detailsLabel = new Label("Details: " + order.getDetails());
+                Label priceLabel = new Label("Price: ₪" + order.getTotalPrice());
+                Label statusLabel = new Label("Status: " + order.getStatus());
+                Label dateLabel = new Label("Date: " + order.getDeliveryDate());
+                Label timeLabel = new Label("Time: " + order.getDeliveryTime());
+
+                Button cancelButton = new Button("Cancel");
+
+                boolean canCancel = true;
+                try {
+                    LocalDate orderDate;
+                    if (order.getDeliveryDate() instanceof java.sql.Date) {
+                        orderDate = ((java.sql.Date) order.getDeliveryDate()).toLocalDate();
+                    } else {
+                        orderDate = order.getDeliveryDate().toInstant()
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate();
+                    }
+
+                    java.time.LocalTime orderTime = java.time.LocalTime.parse(order.getDeliveryTime());
+                    java.time.LocalDateTime orderDateTime = java.time.LocalDateTime.of(orderDate, orderTime);
+
+                    if (java.time.LocalDateTime.now().isAfter(orderDateTime)) {
+                        canCancel = false;
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    canCancel = false;
+                }
+
+                cancelButton.setDisable(!canCancel);
+
+                cancelButton.setOnAction(e -> {
+                    orderBox.getChildren().remove(cancelButton);
+                    statusLabel.setText("Status: canceled");
+                });
+
+                orderBox.getChildren().addAll(detailsLabel, priceLabel, statusLabel, dateLabel, timeLabel, cancelButton);
+                PurchaseHistoryVbox.getChildren().add(orderBox);
+            }
+        });
+    }
+
+
 
     public void addFlowersToVBox(Map<Flower, byte[]> flowerImageMap) {
         FlowerPageVbox.getChildren().clear();
@@ -313,8 +401,33 @@ public class SecondaryController {
                 Button addToCartButton = new Button("Add to Cart");
                 addToCartButton.setOnAction(e -> {
                     int amount = quantitySpinner.getValue();
-                    cartList.add(new Pair<>(flower, amount));
-                    System.out.println("Added to cart: " + flower.getName() + " x" + amount);
+                    int currentQty = cartMap.getOrDefault(flower, 0);
+                    int newTotal = currentQty + amount;
+
+                    if (newTotal <= flower.getSupply()) {
+                        cartMap.put(flower, newTotal);
+                        System.out.println("Added to cart: " + flower.getName() + " x" + amount);
+                        showCart(); // optional: update UI immediately
+                    } else {
+                        System.out.println("Cannot add more than supply! Available: " + flower.getSupply());
+                        // Optionally, show an alert to user
+                        Alert alert = new Alert(Alert.AlertType.WARNING);
+                        alert.setTitle("Quantity Limit");
+                        alert.setHeaderText(null);
+                        alert.setContentText("Cannot add more than available supply (" + flower.getSupply() + ").");
+
+                        // Apply dark theme
+                        DialogPane dialogPane = alert.getDialogPane();
+                        URL cssUrl = getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/dark-theme.css");
+                        if (cssUrl != null) {
+                            dialogPane.getStylesheets().add(cssUrl.toExternalForm());
+                        } else {
+                            System.err.println("Could not find dark-theme.css!");
+                        }
+
+                        alert.showAndWait();
+                    }
+
                 });
                 textBox.getChildren().addAll(name, price, color, desc, supply, quantitySpinner, addToCartButton);
             } else {
@@ -433,6 +546,15 @@ public class SecondaryController {
     }
 
     @org.greenrobot.eventbus.Subscribe
+    public void onGetUserOrdersResponse(GetUserOrdersResponse event) {
+        Platform.runLater(() -> {
+            purchaseHistoryList.clear();
+            purchaseHistoryList.addAll(event.getOrders());
+            updatePurchaseHistoryUI();
+        });
+    }
+
+    @org.greenrobot.eventbus.Subscribe
     public void onSetAccountLevel(SetAccountLevel event) {
         javafx.application.Platform.runLater(()-> {
             account = event.getAccount();
@@ -456,6 +578,11 @@ public class SecondaryController {
                         CancelRenewButton.setVisible(false);
                         PlusUserLabel.setText("Expires at " + account.getSubscription_expires_at());
                     }
+                }
+                try {
+                    SimpleClient.getClient().sendToServer(new GetUserOrdersRequest(account.getId()));
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             }else {
                 System.out.println("Received sticky event for role: guest");
@@ -722,6 +849,22 @@ public class SecondaryController {
 
     @FXML
     void ContinueToBuy(ActionEvent event) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/order_details.fxml"));
+            VBox pane = loader.load();
+
+            OrderDetailsController controller = loader.getController();
+            controller.setOrderData(cartMap,
+                    Double.parseDouble(CartPriceLabel.getText().replace("₪", "")),
+                    account);
+
+            Stage stage = new Stage();
+            stage.setTitle("Order Details");
+            stage.setScene(new javafx.scene.Scene(pane));
+            stage.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -1143,7 +1286,7 @@ public class SecondaryController {
             cachedFlowerNodes.removeIf(pair -> pair.getKey().getId() == flowerID);
 
             // Remove from cartList
-            cartList.removeIf(pair -> pair.getKey().getId() == flowerID);
+            cartMap.entrySet().removeIf(entry -> entry.getKey().getId() == flowerID);
             try {
                 SimpleClient.getClient().sendToServer("RequestFlowerCatalogForManager");
             } catch (Exception e) {
@@ -1307,7 +1450,7 @@ public class SecondaryController {
                     Button addToCartButton = new Button("Add to Cart");
                     addToCartButton.setOnAction(e -> {
                         int amount = quantitySpinner.getValue();
-                        cartList.add(new Pair<>(newFlower, amount));
+                        cartMap.merge(newFlower, amount, Integer::sum);
                         System.out.println("Added to cart: " + newFlower.getName() + " x" + amount);
                     });
                     textBox.getChildren().addAll(newBadge, name, price, color, desc, supply, quantitySpinner, addToCartButton);
@@ -1334,6 +1477,69 @@ public class SecondaryController {
             }
         });
     }
+
+    public void showCart() {
+        CartVBox.getChildren().clear();
+        double totalPrice = 0;
+
+        for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
+            Flower flower = entry.getKey();
+            int quantity = entry.getValue();
+            double price = flower.getPrice() * quantity;
+
+            HBox itemBox = new HBox(10);
+            Label nameLabel = new Label(flower.getName() + " x" + quantity);
+            Label priceLabel = new Label("₪" + price);
+
+            Button plusBtn = new Button("+");
+            Button minusBtn = new Button("-");
+
+            plusBtn.setOnAction(e -> {
+                int currentQty = cartMap.get(flower);
+                if (currentQty + 1 <= flower.getSupply()) {
+                    cartMap.put(flower, currentQty + 1);
+                } else {
+                    Alert alert = new Alert(Alert.AlertType.WARNING);
+                    alert.setTitle("Quantity Limit");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Cannot add more than available supply (" + flower.getSupply() + ").");
+
+                    DialogPane dialogPane = alert.getDialogPane();
+                    URL cssUrl = getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/dark-theme.css");
+                    if (cssUrl != null) {
+                        dialogPane.getStylesheets().add(cssUrl.toExternalForm());
+                    }
+
+                    alert.showAndWait();
+                }
+                showCart();
+            });
+
+
+
+            minusBtn.setOnAction(e -> {
+                int currentQty = cartMap.get(flower);
+                if (currentQty > 1) {
+                    cartMap.put(flower, currentQty - 1);
+                } else {
+                    cartMap.remove(flower);
+                }
+                showCart();
+            });
+
+
+            itemBox.getChildren().addAll(nameLabel, priceLabel, minusBtn, plusBtn);
+            CartVBox.getChildren().add(itemBox);
+
+            totalPrice += price;
+        }
+
+        CartPriceLabel.setText("₪" + totalPrice);
+    }
+
+
+
+
 
     @FXML
     void initialize() {
@@ -1403,7 +1609,10 @@ public class SecondaryController {
         assert SubscribtionLevelLabel != null : "fx:id=\"SubscribtionLevelLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert UnresolvedFeedbackVBOX != null : "fx:id=\"UnresolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
         assert UpdateNewCC != null : "fx:id=\"UpdateNewCC\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CartVBox != null : "fx:id=\"CartVBox\" was not injected: check your FXML file 'secondary.fxml'.";
         assert UpgradingAccountError != null : "fx:id=\"UpgradingAccountError\" was not injected: check your FXML file 'secondary.fxml'.";
+
+        instance = this;
 
         // Drag support for custom bar:
         CustomTitleBar.setOnMousePressed(event -> {
@@ -1429,6 +1638,9 @@ public class SecondaryController {
         FlowerPageVbox.setMaxHeight(Region.USE_COMPUTED_SIZE);
 
         MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab == CartTab) {
+                showCart();
+            }
             if (newTab == FlowersTab) {
                 if (cachedFlowerNodes.isEmpty()) {
                     try {
