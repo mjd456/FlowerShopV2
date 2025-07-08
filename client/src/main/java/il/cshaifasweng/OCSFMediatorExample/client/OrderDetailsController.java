@@ -11,6 +11,8 @@ import java.sql.Date;
 import java.util.Arrays;
 import java.util.Map;
 
+import static il.cshaifasweng.OCSFMediatorExample.client.SimpleClient.account;
+
 public class OrderDetailsController {
 
     @FXML
@@ -40,7 +42,7 @@ public class OrderDetailsController {
     @FXML
     private Label AddressStar;
 
-
+    //=======================================/
     private ToggleGroup deliveryGroup;
 
     private Map<Flower, Integer> cartMap;

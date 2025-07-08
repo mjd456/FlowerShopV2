@@ -6,6 +6,7 @@ import org.greenrobot.eventbus.EventBus;
 import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
 import il.cshaifasweng.OCSFMediatorExample.entities.Warning;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 
@@ -111,9 +112,15 @@ public class SimpleClient extends AbstractClient {
 			Flower updatedFlower = notification.getFlower();
 			byte[] imageData = notification.getImageData();
 
-			// Call your update function!
 			EventBus.getDefault().postSticky(new updatedFlowerNotif(updatedFlower));
-			// If updating image: updateFlowerCardInVBox(updatedFlower, imageData);
+			if(account != null) {
+				try {
+					SimpleClient.getClient().sendToServer(new GetUserOrdersRequest(account.getId()));
+					System.out.println("GetUserOrdersRequest completed, account id : " + account.getId());
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
 		}
 		else if (msg instanceof AccountUpgradeResponse response){
 			account = response.getAccount();
@@ -141,6 +148,19 @@ public class SimpleClient extends AbstractClient {
 		}
 		else if (msg instanceof UpdateCreditCardResponse  response){
 			EventBus.getDefault().post(response);
+		}
+		else if (msg instanceof CancelOrderResponse response){
+			EventBus.getDefault().postSticky(response);
+		}
+		else if (msg instanceof FlowersRestockedResponse response) {
+			List<Flower> restockedFlowers = response.getFlowers();
+			if (restockedFlowers != null) {
+				for (Flower flower : restockedFlowers) {
+					EventBus.getDefault().postSticky(new updatedFlowerNotif(flower));
+
+				}
+			}
+
 		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());

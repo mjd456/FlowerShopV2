@@ -381,6 +381,7 @@ public class PrimaryController {
 		setVisibility(signUpTextFields, true);
 		setVisibility(signUpButtons, true);
 		emptyFields(signUpTextFields);
+		BackBtn.setVisible(true);
 	}
 
 	private void showForgotPasswordTab() {
@@ -390,7 +391,6 @@ public class PrimaryController {
 		setVisibility(forgotPassButtons, true);
 		emptyFields(forgotPassTextFields);
 		BackBtn.setVisible(true);
-
 	}
 
 	private void showVerifyCodeTab() {
@@ -399,8 +399,8 @@ public class PrimaryController {
 		setVisibility(verifyCodeTextFields, true);
 		setVisibility(verifyCodeButtons, true);
 		ErrorVerifyCode.setVisible(false);
-		BackBtn.setVisible(true);
 		emptyFields(verifyCodeTextFields);
+		BackBtn.setVisible(true);
 	}
 
 	private void showSetNewPasswordTab() {
@@ -437,8 +437,8 @@ public class PrimaryController {
 		ErrorMessageLabel.setVisible(false);
 		PasswordSignUpField.setVisible(false);
 		PasswordField.setVisible(true);
-		BackBtn.setVisible(false);
 		CCValidDate.setVisible(false);
+		BackBtn.setVisible(false);
 	}
 
 	@FXML
@@ -446,6 +446,7 @@ public class PrimaryController {
 		showForgotPasswordTab();
 		ForgotPassErrorLabel.setVisible(false);
 		BackBtn.setVisible(true);
+		System.out.println("BackBtn is visible? " + BackBtn.isVisible());
 	}
 
 	@FXML
@@ -711,10 +712,10 @@ public class PrimaryController {
 		};
 
 		EventBus.getDefault().register(this);
-		signUpButtons = new Button[] { BackBtn, SignUpFinal };
+		signUpButtons = new Button[] { SignUpFinal };
 		ErrorSignUpLabel.setVisible(false);
 		ErrorMessageLabel.setVisible(false);
-
+		BackBtn.setVisible(false);
 		showLoginScreen(true);
 	}
 }
