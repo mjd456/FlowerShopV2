@@ -28,6 +28,9 @@ public class PasswordHistory implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdAt = new Date();
 
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "SwappedAt")
+    private Date swappedAt = new Date();
 
     public PasswordHistory() {}
     public PasswordHistory(Account user, String passwordHash, boolean isCurrent, Date createdAt) {
@@ -35,6 +38,7 @@ public class PasswordHistory implements Serializable {
         this.passwordHash = passwordHash;
         this.isCurrent = isCurrent;
         this.createdAt = createdAt;
+        this.swappedAt = null;
     }
 
     public int getId() {
@@ -71,5 +75,12 @@ public class PasswordHistory implements Serializable {
 
     public void setCreatedAt(Date createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Date getSwappedAt() {
+        return swappedAt;
+    }
+    public void setSwappedAt(Date swappedAt) {
+        this.swappedAt = swappedAt;
     }
 }

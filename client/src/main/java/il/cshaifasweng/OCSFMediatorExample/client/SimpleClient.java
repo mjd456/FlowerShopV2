@@ -130,10 +130,13 @@ public class SimpleClient extends AbstractClient {
 		else if (msg instanceof FlowerDeleted flowerID){
 			EventBus.getDefault().postSticky(new UpdateDeletedFlower(flowerID.getFlowerId()));
 		}
-		else if(msg instanceof NewFlowerNotification notification){
+		else if (msg instanceof NewFlowerNotification notification){
 			EventBus.getDefault().postSticky(notification);
 		}
-		if (msg instanceof UpdatePasswordResponse response) {
+		else if (msg instanceof UpdatePasswordResponse response) {
+			EventBus.getDefault().post(response);
+		}
+		else if (msg instanceof UpdateCreditCardResponse  response){
 			EventBus.getDefault().post(response);
 		}
 		else {

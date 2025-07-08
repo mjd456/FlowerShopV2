@@ -54,6 +54,7 @@ public class Account implements Serializable {
 
     @Column(name = "auto_renew_subscription")
     private String Auto_renew_subscription;
+
     // ----- Constructors -----
 
     public Account() {}

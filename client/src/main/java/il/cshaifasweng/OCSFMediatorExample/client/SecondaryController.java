@@ -751,11 +751,65 @@ public class SecondaryController {
             }
         }
     }
-    
+
     @FXML
     void UpdateNewCCFunction(ActionEvent event) {
+        String ccNumber = NewCardNumber.getText().trim();
+        String ccv = NewCardCCV.getText().trim();
+        LocalDate date = NewCardDate.getValue();
 
+        boolean valid = true;
+
+        // Validate CCV: must be exactly 3 digits
+        if (!ccv.matches("\\d{3}")) {
+            NewCardCCV.setStyle("-fx-border-color: red;");
+            valid = false;
+        } else {
+            NewCardCCV.setStyle("");
+        }
+
+        // Validate card number (simple: 13–19 digits is a common standard)
+        if (!ccNumber.matches("\\d{13,19}")) {
+            NewCardNumber.setStyle("-fx-border-color: red;");
+            valid = false;
+        } else {
+            NewCardNumber.setStyle("");
+        }
+
+        // Validate date: must be selected and after today
+        if (date == null || !date.isAfter(LocalDate.now())) {
+            NewCardDate.setStyle("-fx-border-color: red;");
+            valid = false;
+        } else {
+            NewCardDate.setStyle("");
+        }
+
+        if (!valid) {
+            System.err.println("Validation failed: Fix highlighted fields.");
+            return;
+        }
+
+        // If valid, send update request
+        try {
+            // Convert LocalDate to java.util.Date
+            java.util.Date cardDate = java.sql.Date.valueOf(date);
+
+            // Update the local account object
+            account.setCreditCardNumber(ccNumber);
+            account.setCvv(ccv);
+            account.setCreditCardValidUntil(cardDate);
+
+            // Send to server (pass cardDate instead of date)
+            SimpleClient.getClient().sendToServer(
+                    new UpdateCreditCardRequest(account.getId(), ccNumber, ccv, cardDate)
+            );
+            System.out.println("Credit card update requested.");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
+
+
 
     public boolean isCardStillValid(Account account) {
         Date validUntil = account.getCreditCardValidUntil();
@@ -1178,6 +1232,7 @@ public class SecondaryController {
             if (event.isSuccess()) {
                 ProfileTabNewPassText.clear();
                 ProfileTabNewConfirmPassText.clear();
+                AccInfoPassword.setText("Password : " + account.getPassword());
             }
         });
     }
@@ -1334,6 +1389,23 @@ public class SecondaryController {
             }
         });
     }
+
+    @Subscribe
+    public void onUpdateCreditCardResponse(UpdateCreditCardResponse response) {
+        Platform.runLater(() -> {
+            if (response.isSuccess()){
+                account = response.getAccount();
+                AccInfoCCNum.setText("Credit card number : " + account.getCreditCardNumber().toString());
+                AccInfoCCV.setText("CCV : " + account.getCvv());
+                AccInfoCCValidUntil.setText("CC valid until : " + account.getCreditCardValidUntil().toString());
+                NewCardNumber.clear();
+                NewCardCCV.clear();
+            }
+            NewCCError.setVisible(true);
+            NewCCError.setText(response.getMessage());
+        });
+    }
+
 
     @FXML
     void initialize() {

@@ -229,6 +229,7 @@ public class SimpleServer extends AbstractServer {
 
 					for (PasswordHistory entry : currentEntries) {
 						entry.setCurrent(false);
+						entry.setSwappedAt(new Date());
 						session.update(entry);
 					}
 
@@ -779,7 +780,7 @@ public class SimpleServer extends AbstractServer {
 				session = sessionFactory.openSession();
 				tx = session.beginTransaction();
 
-				// Check if this password has ever been used for this account
+				// 1. Check if password was ever used before for this user
 				Query<PasswordHistory> q = session.createQuery(
 						"FROM PasswordHistory WHERE user = :user AND passwordHash = :password", PasswordHistory.class
 				);
@@ -792,28 +793,29 @@ public class SimpleServer extends AbstractServer {
 					return;
 				}
 
-				// Set previous current password entries to not current
+				// 2. Set previous current passwords to isCurrent = false
 				Query<PasswordHistory> currQ = session.createQuery(
 						"FROM PasswordHistory WHERE user = :user AND isCurrent = true", PasswordHistory.class
 				);
 				currQ.setParameter("user", account);
 				for (PasswordHistory ph : currQ.getResultList()) {
 					ph.setCurrent(false);
+					ph.setSwappedAt(Calendar.getInstance().getTime());
 					session.update(ph);
 				}
 
-				// Set new password for Account and save new PasswordHistory
+				// 3. Update account password
 				Account managedAccount = session.get(Account.class, account.getId());
 				managedAccount.setPassword(newPassword);
+				session.update(managedAccount);
 
+				// 4. Save new password in PasswordHistory
 				PasswordHistory newHist = new PasswordHistory(
 						managedAccount, newPassword, true, new Date()
 				);
 				session.save(newHist);
 
-				session.update(managedAccount);
 				tx.commit();
-
 				client.sendToClient(new UpdatePasswordResponse(true, "Password updated successfully."));
 
 			} catch (Exception e) {
@@ -828,6 +830,52 @@ public class SimpleServer extends AbstractServer {
 				if (session != null) session.close();
 			}
 		}
+		else if (msg instanceof UpdateCreditCardRequest req) {
+			Session session = null;
+			Transaction tx = null;
+
+			try {
+				session = sessionFactory.openSession();
+				tx = session.beginTransaction();
+
+				// Find account by ID
+				Account account = session.get(Account.class, req.getAccountId());
+				if (account == null) {
+					client.sendToClient("Account not found");
+					tx.rollback();
+					return;
+				}
+
+				// Update credit card details
+				account.setCreditCardNumber(req.getCreditCardNumber());
+				account.setCvv(req.getCcv());
+				account.setCreditCardValidUntil(req.getValidUntil());
+
+				session.update(account);
+				tx.commit();
+
+				// You can send a success response or event to the client if needed
+				client.sendToClient(new UpdateCreditCardResponse(true, "Credit card updated.",account));
+				// (Optional) Update SubscribedClient if you're storing an in-memory account object
+				for (SubscribedClient sub : SubscribersList) {
+					if (sub.getAccount().getId() == account.getId()) {
+						sub.setAccount(account);
+						break;
+					}
+				}
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+				try {
+					client.sendToClient(new UpdateCreditCardResponse(false, "Failed to update credit card info.",null));
+				} catch (IOException ioException) {
+					ioException.printStackTrace();
+				}
+			} finally {
+				if (session != null) session.close();
+			}
+		}
+
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}
@@ -947,9 +995,14 @@ public class SimpleServer extends AbstractServer {
 					.getResultList();
 
 			for (Account account : toExpire) {
-				account.setSubscription_expires_at(null);
-				account.setAuto_renew_subscription(null);
-				account.setSubscribtion_level("Free");
+				if ("Yes".equalsIgnoreCase(account.getAuto_renew_subscription())) {
+					LocalDate newExpiry = LocalDate.now().plusYears(1);
+					account.setSubscription_expires_at(newExpiry.toString());
+				} else {
+					account.setSubscription_expires_at(null);
+					account.setAuto_renew_subscription(null);
+					account.setSubscribtion_level("Free");
+				}
 				session.update(account);
 			}
 
