@@ -16,4 +16,5 @@ public class UpdateFlowerRequest implements Serializable {
     public void setFlower(Flower flower) {
         this.flower = flower;
     }
+
 }

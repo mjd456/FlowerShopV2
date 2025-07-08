@@ -92,6 +92,9 @@ public class SimpleClient extends AbstractClient {
 			GetAllFeedbacksResponse AllFeedbacksResponses = (GetAllFeedbacksResponse) msg;
 			EventBus.getDefault().postSticky(new AllFeedBackInfo(AllFeedbacksResponses));
 		}
+		else if (msg instanceof GetUserOrdersResponse) {
+			EventBus.getDefault().post(msg);
+		}
 		else if (msg instanceof NewFeedbackNotification) {
 			System.out.println("New feedback notification feedback");
 			if (account != null ) {
