@@ -10,7 +10,7 @@ public class OrderSQL implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private long id;
 
     // Each order is for a single account; an account can have many orders
     @ManyToOne(fetch = FetchType.LAZY)
@@ -39,6 +39,8 @@ public class OrderSQL implements Serializable {
     @Column(name = "greeting_text")
     private String greetingText;
 
+    @Column(name = "refund_amount")
+    private Double refundAmount;
     // ===== Constructors =====
     public OrderSQL() {}
 
@@ -52,11 +54,12 @@ public class OrderSQL implements Serializable {
         this.totalPrice = totalPrice;
         this.address = address;
         this.greetingText = greetingText;
+        this.refundAmount = 0.0;
     }
 
     // ===== Getters and Setters =====
 
-    public int getId() { return id; }
+    public long getId() { return id; }
 
     public Account getAccount() { return account; }
     public void setAccount(Account account) { this.account = account; }
@@ -81,4 +84,9 @@ public class OrderSQL implements Serializable {
 
     public String getGreetingText() { return greetingText; }
     public void setGreetingText(String greetingText) { this.greetingText = greetingText; }
+
+    public Double getRefundAmount() { return refundAmount; }
+
+    public void setRefundAmount(Double refundAmount) { this.refundAmount = refundAmount; }
+
 }

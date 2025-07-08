@@ -10,8 +10,8 @@ public class HibernateUtil {
     private static SessionFactory buildSessionFactory() {
         try {
             return new Configuration()
-                    .configure()  // looks for hibernate.cfg.xml, optional if using .properties only
-                    .addAnnotatedClass(Account.class)  // include your @Entity classes here
+                    .configure()
+                    .addAnnotatedClass(Account.class)
                     .buildSessionFactory();
         } catch (Throwable ex) {
             System.err.println("Initial SessionFactory creation failed." + ex);
