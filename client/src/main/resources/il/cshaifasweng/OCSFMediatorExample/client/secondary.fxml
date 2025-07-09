@@ -53,6 +53,7 @@
                      </ScrollPane>
                      <Label layoutX="29.0" layoutY="298.0" prefHeight="17.0" prefWidth="69.0" text="Total price : " />
                      <Label fx:id="CartPriceLabel" layoutX="98.0" layoutY="298.0" prefHeight="17.0" prefWidth="51.0" text="[Price]" />
+                     <Label fx:id="DiscountLabel" layoutX="140.0" layoutY="298.0" style="-fx-text-fill: #00ff90;" text="Discount applied!" visible="false" />
                      <Button fx:id="ContinueToBuyButton" layoutX="506.0" layoutY="294.0" onAction="#ContinueToBuy" text="Continue" />
                   </children>
                </AnchorPane>

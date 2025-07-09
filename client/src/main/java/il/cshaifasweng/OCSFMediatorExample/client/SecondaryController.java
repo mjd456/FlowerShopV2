@@ -253,6 +253,9 @@ public class SecondaryController {
     @FXML
     private Label UpgradingAccountError;
 
+    @FXML
+    private Label DiscountLabel;
+
 
     //==================CustomHeader=====================//
 
@@ -1630,11 +1633,14 @@ public class SecondaryController {
     public void showCart() {
         CartVBox.getChildren().clear();
         double totalPrice = 0;
+        boolean discountApplied = false;
 
         for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
             Flower flower = entry.getKey();
             int quantity = entry.getValue();
             double price = flower.getPrice() * quantity;
+
+            totalPrice += price;
 
             HBox itemBox = new HBox(10);
             Label nameLabel = new Label(flower.getName() + " x" + quantity);
@@ -1658,13 +1664,10 @@ public class SecondaryController {
                     if (cssUrl != null) {
                         dialogPane.getStylesheets().add(cssUrl.toExternalForm());
                     }
-
                     alert.showAndWait();
                 }
                 showCart();
             });
-
-
 
             minusBtn.setOnAction(e -> {
                 int currentQty = cartMap.get(flower);
@@ -1676,15 +1679,21 @@ public class SecondaryController {
                 showCart();
             });
 
-
             itemBox.getChildren().addAll(nameLabel, priceLabel, minusBtn, plusBtn);
             CartVBox.getChildren().add(itemBox);
-
-            totalPrice += price;
         }
 
-        CartPriceLabel.setText("₪" + totalPrice);
+        // Apply discount if Plus member and total price > 50
+        if (account != null && "Plus".equalsIgnoreCase(account.getSubscribtion_level()) && totalPrice > 50) {
+            totalPrice *= 0.9; // Apply 10% discount
+            discountApplied = true;
+        }
+        CartPriceLabel.setText("₪" + String.format("%.2f", totalPrice));
+        DiscountLabel.setVisible(discountApplied);
+
+        CartPriceLabel.setText("₪" + String.format("%.2f", totalPrice));
     }
+
 
     @FXML
     void initialize() {
