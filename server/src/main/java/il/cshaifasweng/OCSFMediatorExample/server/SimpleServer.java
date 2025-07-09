@@ -1082,6 +1082,102 @@ public class SimpleServer extends AbstractServer {
 				if (session != null) session.close();
 			}
 		}
+		else if (msg instanceof PlaceOrderRequest request) {
+			Session session = sessionFactory.openSession();
+			Transaction tx = null;
+			try {
+				tx = session.beginTransaction();
+
+				// 1. Check supply for all flowers (fail-fast)
+				for (Map.Entry<Flower, Integer> entry : request.getCartMap().entrySet()) {
+					int flowerId = entry.getKey().getId();
+					int qty = entry.getValue();
+
+					Flower flower = session.get(Flower.class, flowerId); // get fresh from DB
+					if (flower == null) {
+						tx.rollback();
+						client.sendToClient(new PlaceOrderResponse(false, "Flower not found!"));
+						return;
+					}
+					if (flower.getSupply() < qty) {
+						tx.rollback();
+						client.sendToClient(new PlaceOrderResponse(false, "Not enough supply for " + flower.getName()));
+						return;
+					}
+				}
+
+				// 2. Update supply & popularity
+				for (Map.Entry<Flower, Integer> entry : request.getCartMap().entrySet()) {
+					int flowerId = entry.getKey().getId();
+					int qty = entry.getValue();
+
+					Flower flower = session.get(Flower.class, flowerId);
+					flower.setSupply(flower.getSupply() - qty);
+					flower.setPopularity(flower.getPopularity() + 1);
+					session.update(flower);
+				}
+
+				// 3. Save order to DB
+				// Fetch the account (attach to Hibernate session)
+				Account managedAccount = session.get(Account.class, request.getCustomer().getId());
+				if (managedAccount == null) {
+					tx.rollback();
+					client.sendToClient(new PlaceOrderResponse(false, "Account not found!"));
+					return;
+				}
+
+				// Build order details string, e.g., "Rose x2, Lily x3"
+				StringBuilder details = new StringBuilder();
+				for (Map.Entry<Flower, Integer> entry : request.getCartMap().entrySet()) {
+					details.append(entry.getKey().getName())
+							.append(" x")
+							.append(entry.getValue())
+							.append(", ");
+				}
+				// Remove trailing comma if needed
+				if (details.length() > 2) {
+					details.setLength(details.length() - 2);
+				}
+
+				OrderSQL orderSQL = new OrderSQL(
+						managedAccount,
+						java.sql.Date.valueOf(request.getDate()),
+						request.getTime(),
+						request.getStatus(),
+						details.toString(),
+						request.getTotalPrice(),
+						request.getAddressOrPickup(),
+						request.getGreeting()
+				);
+				orderSQL.setAccount(managedAccount);
+
+				session.save(orderSQL);
+
+				tx.commit();
+
+				client.sendToClient(new PlaceOrderResponse(true, "Order placed and saved successfully!"));
+
+				// Optionally, send updated orders list to client:
+        /*
+        List<OrderSQL> orders = session.createQuery(
+                "FROM OrderSQL WHERE account.id = :id ORDER BY deliveryDate DESC", OrderSQL.class)
+            .setParameter("id", managedAccount.getId())
+            .getResultList();
+        client.sendToClient(new GetUserOrdersResponse(orders));
+        */
+
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+				try {
+					client.sendToClient(new PlaceOrderResponse(false, "Error processing order."));
+				} catch (IOException ex) {
+					throw new RuntimeException(ex);
+				}
+			} finally {
+				session.close();
+			}
+		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}

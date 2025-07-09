@@ -1,6 +1,7 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
@@ -23,6 +24,7 @@ import java.util.*;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import javafx.util.Pair;
 import javassist.Loader;
 import org.greenrobot.eventbus.EventBus;
@@ -200,6 +202,9 @@ public class SecondaryController {
     private Label ProfileSayHelloLabel;
 
     @FXML
+    private Label CartMessage;
+
+    @FXML
     private VBox ProfileTabConfirmPassText;
 
     @FXML
@@ -368,9 +373,6 @@ public class SecondaryController {
             }
         });
     }
-
-
-
 
     public void addFlowersToVBox(Map<Flower, byte[]> flowerImageMap) {
         FlowerPageVbox.getChildren().clear();
@@ -879,7 +881,6 @@ public class SecondaryController {
         }
     }
 
-
     @FXML
     void ContinueToBuy(ActionEvent event) {
         try {
@@ -983,8 +984,6 @@ public class SecondaryController {
             e.printStackTrace();
         }
     }
-
-
 
     public boolean isCardStillValid(Account account) {
         Date validUntil = account.getCreditCardValidUntil();
@@ -1340,6 +1339,24 @@ public class SecondaryController {
                 break;
             }
         }
+
+        Flower cartKeyToUpdate = null;
+        for (Flower cartFlower : cartMap.keySet()) {
+            if (cartFlower.getId() == updatedFlower.getId()) {
+                cartKeyToUpdate = cartFlower;
+                break;
+            }
+        }
+        if (cartKeyToUpdate != null) {
+            int oldQuantity = cartMap.get(cartKeyToUpdate);
+            int newSupply = updatedFlower.getSupply();
+            int newQuantity = Math.min(oldQuantity, newSupply); // Enforce max quantity = supply
+
+            cartMap.remove(cartKeyToUpdate); // Remove the old key
+            cartMap.put(updatedFlower, newQuantity); // Insert updated key with possibly new quantity
+            showCart();
+        }
+
     }
 
     @org.greenrobot.eventbus.Subscribe
@@ -1349,8 +1366,6 @@ public class SecondaryController {
             System.out.println("In secondary controller");
         });
     }
-
-
 
     @org.greenrobot.eventbus.Subscribe
     public void onAccountUpgrade(AccountUpgrade event) {
@@ -1420,7 +1435,6 @@ public class SecondaryController {
             PlusUpgradeButton.setVisible(false);
         }
     }
-
 
     @org.greenrobot.eventbus.Subscribe
     public void onUpdatePasswordResponse(UpdatePasswordResponse event) {
@@ -1630,6 +1644,26 @@ public class SecondaryController {
         });
     }
 
+    @Subscribe
+    public void onPlaceOrderResponse(PlaceOrderResponse response) {
+        Platform.runLater(() -> {
+            CartMessage.setText(response.getMessage());
+
+            if (response.isSuccess()) {
+                CartMessage.setStyle("-fx-text-fill: green;");
+            } else {
+                CartMessage.setStyle("-fx-text-fill: red;");
+            }
+
+            CartMessage.setVisible(true);
+
+            PauseTransition pause = new PauseTransition(Duration.seconds(3));
+            pause.setOnFinished(e -> CartMessage.setVisible(false));
+            pause.play();
+        });
+    }
+
+
     public void showCart() {
         CartVBox.getChildren().clear();
         double totalPrice = 0;
@@ -1694,7 +1728,6 @@ public class SecondaryController {
         CartPriceLabel.setText("₪" + String.format("%.2f", totalPrice));
     }
 
-
     @FXML
     void initialize() {
         assert AccInfoCCNum != null : "fx:id=\"AccInfoCCNum\" was not injected: check your FXML file 'secondary.fxml'.";
@@ -1706,12 +1739,15 @@ public class SecondaryController {
         assert AddNewFlower != null : "fx:id=\"AddNewFlower\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CancelRenewButton != null : "fx:id=\"CancelRenewButton\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CartAnchor != null : "fx:id=\"CartAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CartMessage != null : "fx:id=\"CartMessage\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CartPriceLabel != null : "fx:id=\"CartPriceLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CartTab != null : "fx:id=\"CartTab\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CartVBox != null : "fx:id=\"CartVBox\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CloseBtn != null : "fx:id=\"CloseBtn\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ContinueToBuyButton != null : "fx:id=\"ContinueToBuyButton\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CustomTitleBar != null : "fx:id=\"CustomTitleBar\" was not injected: check your FXML file 'secondary.fxml'.";
         assert CustomerServicePanel != null : "fx:id=\"CustomerServicePanel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert DiscountLabel != null : "fx:id=\"DiscountLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FeedBackAnchor != null : "fx:id=\"FeedBackAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FeedBackDetails != null : "fx:id=\"FeedBackDetails\" was not injected: check your FXML file 'secondary.fxml'.";
         assert FeedBackLabelText != null : "fx:id=\"FeedBackLabelText\" was not injected: check your FXML file 'secondary.fxml'.";
@@ -1749,6 +1785,7 @@ public class SecondaryController {
         assert PlusUserLabel != null : "fx:id=\"PlusUserLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ProfileSayHelloLabel != null : "fx:id=\"ProfileSayHelloLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ProfileTabConfirmPassText != null : "fx:id=\"ProfileTabConfirmPassText\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ProfileTabNewConfirmPassText != null : "fx:id=\"ProfileTabNewConfirmPassText\" was not injected: check your FXML file 'secondary.fxml'.";
         assert ProfileTabNewPassText != null : "fx:id=\"ProfileTabNewPassText\" was not injected: check your FXML file 'secondary.fxml'.";
         assert PurchaseHistoryScrollFrame != null : "fx:id=\"PurchaseHistoryScrollFrame\" was not injected: check your FXML file 'secondary.fxml'.";
         assert PurchaseHistoryText != null : "fx:id=\"PurchaseHistoryText\" was not injected: check your FXML file 'secondary.fxml'.";
@@ -1763,7 +1800,6 @@ public class SecondaryController {
         assert SubscribtionLevelLabel != null : "fx:id=\"SubscribtionLevelLabel\" was not injected: check your FXML file 'secondary.fxml'.";
         assert UnresolvedFeedbackVBOX != null : "fx:id=\"UnresolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
         assert UpdateNewCC != null : "fx:id=\"UpdateNewCC\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert CartVBox != null : "fx:id=\"CartVBox\" was not injected: check your FXML file 'secondary.fxml'.";
         assert UpgradingAccountError != null : "fx:id=\"UpgradingAccountError\" was not injected: check your FXML file 'secondary.fxml'.";
 
         instance = this;

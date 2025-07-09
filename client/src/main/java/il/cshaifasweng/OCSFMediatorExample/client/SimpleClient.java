@@ -162,6 +162,9 @@ public class SimpleClient extends AbstractClient {
 			}
 
 		}
+		else if (msg instanceof PlaceOrderResponse reponse){
+			EventBus.getDefault().postSticky(reponse);
+		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}

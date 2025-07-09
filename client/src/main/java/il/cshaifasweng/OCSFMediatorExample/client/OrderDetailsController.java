@@ -1,9 +1,14 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
+import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
+import javafx.util.Duration;
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
 
 import java.io.IOException;
 import java.net.URL;
@@ -149,7 +154,6 @@ public class OrderDetailsController {
             return;
         }
 
-        // 🟢 Check date and time validity
         var today = java.time.LocalDate.now();
         var nowTime = java.time.LocalTime.now();
 
@@ -173,31 +177,10 @@ public class OrderDetailsController {
                     .append(", ");
         }
 
-        for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
-            Flower flower = entry.getKey();
-            int purchasedQty = entry.getValue();
-
-            // Update local supply
-            int newSupply = flower.getSupply() - purchasedQty;
-            flower.setSupply(newSupply);
-
-            // Update UI flower card (optional but recommended for immediate feedback)
-            SecondaryController.instance.updateFlowerCardInVBox(flower);
-
-            // Optionally, notify server that flower supply should be updated in DB
-            try {
-                SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-
-        cartMap.clear();
-        SecondaryController.instance.showCart();
-
-        OrderSQL orderSQL = new OrderSQL(
+        PlaceOrderRequest request = new PlaceOrderRequest(
+                cartMap,
                 customer,
-                java.sql.Date.valueOf(date),
+                date, // LocalDate, or java.sql.Date.valueOf(date)
                 time,
                 status,
                 details.toString(),
@@ -205,18 +188,22 @@ public class OrderDetailsController {
                 PickupRadio.isSelected() ? "Store Pickup" : address,
                 greeting
         );
-        orderSQL.setAccount(customer);
 
-        try {
-            SimpleClient.getClient().sendToServer(orderSQL);
-// REMOVE immediate request for orders!
+        SimpleClient.getClient().sendToServer(request);
 
-            Stage stage = (Stage) GreetingField.getScene().getWindow();
-            stage.close();
+        cartMap.clear();
+        SecondaryController.instance.showCart();
 
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        Stage stage = (Stage) GreetingField.getScene().getWindow();
+        stage.close();
+
+    }
+
+    @Subscribe
+    public void onPlaceOrderResponse(PlaceOrderResponse response) {
+        Platform.runLater(() -> {
+
+        });
     }
 
     private void showWarning(String message) {
@@ -230,6 +217,7 @@ public class OrderDetailsController {
         if (cssUrl != null) {
             dialogPane.getStylesheets().add(cssUrl.toExternalForm());
         }
+        EventBus.getDefault().register(this);
 
         alert.showAndWait();
     }
