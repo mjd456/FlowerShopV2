@@ -1156,16 +1156,6 @@ public class SimpleServer extends AbstractServer {
 				tx.commit();
 
 				client.sendToClient(new PlaceOrderResponse(true, "Order placed and saved successfully!"));
-
-				// Optionally, send updated orders list to client:
-        /*
-        List<OrderSQL> orders = session.createQuery(
-                "FROM OrderSQL WHERE account.id = :id ORDER BY deliveryDate DESC", OrderSQL.class)
-            .setParameter("id", managedAccount.getId())
-            .getResultList();
-        client.sendToClient(new GetUserOrdersResponse(orders));
-        */
-
 			} catch (Exception e) {
 				if (tx != null) tx.rollback();
 				e.printStackTrace();
