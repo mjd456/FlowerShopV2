@@ -6,10 +6,10 @@ import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.*;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.regex.Pattern;
 
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
 import jakarta.mail.MessagingException;
@@ -21,6 +21,8 @@ import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.query.Query;
 import org.hibernate.service.ServiceRegistry;
+
+import javax.persistence.LockModeType;
 
 
 public class SimpleServer extends AbstractServer {
@@ -229,6 +231,7 @@ public class SimpleServer extends AbstractServer {
 
 					for (PasswordHistory entry : currentEntries) {
 						entry.setCurrent(false);
+						entry.setSwappedAt(new Date());
 						session.update(entry);
 					}
 
@@ -313,7 +316,6 @@ public class SimpleServer extends AbstractServer {
 				if (session != null) session.close();
 			}
 		}
-
 		else if (msg instanceof LoginRequest loginRequest) {
 			String email = loginRequest.getUsername();
 			String password = loginRequest.getPassword();
@@ -474,15 +476,10 @@ public class SimpleServer extends AbstractServer {
 				e.printStackTrace();
 			}
 		}
-
 		else if (msg instanceof UpdateFlowerRequest updateRequest) {
-			System.out.println("Received UpdateFlowerRequest from client");
-
 			Flower updatedData = updateRequest.getFlower();
-
 			Session session = null;
 			Transaction tx = null;
-
 			try {
 				session = sessionFactory.openSession();
 				tx = session.beginTransaction();
@@ -490,30 +487,38 @@ public class SimpleServer extends AbstractServer {
 				Flower flowerInDb = session.get(Flower.class, updatedData.getId());
 
 				if (flowerInDb != null) {
-					flowerInDb.setName(updatedData.getName());
+					String oldName = flowerInDb.getName();
+					String newName = updatedData.getName();
+
+					flowerInDb.setName(newName);
 					flowerInDb.setPrice(updatedData.getPrice());
 					flowerInDb.setDescription(updatedData.getDescription());
 					flowerInDb.setColor(updatedData.getColor());
 					flowerInDb.setSupply(updatedData.getSupply());
-
 					session.update(flowerInDb);
 
-					tx.commit();
-					System.out.println("Updated flower in database: " + flowerInDb.getName());
+					// Fetch all orders that mention this flower name in details
+					List<OrderSQL> affectedOrders = session.createQuery(
+									"FROM OrderSQL WHERE details LIKE :oldName", OrderSQL.class)
+							.setParameter("oldName", "%" + oldName + "%")
+							.list();
 
-					// Notify all clients (except maybe the manager who sent the update, if you want)
-					UpdateFlowerNotification notification = new UpdateFlowerNotification(flowerInDb);
-					for (SubscribedClient sub : SubscribersList) {
-						try {
-							sub.getClient().sendToClient(notification);
-						} catch (Exception ex) {
-							ex.printStackTrace();
+					for (OrderSQL order : affectedOrders) {
+						String details = order.getDetails();
+						String updatedDetails = updateFlowerNameInDetails(details, oldName, newName);
+						if (!updatedDetails.equals(details)) {
+							order.setDetails(updatedDetails);
+							session.update(order);
 						}
 					}
-				} else {
-					System.err.println("Flower with ID " + updatedData.getId() + " not found in DB.");
-				}
 
+					tx.commit();
+					System.out.println("Currently " + SubscribersList.size() + " subscribed clients.");
+
+					// Notify all clients
+					UpdateFlowerNotification notification = new UpdateFlowerNotification(flowerInDb);
+					sendToAllClients(notification);
+				}
 			} catch (Exception e) {
 				if (tx != null) tx.rollback();
 				e.printStackTrace();
@@ -839,7 +844,7 @@ public class SimpleServer extends AbstractServer {
 				session = sessionFactory.openSession();
 				tx = session.beginTransaction();
 
-				// Check if this password has ever been used for this account
+				// 1. Check if password was ever used before for this user
 				Query<PasswordHistory> q = session.createQuery(
 						"FROM PasswordHistory WHERE user = :user AND passwordHash = :password", PasswordHistory.class
 				);
@@ -852,28 +857,29 @@ public class SimpleServer extends AbstractServer {
 					return;
 				}
 
-				// Set previous current password entries to not current
+				// 2. Set previous current passwords to isCurrent = false
 				Query<PasswordHistory> currQ = session.createQuery(
 						"FROM PasswordHistory WHERE user = :user AND isCurrent = true", PasswordHistory.class
 				);
 				currQ.setParameter("user", account);
 				for (PasswordHistory ph : currQ.getResultList()) {
 					ph.setCurrent(false);
+					ph.setSwappedAt(Calendar.getInstance().getTime());
 					session.update(ph);
 				}
 
-				// Set new password for Account and save new PasswordHistory
+				// 3. Update account password
 				Account managedAccount = session.get(Account.class, account.getId());
 				managedAccount.setPassword(newPassword);
+				session.update(managedAccount);
 
+				// 4. Save new password in PasswordHistory
 				PasswordHistory newHist = new PasswordHistory(
 						managedAccount, newPassword, true, new Date()
 				);
 				session.save(newHist);
 
-				session.update(managedAccount);
 				tx.commit();
-
 				client.sendToClient(new UpdatePasswordResponse(true, "Password updated successfully."));
 
 			} catch (Exception e) {
@@ -888,6 +894,194 @@ public class SimpleServer extends AbstractServer {
 				if (session != null) session.close();
 			}
 		}
+		else if (msg instanceof UpdateCreditCardRequest req) {
+			Session session = null;
+			Transaction tx = null;
+
+			try {
+				session = sessionFactory.openSession();
+				tx = session.beginTransaction();
+
+				// Find account by ID
+				Account account = session.get(Account.class, req.getAccountId());
+				if (account == null) {
+					client.sendToClient("Account not found");
+					tx.rollback();
+					return;
+				}
+
+				// Update credit card details
+				account.setCreditCardNumber(req.getCreditCardNumber());
+				account.setCvv(req.getCcv());
+				account.setCreditCardValidUntil(req.getValidUntil());
+
+				session.update(account);
+				tx.commit();
+
+				// You can send a success response or event to the client if needed
+				client.sendToClient(new UpdateCreditCardResponse(true, "Credit card updated.",account));
+				// (Optional) Update SubscribedClient if you're storing an in-memory account object
+				for (SubscribedClient sub : SubscribersList) {
+					if (sub.getAccount().getId() == account.getId()) {
+						sub.setAccount(account);
+						break;
+					}
+				}
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+				try {
+					client.sendToClient(new UpdateCreditCardResponse(false, "Failed to update credit card info.",null));
+				} catch (IOException ioException) {
+					ioException.printStackTrace();
+				}
+			} finally {
+				if (session != null) session.close();
+			}
+		}
+		else if (msg instanceof CancelOrderRequest request) {
+			long orderId = request.getOrderId();
+
+			SubscribedClient subscribedClient = null;
+			for (SubscribedClient sc : SubscribersList) {
+				if (sc.getClient() == client) {
+					subscribedClient = sc;
+					break;
+				}
+			}
+
+			if (subscribedClient == null || subscribedClient.getAccount() == null) {
+				try {
+					client.sendToClient(new CancelOrderResponse(orderId, false, "Client account not found or not logged in."));
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+				return;
+			}
+
+			Account clientAccount = subscribedClient.getAccount();
+
+			Session session = null;
+			Transaction tx = null;
+			try {
+				session = sessionFactory.openSession();
+				OrderSQL order = session.get(OrderSQL.class, orderId);
+
+				if (order == null) {
+					client.sendToClient(new CancelOrderResponse(orderId, false, "Order not found."));
+					return;
+				}
+
+				if (order.getAccount().getId() != clientAccount.getId()) {
+					client.sendToClient(new CancelOrderResponse(orderId, false, "You are not authorized to cancel this order."));
+					return;
+				}
+
+				if ("canceled".equalsIgnoreCase(order.getStatus())) {
+					client.sendToClient(new CancelOrderResponse(orderId, false, "Order already canceled."));
+					return;
+				}
+
+				List<Flower> restockedFlowers = new ArrayList<>();
+
+				tx = session.beginTransaction();
+
+				double refundAmount = 0.0;
+				double orderTotal = order.getTotalPrice() != null ? order.getTotalPrice() : 0.0;
+				String refundMsg;
+
+				Date date = order.getDeliveryDate();
+				LocalDate deliveryDate;
+				if (date instanceof java.sql.Date) {
+					deliveryDate = ((java.sql.Date) date).toLocalDate();
+				} else {
+					deliveryDate = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+				}
+				LocalTime deliveryTime = LocalTime.parse(order.getDeliveryTime());
+				LocalDateTime deliveryDateTime = LocalDateTime.of(deliveryDate, deliveryTime);
+				LocalDateTime now = LocalDateTime.now();
+
+				long minutesBeforeDelivery = Duration.between(now, deliveryDateTime).toMinutes();
+
+				if (minutesBeforeDelivery >= 180) {
+					refundAmount = orderTotal;
+					refundMsg = "Your order was cancelled. According to shop policy, you are entitled to a full refund.";
+				} else if (minutesBeforeDelivery >= 60) {
+					refundAmount = orderTotal * 0.5;
+					refundMsg = "Your order was cancelled. According to shop policy, you are entitled to a 50% refund.";
+				} else {
+					refundAmount = 0.0;
+					refundMsg = "Your order was cancelled. According to shop policy, no refund is given for cancellation within 1 hour of delivery.";
+				}
+
+				// --- Restock flowers ---
+				String details = order.getDetails(); // e.g., "Rose x3, Lily x2,"
+				if (details != null && !details.isBlank()) {
+					String[] parts = details.split(",");
+					for (String part : parts) {
+						part = part.trim();
+						if (part.isEmpty()) continue;
+
+						// Expected format: "Rose x3"
+						int xIdx = part.lastIndexOf("x");
+						if (xIdx > 0) {
+							String name = part.substring(0, xIdx).trim();
+							String qtyStr = part.substring(xIdx + 1).replaceAll("[^\\d]", "").trim();
+							int qty = qtyStr.isEmpty() ? 1 : Integer.parseInt(qtyStr);
+
+							// Find the flower by name
+							Query<Flower> flowerQuery = session.createQuery("from Flower where name = :name", Flower.class);
+							flowerQuery.setParameter("name", name);
+							Flower flower = flowerQuery.uniqueResult();
+							if (flower != null) {
+								flower.setSupply(flower.getSupply() + qty);
+								session.update(flower);
+								restockedFlowers.add(flower);
+							}
+						}
+					}
+				}
+				order.setStatus("canceled");
+				order.setRefundAmount(refundAmount);
+				session.update(order);
+
+				tx.commit();
+
+				String msgToClient = String.format("%s Refund amount: ₪%.2f", refundMsg, refundAmount);
+				client.sendToClient(new CancelOrderResponse(orderId, true, msgToClient));
+
+				try {
+					String toEmail = clientAccount.getEmail();
+					String subject = "Order Cancellation Notification";
+					String body = String.format(
+							"Dear %s %s,\n\nYour order #%d was cancelled.\n\n%s\n\nRefund amount: ₪%.2f\n\nThank you for shopping with us.\n\nBest regards,\nFlower Shop",
+							clientAccount.getFirstName(),
+							clientAccount.getLastName(),
+							orderId,
+							refundMsg,
+							refundAmount
+					);
+					EmailSender.sendEmail(toEmail, subject, body);
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+
+				if (!restockedFlowers.isEmpty()) {
+					FlowersRestockedResponse restockedResponse = new FlowersRestockedResponse(restockedFlowers);
+					sendToAllClients(restockedResponse);
+				}
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				try {
+					client.sendToClient(new CancelOrderResponse(orderId, false, "Error while cancelling order."));
+				} catch (IOException e1) {
+					throw new RuntimeException(e1);
+				}
+				e.printStackTrace();
+			} finally {
+				if (session != null) session.close();
+			}
+		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}
@@ -897,10 +1091,35 @@ public class SimpleServer extends AbstractServer {
 		try {
 			for (SubscribedClient subscribedClient : SubscribersList) {
 				subscribedClient.getClient().sendToClient(message);
+				System.out.println("Sent message: " + message.getClass().getSimpleName());
 			}
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
+	}
+
+	public static String updateFlowerNameInDetails(String details, String oldName, String newName) {
+		if (details == null || details.isEmpty()) return details;
+		String[] parts = details.split(",");
+		for (int i = 0; i < parts.length; i++) {
+			String entry = parts[i].trim();
+			if (entry.isEmpty()) continue;
+			int idx = entry.lastIndexOf(' ');
+			if (idx > 0) {
+				String candidateName = entry.substring(0, idx).trim();
+				String quantityPart = entry.substring(idx + 1).trim();
+				// Only replace if candidateName matches oldName (case sensitive)
+				if (candidateName.equals(oldName)) {
+					parts[i] = newName + " " + quantityPart;
+				} else {
+					parts[i] = candidateName + " " + quantityPart; // reconstruct for clean format
+				}
+			} else {
+				// If there's no quantity, keep as is
+				parts[i] = entry;
+			}
+		}
+		return String.join(", ", parts);
 	}
 
 	public void sendToClientRefreshedList(ConnectionToClient client) {
@@ -1008,9 +1227,14 @@ public class SimpleServer extends AbstractServer {
 					.getResultList();
 
 			for (Account account : toExpire) {
-				account.setSubscription_expires_at(null);
-				account.setAuto_renew_subscription(null);
-				account.setSubscribtion_level("Free");
+				if ("Yes".equalsIgnoreCase(account.getAuto_renew_subscription())) {
+					LocalDate newExpiry = LocalDate.now().plusYears(1);
+					account.setSubscription_expires_at(newExpiry.toString());
+				} else {
+					account.setSubscription_expires_at(null);
+					account.setAuto_renew_subscription(null);
+					account.setSubscribtion_level("Free");
+				}
 				session.update(account);
 			}
 

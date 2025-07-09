@@ -8,6 +8,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 
@@ -23,6 +24,7 @@ import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.util.Pair;
+import javassist.Loader;
 import org.greenrobot.eventbus.EventBus;
 
 import java.io.ByteArrayInputStream;
@@ -297,10 +299,13 @@ public class SecondaryController {
         });
     }
 
+    private Map<Long, Label> orderErrorLabels = new HashMap<>(); // orderId -> errorLabel
+    private Map<Long, Button> orderCancelButtons = new HashMap<>();
 
     public void updatePurchaseHistoryUI() {
         Platform.runLater(() -> {
             PurchaseHistoryVbox.getChildren().clear();
+            orderErrorLabels.clear(); // reset when reloading UI
 
             for (OrderSQL order : purchaseHistoryList) {
                 VBox orderBox = new VBox(5);
@@ -311,43 +316,59 @@ public class SecondaryController {
                 Label statusLabel = new Label("Status: " + order.getStatus());
                 Label dateLabel = new Label("Date: " + order.getDeliveryDate());
                 Label timeLabel = new Label("Time: " + order.getDeliveryTime());
+                Label errorLabel = new Label();
+                errorLabel.setVisible(false);
+                orderErrorLabels.put((long)order.getId(), errorLabel);
 
-                Button cancelButton = new Button("Cancel");
-
+                // Only add Cancel button if not canceled already
                 boolean canCancel = true;
-                try {
-                    LocalDate orderDate;
-                    if (order.getDeliveryDate() instanceof java.sql.Date) {
-                        orderDate = ((java.sql.Date) order.getDeliveryDate()).toLocalDate();
-                    } else {
-                        orderDate = order.getDeliveryDate().toInstant()
-                                .atZone(ZoneId.systemDefault())
-                                .toLocalDate();
-                    }
+                if ("canceled".equalsIgnoreCase(order.getStatus())) {
+                    canCancel = false;
+                } else {
+                    try {
+                        LocalDate orderDate;
+                        if (order.getDeliveryDate() instanceof java.sql.Date) {
+                            orderDate = ((java.sql.Date) order.getDeliveryDate()).toLocalDate();
+                        } else {
+                            orderDate = order.getDeliveryDate().toInstant()
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate();
+                        }
 
-                    java.time.LocalTime orderTime = java.time.LocalTime.parse(order.getDeliveryTime());
-                    java.time.LocalDateTime orderDateTime = java.time.LocalDateTime.of(orderDate, orderTime);
+                        java.time.LocalTime orderTime = java.time.LocalTime.parse(order.getDeliveryTime());
+                        java.time.LocalDateTime orderDateTime = java.time.LocalDateTime.of(orderDate, orderTime);
 
-                    if (java.time.LocalDateTime.now().isAfter(orderDateTime)) {
+                        if (java.time.LocalDateTime.now().isAfter(orderDateTime)) {
+                            canCancel = false;
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
                         canCancel = false;
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    canCancel = false;
                 }
 
-                cancelButton.setDisable(!canCancel);
+                if (canCancel) {
+                    Button cancelButton = new Button("Cancel");
+                    cancelButton.setDisable(!canCancel);
+                    orderCancelButtons.put((long)order.getId(), cancelButton);
 
-                cancelButton.setOnAction(e -> {
-                    orderBox.getChildren().remove(cancelButton);
-                    statusLabel.setText("Status: canceled");
-                });
+                    cancelButton.setOnAction(e -> {
+                        try {
+                            SimpleClient.getClient().sendToServer(new CancelOrderRequest(order.getId()));
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    });
+                    orderBox.getChildren().addAll(detailsLabel, priceLabel, statusLabel, dateLabel, timeLabel, errorLabel, cancelButton);
+                } else {
+                    orderBox.getChildren().addAll(detailsLabel, priceLabel, statusLabel, dateLabel, timeLabel, errorLabel);
+                }
 
-                orderBox.getChildren().addAll(detailsLabel, priceLabel, statusLabel, dateLabel, timeLabel, cancelButton);
                 PurchaseHistoryVbox.getChildren().add(orderBox);
             }
         });
     }
+
 
 
 
@@ -359,6 +380,8 @@ public class SecondaryController {
         for (Map.Entry<Flower, byte[]> entry : flowerImageMap.entrySet()) {
             Flower flower = entry.getKey();
             byte[] imageData = entry.getValue();
+
+
 
             HBox flowerBox = new HBox(10);
             flowerBox.setStyle("-fx-border-color: #244060;");
@@ -376,6 +399,10 @@ public class SecondaryController {
                 System.err.println("Failed to load image for: " + flower.getName());
                 e.printStackTrace();
             }
+
+            System.out.println("Processing: " + (flower == null ? "null" : flower.getName()));
+            System.out.println("Image data null? " + (imageData == null));
+
             imageView.setFitWidth(100);
             imageView.setFitHeight(100);
             imageView.setPreserveRatio(true);
@@ -387,55 +414,58 @@ public class SecondaryController {
             Label desc = new Label("Description: " + flower.getDescription());
             Label supply = new Label("Supply: " + flower.getSupply());
 
-            Spinner<Integer> quantitySpinner = new Spinner<>(1, flower.getSupply(), 1);
-            TextField spinnerEditor = quantitySpinner.getEditor();
-
-            spinnerEditor.setTextFormatter(new TextFormatter<String>(change -> {
-                String newText = change.getControlNewText();
-                if (newText.matches("\\d*")) {
-                    return change; // Accept
-                }
-                return null; // Reject
-            }));
-
-            quantitySpinner.setEditable(true);
-            quantitySpinner.setMaxWidth(80);
-            if (!Guest) {
-                Button addToCartButton = new Button("Add to Cart");
-                addToCartButton.setOnAction(e -> {
-                    int amount = quantitySpinner.getValue();
-                    int currentQty = cartMap.getOrDefault(flower, 0);
-                    int newTotal = currentQty + amount;
-
-                    if (newTotal <= flower.getSupply()) {
-                        cartMap.put(flower, newTotal);
-                        System.out.println("Added to cart: " + flower.getName() + " x" + amount);
-                        showCart(); // optional: update UI immediately
-                    } else {
-                        System.out.println("Cannot add more than supply! Available: " + flower.getSupply());
-                        // Optionally, show an alert to user
-                        Alert alert = new Alert(Alert.AlertType.WARNING);
-                        alert.setTitle("Quantity Limit");
-                        alert.setHeaderText(null);
-                        alert.setContentText("Cannot add more than available supply (" + flower.getSupply() + ").");
-
-                        // Apply dark theme
-                        DialogPane dialogPane = alert.getDialogPane();
-                        URL cssUrl = getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/dark-theme.css");
-                        if (cssUrl != null) {
-                            dialogPane.getStylesheets().add(cssUrl.toExternalForm());
-                        } else {
-                            System.err.println("Could not find dark-theme.css!");
-                        }
-
-                        alert.showAndWait();
-                    }
-
-                });
-                textBox.getChildren().addAll(name, price, color, desc, supply, quantitySpinner, addToCartButton);
+            if (flower.getSupply() <= 0) {
+                Label outOfStock = new Label("Out of Stock");
+                outOfStock.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
+                textBox.getChildren().addAll(name, price, color, desc, supply, outOfStock);
             } else {
-                textBox.getChildren().addAll(name, price, color, desc, supply, quantitySpinner);
+                Spinner<Integer> quantitySpinner = new Spinner<>(1, flower.getSupply(), 1);
+                TextField spinnerEditor = quantitySpinner.getEditor();
+
+                spinnerEditor.setTextFormatter(new TextFormatter<String>(change -> {
+                    String newText = change.getControlNewText();
+                    if (newText.matches("\\d*")) {
+                        return change; // Accept
+                    }
+                    return null; // Reject
+                }));
+
+                quantitySpinner.setEditable(true);
+                quantitySpinner.setMaxWidth(80);
+
+                if (!Guest) {
+                    Button addToCartButton = new Button("Add to Cart");
+                    addToCartButton.setOnAction(e -> {
+                        int amount = quantitySpinner.getValue();
+                        int currentQty = cartMap.getOrDefault(flower, 0);
+                        int newTotal = currentQty + amount;
+
+                        if (newTotal <= flower.getSupply()) {
+                            cartMap.put(flower, newTotal);
+                            System.out.println("Added to cart: " + flower.getName() + " x" + amount);
+                            showCart();
+                        } else {
+                            Alert alert = new Alert(Alert.AlertType.WARNING);
+                            alert.setTitle("Quantity Limit");
+                            alert.setHeaderText(null);
+                            alert.setContentText("Cannot add more than available supply (" + flower.getSupply() + ").");
+
+                            DialogPane dialogPane = alert.getDialogPane();
+                            URL cssUrl = getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/dark-theme.css");
+                            if (cssUrl != null) {
+                                dialogPane.getStylesheets().add(cssUrl.toExternalForm());
+                            }
+                            alert.showAndWait();
+                        }
+                    });
+                    textBox.getChildren().addAll(name, price, color, desc, supply, quantitySpinner, addToCartButton);
+                } else {
+                    textBox.getChildren().addAll(name, price, color, desc, supply, quantitySpinner);
+                }
             }
+
+            System.out.println("Adding node for: " + flower.getName());
+
             flowerBox.getChildren().addAll(imageView, textBox);
 
             cachedFlowerNodes.add(new Pair<>(flower, flowerBox));
@@ -868,7 +898,6 @@ public class SecondaryController {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 
     @FXML
@@ -897,11 +926,65 @@ public class SecondaryController {
             }
         }
     }
-    
+
     @FXML
     void UpdateNewCCFunction(ActionEvent event) {
+        String ccNumber = NewCardNumber.getText().trim();
+        String ccv = NewCardCCV.getText().trim();
+        LocalDate date = NewCardDate.getValue();
 
+        boolean valid = true;
+
+        // Validate CCV: must be exactly 3 digits
+        if (!ccv.matches("\\d{3}")) {
+            NewCardCCV.setStyle("-fx-border-color: red;");
+            valid = false;
+        } else {
+            NewCardCCV.setStyle("");
+        }
+
+        // Validate card number (simple: 13–19 digits is a common standard)
+        if (!ccNumber.matches("\\d{13,19}")) {
+            NewCardNumber.setStyle("-fx-border-color: red;");
+            valid = false;
+        } else {
+            NewCardNumber.setStyle("");
+        }
+
+        // Validate date: must be selected and after today
+        if (date == null || !date.isAfter(LocalDate.now())) {
+            NewCardDate.setStyle("-fx-border-color: red;");
+            valid = false;
+        } else {
+            NewCardDate.setStyle("");
+        }
+
+        if (!valid) {
+            System.err.println("Validation failed: Fix highlighted fields.");
+            return;
+        }
+
+        // If valid, send update request
+        try {
+            // Convert LocalDate to java.util.Date
+            java.util.Date cardDate = java.sql.Date.valueOf(date);
+
+            // Update the local account object
+            account.setCreditCardNumber(ccNumber);
+            account.setCvv(ccv);
+            account.setCreditCardValidUntil(cardDate);
+
+            // Send to server (pass cardDate instead of date)
+            SimpleClient.getClient().sendToServer(
+                    new UpdateCreditCardRequest(account.getId(), ccNumber, ccv, cardDate)
+            );
+            System.out.println("Credit card update requested.");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
+
+
 
     public boolean isCardStillValid(Account account) {
         Date validUntil = account.getCreditCardValidUntil();
@@ -1093,6 +1176,7 @@ public class SecondaryController {
         if(!Guest){
             try {
                 SimpleClient.getClient().sendToServer(new GetUserFeedbacksRequest(account.getId()));
+                SimpleClient.getClient().sendToServer(new GetUserOrdersRequest(account.getId()));
                 AccInfoPhoneNum.setText("Phone Number: " + account.getPhoneNumber());
                 AccInfoEmail.setText("Email: " + account.getEmail());
                 AccInfoPassword.setText("Password: " + account.getPassword());
@@ -1218,12 +1302,31 @@ public class SecondaryController {
 
                 VBox textBox = (VBox) flowerBox.getChildren().get(1);
 
-                Label nameLabel = (Label) textBox.getChildren().get(0);
-                Label priceLabel = (Label) textBox.getChildren().get(1);
-                Label descLabel = (Label) textBox.getChildren().get(2);
-                Label supplyLabel = (Label) textBox.getChildren().get(3);
-                Spinner<Integer> quantitySpinner = (Spinner<Integer>) textBox.getChildren().get(4);
+                Label nameLabel = null;
+                Label priceLabel = null;
+                Label descLabel = null;
+                Label supplyLabel = null;
+                Spinner<Integer> quantitySpinner = null;
 
+                for (Node node : textBox.getChildren()) {
+                    if (node instanceof Label) {
+                        Label lbl = (Label) node;
+                        String text = lbl.getText();
+                        if (text.startsWith("Name: ")) nameLabel = lbl;
+                        else if (text.startsWith("Price: ")) priceLabel = lbl;
+                        else if (text.startsWith("Description: ")) descLabel = lbl;
+                        else if (text.startsWith("Supply: ")) supplyLabel = lbl;
+                    } else if (node instanceof Spinner) {
+                        quantitySpinner = (Spinner<Integer>) node;
+                    }
+                }
+
+                if (nameLabel == null || priceLabel == null || descLabel == null || supplyLabel == null || quantitySpinner == null) {
+                    System.err.println("Could not find all fields in textBox for flower " + updatedFlower.getName());
+                    return;
+                }
+
+                // Now you can safely update them
                 nameLabel.setText("Name: " + updatedFlower.getName());
                 priceLabel.setText("Price: ₪" + updatedFlower.getPrice());
                 descLabel.setText("Description: " + updatedFlower.getDescription());
@@ -1231,6 +1334,7 @@ public class SecondaryController {
                 quantitySpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(
                         1, updatedFlower.getSupply(), 1
                 ));
+
 
                 cachedFlowerNodes.set(i, new Pair<>(updatedFlower, flowerBox));
                 break;
@@ -1242,8 +1346,11 @@ public class SecondaryController {
     public void onUpdatedFlowerNotif(updatedFlowerNotif event) {
         javafx.application.Platform.runLater(() -> {
             updateFlowerCardInVBox(event.getUpdatedFlower());
+            System.out.println("In secondary controller");
         });
     }
+
+
 
     @org.greenrobot.eventbus.Subscribe
     public void onAccountUpgrade(AccountUpgrade event) {
@@ -1324,6 +1431,7 @@ public class SecondaryController {
             if (event.isSuccess()) {
                 ProfileTabNewPassText.clear();
                 ProfileTabNewConfirmPassText.clear();
+                AccInfoPassword.setText("Password : " + account.getPassword());
             }
         });
     }
@@ -1481,6 +1589,47 @@ public class SecondaryController {
         });
     }
 
+    @Subscribe
+    public void onUpdateCreditCardResponse(UpdateCreditCardResponse response) {
+        Platform.runLater(() -> {
+            if (response.isSuccess()){
+                account = response.getAccount();
+                AccInfoCCNum.setText("Credit card number : " + account.getCreditCardNumber().toString());
+                AccInfoCCV.setText("CCV : " + account.getCvv());
+                AccInfoCCValidUntil.setText("CC valid until : " + account.getCreditCardValidUntil().toString());
+                NewCardNumber.clear();
+                NewCardCCV.clear();
+            }
+            NewCCError.setVisible(true);
+            NewCCError.setText(response.getMessage());
+        });
+    }
+
+    @Subscribe
+    public void onCancelOrderResponse(CancelOrderResponse response) {
+        Platform.runLater(() -> {
+            Label errorLabel = orderErrorLabels.get(response.getOrderId());
+            Button cancelButton = orderCancelButtons.get(response.getOrderId());
+            if (response.isCancelled()) {
+                // Remove the button from the UI
+                if (cancelButton != null) {
+                    ((Pane) cancelButton.getParent()).getChildren().remove(cancelButton);
+                    orderCancelButtons.remove(response.getOrderId());
+                }
+                try {
+                    SimpleClient.getClient().sendToServer(new GetUserOrdersRequest(account.getId()));
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                if (errorLabel != null) {
+                    errorLabel.setText(response.getMessage());
+                    errorLabel.setVisible(true);
+                }
+            }
+        });
+    }
+
     public void showCart() {
         CartVBox.getChildren().clear();
         double totalPrice = 0;
@@ -1544,11 +1693,6 @@ public class SecondaryController {
 
         CartPriceLabel.setText("₪" + String.format("%.2f", totalPrice));
     }
-
-
-
-
-
 
 
     @FXML
