@@ -15,23 +15,23 @@
         <RadioButton fx:id="PickupRadio" text="Pickup" style="-fx-text-fill: #ffffff;" />
     </HBox>
 
-    <Label text="Delivery date:" style="-fx-text-fill: #ffffff;" />
-    <HBox spacing="5">
-        <DatePicker fx:id="DatePicker" />
-        <Label fx:id="DateStar" text="*" textFill="RED" visible="false"/>
+    <HBox alignment="CENTER_LEFT" spacing="3">
+        <Label text="*" style="-fx-text-fill: red;" />
+        <Label text="Delivery date:" style="-fx-text-fill: white;" />
     </HBox>
+    <DatePicker fx:id="DatePicker" />
 
-    <Label text="Delivery time:" style="-fx-text-fill: #ffffff;" />
-    <HBox spacing="5">
-        <ComboBox fx:id="TimeComboBox" prefWidth="160" />
-        <Label fx:id="TimeStar" text="*" textFill="RED" visible="false"/>
+    <HBox alignment="CENTER_LEFT" spacing="3">
+        <Label text="*" style="-fx-text-fill: red;" />
+        <Label text="Delivery time:" style="-fx-text-fill: white;" />
     </HBox>
+    <ComboBox fx:id="TimeComboBox" prefWidth="160" />
 
-    <Label text="Address:" style="-fx-text-fill: #ffffff;" />
-    <HBox spacing="5">
-        <TextField fx:id="AddressField" promptText="Enter your address" />
-        <Label fx:id="AddressStar" text="*" textFill="RED" visible="false"/>
+    <HBox alignment="CENTER_LEFT" spacing="3">
+        <Label text="*" style="-fx-text-fill: red;" />
+        <Label text="Address:" style="-fx-text-fill: white;" />
     </HBox>
+    <TextField fx:id="AddressField" promptText="Enter your address" />
 
     <Label text="Greeting (optional):" style="-fx-text-fill: #ffffff;" />
     <TextField fx:id="GreetingField" promptText="Write a greeting message" />

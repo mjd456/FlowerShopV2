@@ -10,6 +10,8 @@ import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 
@@ -391,6 +393,7 @@ public class SecondaryController {
             flowerBox.setAlignment(Pos.CENTER_LEFT);
             flowerBox.setPrefHeight(140);
             flowerBox.setMaxWidth(Double.MAX_VALUE);
+
 
             ImageView imageView = new ImageView();
             try {
@@ -1602,6 +1605,32 @@ public class SecondaryController {
             }
         });
     }
+
+    @FXML
+    private void openCustomItemWindow() {
+        try {
+            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/CustomItemDialog.fxml"));
+            Parent root = fxmlLoader.load();
+
+            CustomItemDialogController dialogController = fxmlLoader.getController();
+            dialogController.setMainController(this);
+
+            Stage stage = new Stage();
+            stage.setTitle("Create Custom Item");
+            stage.setScene(new Scene(root));
+            stage.show();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public void addToCart(Flower flower) {
+        cartMap.put(flower, 1); // Add with default quantity 1
+        showCart();
+        System.out.println("Added custom item to cart: " + flower.getName());
+    }
+
 
     @Subscribe
     public void onUpdateCreditCardResponse(UpdateCreditCardResponse response) {
