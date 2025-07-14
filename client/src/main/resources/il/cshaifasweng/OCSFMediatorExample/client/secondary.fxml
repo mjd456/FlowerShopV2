@@ -39,6 +39,7 @@
                      </ScrollPane>
                      <Button fx:id="SortCatalogBtn" layoutY="2.0" onAction="#SortCatalog" text="Sort" />
                   </children>
+                  <Button fx:id="AddCustomItemBtn" layoutX="43.0" layoutY="2.0" onAction="#openCustomItemWindow" text="Add Custom Item" />
                </AnchorPane>
             </content>
          </Tab>
