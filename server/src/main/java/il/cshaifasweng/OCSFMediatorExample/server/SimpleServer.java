@@ -51,6 +51,26 @@ public class SimpleServer extends AbstractServer {
 					e.printStackTrace();
 				}
 			}
+			else if (msgString.startsWith("GetAccounts")){
+				List<Account> accounts = new LinkedList<>();
+				try (Session session = sessionFactory.openSession()) {
+					session.beginTransaction();
+
+					Query<Account> query = session.createQuery(
+							"FROM Account", Account.class);
+
+					accounts = query.getResultList();
+					session.getTransaction().commit();
+
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				try {
+					client.sendToClient(accounts);
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			}
 			else if (msgString.startsWith("add client")) {
 				SubscribedClient connection = new SubscribedClient(client);
 				SubscribersList.add(connection);
@@ -664,7 +684,7 @@ public class SimpleServer extends AbstractServer {
 				FeedBackSQL feedback = session.get(FeedBackSQL.class, feedbackId);
 				if (feedback != null) {
 					feedback.setStatus(newStatus);
-					feedback.setResolvedAt(java.time.LocalDateTime.now());
+					feedback.setResolvedAt(LocalDateTime.now());
 					session.update(feedback);
 					tx.commit();
 
@@ -1166,6 +1186,44 @@ public class SimpleServer extends AbstractServer {
 				}
 			} finally {
 				session.close();
+			}
+		}
+		else if (msg instanceof Account){
+			Account account = (Account) msg;
+			Session session = null;
+			Transaction tx = null;
+			List<Account> accounts = new ArrayList<>();
+			try {
+				session = sessionFactory.openSession();
+				tx = session.beginTransaction();
+
+				Account oldAccount = session.get(Account.class, account.getId());
+
+				if (oldAccount != null) {
+					oldAccount.setFirstName(account.getFirstName());
+					oldAccount.setLastName(account.getLastName());
+					oldAccount.setEmail(account.getEmail());
+					oldAccount.setIdentityNumber(account.getIdentityNumber());
+					oldAccount.setPassword(account.getPassword());
+					oldAccount.setCreditCardValidUntil(account.getCreditCardValidUntil());
+					oldAccount.setCreditCardNumber(account.getCreditCardNumber());
+					oldAccount.setPhoneNumber(account.getPhoneNumber());
+					session.update(oldAccount);
+
+					tx.commit();
+					System.out.println("Currently " + SubscribersList.size() + " subscribed clients.");
+					tx = session.beginTransaction();
+					Query<Account> query = session.createQuery(
+							"FROM Account", Account.class);
+
+					accounts = query.getResultList();
+					sendToAllClients(accounts);
+				}
+			} catch (Exception e) {
+				if (tx != null) tx.rollback();
+				e.printStackTrace();
+			} finally {
+				if (session != null) session.close();
 			}
 		}
 		else {

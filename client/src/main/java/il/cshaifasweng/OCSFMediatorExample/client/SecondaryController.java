@@ -3,6 +3,9 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.fxml.FXML;
@@ -13,6 +16,7 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.*;
 
 import javafx.scene.image.ImageView;
@@ -28,6 +32,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.Pair;
+import javafx.util.converter.DefaultStringConverter;
 import javassist.Loader;
 import org.greenrobot.eventbus.EventBus;
 
@@ -264,6 +269,39 @@ public class SecondaryController {
     private Label DiscountLabel;
 
 
+    // ====================================
+
+    @FXML
+    private Tab detailsChange;
+
+    @FXML
+    private TableView<Account> accountTable;
+
+    @FXML
+    private TableColumn<Account, String> creditCard;
+
+    @FXML
+    private TableColumn<Account, String> email;
+
+    @FXML
+    private TableColumn<Account, String> id;
+
+    @FXML
+    private TableColumn<Account, String> name;
+
+    @FXML
+    private TableColumn<Account, String> password;
+
+    @FXML
+    private TableColumn<Account, String> phone;
+
+    @FXML
+    private TableColumn<Account, String> sub;
+
+    @FXML
+    private AnchorPane window;
+
+
     //==================CustomHeader=====================//
 
     private double xOffset = 0, yOffset = 0;
@@ -283,6 +321,9 @@ public class SecondaryController {
     private List<OrderSQL> purchaseHistoryList = new ArrayList<>();
 
     public static SecondaryController instance;
+
+
+
     public Map<Flower, Integer> getCartMap() {
         return cartMap;
     }
@@ -1757,8 +1798,18 @@ public class SecondaryController {
         CartPriceLabel.setText("₪" + String.format("%.2f", totalPrice));
     }
 
+    @Subscribe
+    public void updateGrid(List<Account> accounts) {
+
+        Platform.runLater(() -> {
+            accountTable.getItems().clear();
+            ObservableList<Account> accountList = FXCollections.observableArrayList(accounts);
+            accountTable.setItems(accountList);
+        });
+    }
+
     @FXML
-    void initialize() {
+    void initialize() throws IOException{
         assert AccInfoCCNum != null : "fx:id=\"AccInfoCCNum\" was not injected: check your FXML file 'secondary.fxml'.";
         assert AccInfoCCV != null : "fx:id=\"AccInfoCCV\" was not injected: check your FXML file 'secondary.fxml'.";
         assert AccInfoCCValidUntil != null : "fx:id=\"AccInfoCCValidUntil\" was not injected: check your FXML file 'secondary.fxml'.";
@@ -1883,6 +1934,171 @@ public class SecondaryController {
         });
 
         System.out.println("[SecondaryController] Initialized");
+
+        // details change.
+
+        SimpleClient.getClient().sendToServer("GetAccounts");
+        accountTable.setEditable(true);
+        this.name.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account)cellData.getValue()).getFirstName()+ " " + ((Account)cellData.getValue()).getLastName());
+        });
+
+        this.creditCard.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account)cellData.getValue()).getCreditCardNumber());
+        });
+
+        this.id.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account)cellData.getValue()).getIdentityNumber());
+        });
+
+        this.email.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account)cellData.getValue()).getEmail());
+        });
+
+        this.phone.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account)cellData.getValue()).getPhoneNumber());
+        });
+        this.password.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account)cellData.getValue()).getPassword());
+        });
+        this.sub.setCellValueFactory((cellData) ->{
+            return new SimpleStringProperty(((Account)cellData.getValue()).getSubscribtion_level());
+        });
+
+        this.name.setCellFactory((col) -> {
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+
+        this.name.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newName =(String) event.getNewValue();
+            if (!newName.equals(account.getFirstName() + account.getLastName())){
+                String firstName = newName.split(" ")[0];
+                account.setFirstName(firstName);
+
+                String lastName = newName.split(" ")[1];
+                account.setLastName(lastName);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                // we need to send to the server to update.
+            }
+        });
+
+        this.sub.setCellFactory((col) ->{
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.sub.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newSub = (String)event.getNewValue();
+            if (!newSub.equals(account.getSubscribtion_level())){
+                account.setSubscribtion_level(newSub);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        // the id is not changeable. delete
+        this.id.setCellFactory((col) ->{
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.id.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newId = (String)event.getNewValue();
+            if (!newId.equals(account.getIdentityNumber())){
+                account.setIdentityNumber(newId);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        this.phone.setCellFactory((col) ->{
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.phone.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newPhone = (String)event.getNewValue();
+            if (!newPhone.equals(account.getPhoneNumber())){
+                account.setPhoneNumber(newPhone);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        this.email.setCellFactory((col) ->{
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.email.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newEmail = (String)event.getNewValue();
+            if (!newEmail.equals(account.getEmail())){
+                account.setEmail(newEmail);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        this.password.setCellFactory((col) ->{
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.password.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newPassword = (String)event.getNewValue();
+            if (!newPassword.equals(account.getPassword())){
+                account.setPassword(newPassword);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        this.password.setCellFactory((col) ->{
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.password.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newPassword = (String)event.getNewValue();
+            if (!newPassword.equals(account.getPassword())){
+                account.setPassword(newPassword);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        this.creditCard.setCellFactory((col) ->{
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.creditCard.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newCreditCard = (String)event.getNewValue();
+            if (!newCreditCard.equals(account.getCreditCardNumber())){
+                account.setCreditCardNumber(newCreditCard);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
 
         App.notifySecondaryReady();
     }

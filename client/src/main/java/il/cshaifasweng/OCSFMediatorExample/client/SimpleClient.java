@@ -24,6 +24,13 @@ public class SimpleClient extends AbstractClient {
 		if (msg.getClass().equals(Warning.class)) {
 			EventBus.getDefault().post(new WarningEvent((Warning) msg));
 		}
+		else if (msg instanceof List<?>) {
+			List<?> list = (List<?>) msg;
+			if (!list.isEmpty() && list.get(0) instanceof Account) {
+				List<Account> accounts = (List<Account>) list;
+				EventBus.getDefault().post(accounts);
+			}
+		}
 		else if (msg instanceof LoginResponse loginResponse) {
 			if (loginResponse.isSuccess()) {
 				account = loginResponse.getAccount();
@@ -59,7 +66,7 @@ public class SimpleClient extends AbstractClient {
 				EventBus.getDefault().post(new RecoveryMailFound(tokens[4]));
 			} else if (message.startsWith("Email for recovery not found")) {
 				EventBus.getDefault().post(new RecoveryMailNotFound("Invalid email address"));
-			}else if (message.startsWith("The code has expired. A new code was sent to")) {
+			} else if (message.startsWith("The code has expired. A new code was sent to")) {
 				EventBus.getDefault().post(new VerifyCodeError("The code has expired. A new code was sent to your email."));
 			} else if (message.startsWith("Invalid verification code.")) {
 				EventBus.getDefault().post(new VerifyCodeError("Invalid verification code."));
@@ -76,10 +83,12 @@ public class SimpleClient extends AbstractClient {
 				EventBus.getDefault().post(new ChangingPasswordSuccess());
 			} else if (message.startsWith("Logout successful")) {
 				account = null;
-			}else if (message.startsWith("Feedback added successfully")) {
+			} else if (message.startsWith("Feedback added successfully")) {
 				EventBus.getDefault().post(new FeedBackSuccess());
 			}
 		}
+		// after we get the data we need to post it, so the accounts data be in the screen.
+		// to check from what screen we need to open DetailsChange Screen.
 		else if (msg instanceof Map<?, ?> map && map.keySet().iterator().next() instanceof Flower) {
 			Map<Flower, byte[]> flowerImageMap = (Map<Flower, byte[]>) msg;
 			System.out.println("Posting FlowerListEventBus");
@@ -160,7 +169,6 @@ public class SimpleClient extends AbstractClient {
 
 				}
 			}
-
 		}
 		else if (msg instanceof PlaceOrderResponse reponse){
 			EventBus.getDefault().postSticky(reponse);

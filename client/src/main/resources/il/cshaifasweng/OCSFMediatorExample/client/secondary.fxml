@@ -7,6 +7,8 @@
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.AnchorPane?>
@@ -325,6 +327,25 @@
                            </Pane>
                         </content>
                      </ScrollPane>
+                  </children>
+               </AnchorPane>
+            </content>
+         </Tab>
+         <Tab fx:id="detailsChange" text="Details Change">
+            <content>
+               <AnchorPane id="window" prefHeight="200.0" prefWidth="200.0">
+                  <children>
+                     <TableView fx:id="accountTable" prefHeight="374.0" prefWidth="600.0">
+                       <columns>
+                         <TableColumn fx:id="name" prefWidth="75.0" text="Name" />
+                         <TableColumn fx:id="email" prefWidth="75.0" text="Email" />
+                           <TableColumn fx:id="password" prefWidth="75.0" text="Password" />
+                           <TableColumn fx:id="id" prefWidth="75.0" text="ID" />
+                           <TableColumn fx:id="creditCard" prefWidth="75.0" text="Credit Card" />
+                           <TableColumn fx:id="phone" prefWidth="92.79998779296875" text="Phone" />
+                           <TableColumn fx:id="sub" prefWidth="130.39996337890625" text="Subscribtion" />
+                       </columns>
+                     </TableView>
                   </children>
                </AnchorPane>
             </content>
