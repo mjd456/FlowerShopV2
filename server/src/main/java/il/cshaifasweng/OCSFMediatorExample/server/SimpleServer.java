@@ -439,7 +439,7 @@ public class SimpleServer extends AbstractServer {
 					newAccount.setCvv(signupDetails.getCvv());
 					newAccount.setCreditCardValidUntil(signupDetails.getCreditCardValidUntil());
 					newAccount.setPhoneNumber(signupDetails.getPhoneNumber());
-
+					newAccount.setSubscribtion_level("Free");
 					newAccount.setAccountLevel("Customer");
 
 					session.save(newAccount);

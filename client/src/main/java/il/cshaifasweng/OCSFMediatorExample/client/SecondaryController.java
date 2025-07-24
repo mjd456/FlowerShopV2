@@ -598,7 +598,34 @@ public class SecondaryController {
                     MainTabsFrame.getTabs().remove(tab);
                 }
             });
-        } else if ("Manager".equalsIgnoreCase(role)) {
+        }
+        else if ("Manager".equalsIgnoreCase(role)) {
+            Platform.runLater(() -> {
+                MainTabsFrame.getTabs().remove(detailsChange);
+                MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+                    if (newTab == ManagerPanel) {
+
+                        try {
+                            SimpleClient.getClient().sendToServer("RequestFlowerCatalogForManager");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    } else if (oldTab == ManagerPanel) {
+                        ManagerCatalogSelectorVbox.getChildren().clear();
+                    }
+                });
+            });
+        }
+        else if ("Customer service".equalsIgnoreCase(role)) {
+            Platform.runLater(() -> {
+                for (Tab tab : ManagerTabs) {
+                    if(tab != CustomerServicePanel){
+                        MainTabsFrame.getTabs().remove(tab);
+                    }
+                }
+            });
+        }
+        else if ("Network Manager".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
                     if (newTab == ManagerPanel) {
@@ -613,15 +640,8 @@ public class SecondaryController {
                     }
                 });
             });
-        } else if ("Customer service".equalsIgnoreCase(role)) {
-            Platform.runLater(() -> {
-                for (Tab tab : ManagerTabs) {
-                    if(tab != CustomerServicePanel){
-                        MainTabsFrame.getTabs().remove(tab);
-                    }
-                }
-            });
         }
+
     }
 
     @org.greenrobot.eventbus.Subscribe
@@ -1896,7 +1916,8 @@ public class SecondaryController {
         });
         ManagerTabs = new Tab[] {
                 ManagerPanel,
-                CustomerServicePanel
+                CustomerServicePanel,
+                detailsChange
         };
 
         EventBus.getDefault().register(this);

@@ -57,7 +57,10 @@ public class Account implements Serializable {
 
     // ----- Constructors -----
 
-    public Account() {}
+    public Account() {
+        this.logged = false;
+        this.Subscribtion_level = "Free";
+    }
 
     public Account(String email, String password, String firstName, String lastName,
                    String identityNumber, String creditCardNumber, String cvv, Date creditCardValidUntil,String accountLevel,String phoneNumber) {
