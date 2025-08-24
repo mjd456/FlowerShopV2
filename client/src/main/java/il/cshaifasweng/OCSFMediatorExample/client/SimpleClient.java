@@ -180,7 +180,7 @@ public class SimpleClient extends AbstractClient {
 			org.greenrobot.eventbus.EventBus.getDefault().postSticky(resp);
 		}
 		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsHistogramReportResponse resp) {
-			org.greenrobot.eventbus.EventBus.getDefault().post(resp); // Use post, not postSticky, for one-time events
+			org.greenrobot.eventbus.EventBus.getDefault().post(resp);
 		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());

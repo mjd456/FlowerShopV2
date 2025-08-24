@@ -768,30 +768,31 @@ public class SimpleServer extends AbstractServer {
 			System.out.println("Received ComplaintsHistogramReportRequest from " + req.getFrom() + " to " + req.getTo());
 
 			try (Session s = sessionFactory.openSession()) {
-				// 1. Fetch all complaints within the date range
 				String hql = "FROM FeedBackSQL f WHERE f.submittedAt BETWEEN :from AND :to";
 				List<FeedBackSQL> complaints = s.createQuery(hql, FeedBackSQL.class)
 						.setParameter("from", req.getFrom())
 						.setParameter("to", req.getTo())
 						.list();
 
-				// 2. Process the data in Java to count complaints per day
+				System.out.println("[SERVER] Found " + complaints.size() + " complaints in the database.");
+
 				Map<LocalDate, Long> countsByDay = new LinkedHashMap<>();
 				for (FeedBackSQL complaint : complaints) {
-					// Convert LocalDateTime to LocalDate to group by day
-					LocalDate day = complaint.getSubmittedAt().toLocalDate();
-					// Increment the count for that day, or initialize it to 1
-					countsByDay.merge(day, 1L, Long::sum);
+					// ADDED A NULL CHECK HERE FOR SAFETY
+					if (complaint.getSubmittedAt() != null) {
+						LocalDate day = complaint.getSubmittedAt().toLocalDate();
+						countsByDay.merge(day, 1L, Long::sum);
+					}
 				}
 
-				// 3. Send the response to the client
 				client.sendToClient(new ComplaintsHistogramReportResponse(countsByDay));
 				System.out.println("Sent ComplaintsHistogramReportResponse with " + countsByDay.size() + " daily entries.");
 
 			} catch (Exception e) {
 				e.printStackTrace();
+				// We should also send an error response to the client on failure
 				try {
-					client.sendToClient("Error generating complaints histogram report");
+					client.sendToClient(new ComplaintsHistogramReportResponse(new HashMap<>())); // Send empty report on error
 				} catch (IOException io) {
 					io.printStackTrace();
 				}
