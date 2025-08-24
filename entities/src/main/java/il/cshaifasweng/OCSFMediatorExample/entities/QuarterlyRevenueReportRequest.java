@@ -18,4 +18,7 @@ public class QuarterlyRevenueReportRequest implements Serializable {
 
     public Date getFrom() { return from; }
     public Date getTo() { return to; }
+
+    public void setFrom(Date from) { this.from = from; }
+    public void setTo(Date to) { this.to = to; }
 }
