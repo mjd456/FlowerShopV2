@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/11.0.2"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.ReportsController">
+    <top>
+        <HBox spacing="8" padding="10">
+            <children>
+                <Label text="מתאריך:"/>
+                <DatePicker fx:id="dpFrom"/>
+                <Label text="עד תאריך:"/>
+                <DatePicker fx:id="dpTo"/>
+                <Button fx:id="btnGenerate" text="הצג דו״ח" onAction="#onGenerate"/>
+            </children>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox spacing="8" padding="10">
+            <children>
+                <TableView fx:id="tblRevenue" prefHeight="400.0">
+                    <columns>
+                        <TableColumn fx:id="colYear" text="שנה" prefWidth="100"/>
+                        <TableColumn fx:id="colQuarter" text="רבעון" prefWidth="120"/>
+                        <TableColumn fx:id="colRevenue" text="הכנסה (₪)" prefWidth="200"/>
+                    </columns>
+                </TableView>
+            </children>
+        </VBox>
+    </center>
+</BorderPane>

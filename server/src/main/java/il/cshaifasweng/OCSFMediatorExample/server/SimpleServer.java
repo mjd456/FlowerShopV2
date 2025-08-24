@@ -669,6 +669,43 @@ public class SimpleServer extends AbstractServer {
 				e.printStackTrace();
 			}
 		}
+		else if (msg instanceof QuarterlyRevenueReportRequest req) {
+			System.out.println("Received QuarterlyRevenueReportRequest: from "
+					+ req.getFrom() + " to " + req.getTo());
+
+			try (Session s = sessionFactory.openSession()) {
+
+				String hql = """
+            select year(o.deliveryDate),
+                   quarter(o.deliveryDate),
+                   sum( coalesce(o.totalPrice, 0) - coalesce(o.refundAmount, 0) )
+            from OrderSQL o
+            where o.deliveryDate between :from and :to
+            group by year(o.deliveryDate), quarter(o.deliveryDate)
+            order by year(o.deliveryDate), quarter(o.deliveryDate)
+        """;
+
+				@SuppressWarnings("unchecked")
+				List<Object[]> rows = (List<Object[]>) s.createQuery(hql)
+						.setParameter("from", req.getFrom())
+						.setParameter("to",   req.getTo())
+						.list();
+
+				List<QuarterlyRevenueReportResponse.Row> out = new ArrayList<>();
+				for (Object[] r : rows) {
+					int year    = ((Number) r[0]).intValue();
+					int quarter = ((Number) r[1]).intValue();   // 1..4
+					double rev  = ((Number) r[2]).doubleValue();
+					out.add(new QuarterlyRevenueReportResponse.Row(year, quarter, rev));
+				}
+
+				client.sendToClient(new QuarterlyRevenueReportResponse(out));
+			} catch (Exception e) {
+				e.printStackTrace();
+				try { client.sendToClient("Error generating quarterly revenue report"); }
+				catch (IOException io) { io.printStackTrace(); }
+			}
+		}
 		else if (msg instanceof UpdateFeedbackStatusRequest) {
 			UpdateFeedbackStatusRequest req = (UpdateFeedbackStatusRequest) msg;
 			int feedbackId = req.getFeedbackId();
