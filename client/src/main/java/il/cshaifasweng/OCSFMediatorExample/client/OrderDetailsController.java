@@ -217,7 +217,6 @@ public class OrderDetailsController {
         if (cssUrl != null) {
             dialogPane.getStylesheets().add(cssUrl.toExternalForm());
         }
-        EventBus.getDefault().register(this);
 
         alert.showAndWait();
     }
