@@ -13,12 +13,27 @@ public class RevenueRow {
         this.revenue.set(revenue);
     }
 
-    public int getYear() { return year.get(); }
-    public IntegerProperty yearProperty() { return year; }
+    public int getYear() {
+        return year.get();
+    }
 
-    public int getQuarter() { return quarter.get(); }
-    public IntegerProperty quarterProperty() { return quarter; }
+    public IntegerProperty yearProperty() {
+        return year;
+    }
 
-    public double getRevenue() { return revenue.get(); }
-    public DoubleProperty revenueProperty() { return revenue; }
+    public int getQuarter() {
+        return quarter.get();
+    }
+
+    public IntegerProperty quarterProperty() {
+        return quarter;
+    }
+
+    public double getRevenue() {
+        return revenue.get();
+    }
+
+    public DoubleProperty revenueProperty() {
+        return revenue;
+    }
 }
