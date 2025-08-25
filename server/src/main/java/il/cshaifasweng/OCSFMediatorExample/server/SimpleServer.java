@@ -706,6 +706,98 @@ public class SimpleServer extends AbstractServer {
 				catch (IOException io) { io.printStackTrace(); }
 			}
 		}
+		else if (msg instanceof OrdersByProductTypeReportRequest req) {
+			System.out.println("Received OrdersByProductTypeReportRequest from " + req.getFrom() + " to " + req.getTo());
+
+			try (Session s = sessionFactory.openSession()) {
+				// Step 1: Fetch all orders within the date range
+				String hql = "FROM OrderSQL o WHERE o.deliveryDate BETWEEN :from AND :to";
+				List<OrderSQL> orders = s.createQuery(hql, OrderSQL.class)
+						.setParameter("from", req.getFrom())
+						.setParameter("to", req.getTo())
+						.list();
+
+				// Step 2: Process the data in Java
+				Map<String, long[]> aggregationMap = new HashMap<>();
+				// The map will store: ProductType -> {orderCount, quantity, totalValue}
+
+				for (OrderSQL order : orders) {
+					String details = order.getDetails();
+					if (details == null || details.isBlank()) continue;
+
+					String[] items = details.split(",");
+					for (String item : items) {
+						item = item.trim();
+						int separatorIndex = item.lastIndexOf(" x");
+						if (separatorIndex > 0) {
+							String productType = item.substring(0, separatorIndex).trim();
+							int quantity = Integer.parseInt(item.substring(separatorIndex + 2).trim());
+
+							// Get the current values or initialize a new array
+							long[] values = aggregationMap.computeIfAbsent(productType, k -> new long[3]);
+							values[0]++; // Increment order count for this product type
+							values[1] += quantity; // Add to total quantity
+							// We don't have price per item, so we can't calculate total value here.
+							// We will leave the 'total' field as 0 for now.
+						}
+					}
+				}
+
+				// Step 3: Convert the aggregated map to a list of Row objects
+				List<OrdersByProductTypeReportResponse.Row> responseRows = new ArrayList<>();
+				for (Map.Entry<String, long[]> entry : aggregationMap.entrySet()) {
+					String productType = entry.getKey();
+					long[] values = entry.getValue();
+					responseRows.add(new OrdersByProductTypeReportResponse.Row(productType, values[0], values[1], 0.0));
+				}
+
+				// Step 4: Send the response to the client
+				client.sendToClient(new OrdersByProductTypeReportResponse(responseRows));
+				System.out.println("Sent OrdersByProductTypeReportResponse to client.");
+
+			} catch (Exception e) {
+				e.printStackTrace();
+				try {
+					client.sendToClient("Error generating orders by product type report");
+				} catch (IOException io) {
+					io.printStackTrace();
+				}
+			}
+		}
+		else if (msg instanceof ComplaintsHistogramReportRequest req) {
+			System.out.println("Received ComplaintsHistogramReportRequest from " + req.getFrom() + " to " + req.getTo());
+
+			try (Session s = sessionFactory.openSession()) {
+				String hql = "FROM FeedBackSQL f WHERE f.submittedAt BETWEEN :from AND :to";
+				List<FeedBackSQL> complaints = s.createQuery(hql, FeedBackSQL.class)
+						.setParameter("from", req.getFrom())
+						.setParameter("to", req.getTo())
+						.list();
+
+				System.out.println("[SERVER] Found " + complaints.size() + " complaints in the database.");
+
+				Map<LocalDate, Long> countsByDay = new LinkedHashMap<>();
+				for (FeedBackSQL complaint : complaints) {
+					// ADDED A NULL CHECK HERE FOR SAFETY
+					if (complaint.getSubmittedAt() != null) {
+						LocalDate day = complaint.getSubmittedAt().toLocalDate();
+						countsByDay.merge(day, 1L, Long::sum);
+					}
+				}
+
+				client.sendToClient(new ComplaintsHistogramReportResponse(countsByDay));
+				System.out.println("Sent ComplaintsHistogramReportResponse with " + countsByDay.size() + " daily entries.");
+
+			} catch (Exception e) {
+				e.printStackTrace();
+				// We should also send an error response to the client on failure
+				try {
+					client.sendToClient(new ComplaintsHistogramReportResponse(new HashMap<>())); // Send empty report on error
+				} catch (IOException io) {
+					io.printStackTrace();
+				}
+			}
+		}
 		else if (msg instanceof UpdateFeedbackStatusRequest) {
 			UpdateFeedbackStatusRequest req = (UpdateFeedbackStatusRequest) msg;
 			int feedbackId = req.getFeedbackId();

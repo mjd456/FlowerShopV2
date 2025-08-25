@@ -20,6 +20,7 @@ import java.util.List;
 
 public class ReportsController {
 
+    @FXML private ComboBox<String> reportTypeComboBox;
     @FXML private DatePicker dpFrom;
     @FXML private DatePicker dpTo;
     @FXML private Button btnGenerate;
@@ -32,13 +33,11 @@ public class ReportsController {
 
     @FXML
     public void initialize() {
-        // טבלת תוצאות
         colYear.setCellValueFactory(c -> c.getValue().yearProperty().asObject());
         colQuarter.setCellValueFactory(c -> c.getValue().quarterProperty().asObject());
         colRevenue.setCellValueFactory(c -> c.getValue().revenueProperty().asObject());
         tblRevenue.setItems(data);
 
-        // רישום לאיוונט-באס לקבלת התשובה מהשרת
         if (!EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().register(this);
         }
@@ -57,10 +56,8 @@ public class ReportsController {
         Date to   = Date.from(toLd.atStartOfDay(ZoneId.systemDefault()).toInstant());
 
         try {
-            // שליחת הבקשה לשרת
             QuarterlyRevenueReportRequest req = new QuarterlyRevenueReportRequest(from, to);
 
-            // אם אצלך שם המחלקה/פונקציה שונה, החליפי כאן:
             SimpleClient.getClient().sendToServer(req);
         } catch (Exception e) {
             e.printStackTrace();
@@ -68,7 +65,6 @@ public class ReportsController {
         }
     }
 
-    // מאזינה לתשובה מהשרת
     @Subscribe
     public void onQuarterlyRevenueReportResponse(QuarterlyRevenueReportResponse resp) {
         Platform.runLater(() -> {

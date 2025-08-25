@@ -16,6 +16,7 @@
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
+<?import javafx.scene.control.ComboBox?>
 
 <VBox spacing="0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.SecondaryController">
 
@@ -323,6 +324,20 @@
                                  <Label layoutX="115.0" layoutY="625.0" text="Note : To add a picture for the flower you need to access database." />
                                  <TextArea fx:id="NewFlowerDesc" layoutX="133.0" layoutY="509.0" prefHeight="105.0" prefWidth="342.0" promptText="Ex. Flower looks in weddings..." />
                                  <Button fx:id="AddNewFlower" layoutX="488.0" layoutY="589.0" mnemonicParsing="false" onAction="#RequestToAddNewFlower" prefHeight="25.0" prefWidth="84.0" text="Add" />
+                                 <HBox layoutY="640.0" prefWidth="585.0" alignment="CENTER" spacing="20">
+                                    <children>
+                                       <ComboBox fx:id="reportTypeComboBox" promptText="Select Report Type" prefWidth="200.0" />
+                                       <Button fx:id="generateReportBtn" onAction="#onGenerateReport" text="Generate Report" />
+                                    </children>
+                                 </HBox>
+                                 <!-- Report Table -->
+                                 <TableView fx:id="QuarterlyTable" layoutY="670.0" prefHeight="260.0" prefWidth="585.0">
+                                    <columns>
+                                       <TableColumn fx:id="colYear" text="Year" prefWidth="140.0"/>
+                                       <TableColumn fx:id="colQuarter" text="Quarter" prefWidth="140.0"/>
+                                       <TableColumn fx:id="colRevenue" text="Revenue (₪)" prefWidth="280.0"/>
+                                    </columns>
+                                 </TableView>
                               </children>
                            </Pane>
                         </content>

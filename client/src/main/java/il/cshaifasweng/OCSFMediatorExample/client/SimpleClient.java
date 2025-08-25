@@ -173,6 +173,15 @@ public class SimpleClient extends AbstractClient {
 		else if (msg instanceof PlaceOrderResponse reponse){
 			EventBus.getDefault().postSticky(reponse);
 		}
+		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse resp) {
+			org.greenrobot.eventbus.EventBus.getDefault().postSticky(resp);
+		}
+		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.OrdersByProductTypeReportResponse resp) {
+			org.greenrobot.eventbus.EventBus.getDefault().postSticky(resp);
+		}
+		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsHistogramReportResponse resp) {
+			org.greenrobot.eventbus.EventBus.getDefault().post(resp);
+		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}

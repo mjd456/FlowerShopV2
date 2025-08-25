@@ -18,10 +18,13 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.*;
+//<<<<<<< shada-updates
+import javafx.scene.text.Font;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
 
+//>>>>>>> main
 
 import javafx.scene.image.ImageView;
 
@@ -47,11 +50,19 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import org.greenrobot.eventbus.Subscribe;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 public class SecondaryController {
+
+    @FXML
+    private ComboBox<String> reportTypeComboBox;
+
+    @FXML
+    private Button generateReportBtn;
 
     @FXML
     private ResourceBundle resources;
@@ -305,6 +316,10 @@ public class SecondaryController {
     @FXML
     private AnchorPane window;
 
+    @FXML private TableView<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row> QuarterlyTable;
+    @FXML private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colYear;
+    @FXML private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colQuarter;
+    @FXML private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colRevenue;
 
     //==================CustomHeader=====================//
 
@@ -2132,6 +2147,177 @@ public class SecondaryController {
             }
         });
 
+        // Setup for the report generator
+        ObservableList<String> reportTypes = FXCollections.observableArrayList(
+                "Quarterly Revenue Report",
+                "Orders by Type Report",
+                "Complaints Report"
+        );
+        reportTypeComboBox.setItems(reportTypes);
+        reportTypeComboBox.setValue("Quarterly Revenue Report"); // Set a default value
+
         App.notifySecondaryReady();
+    }
+    @FXML
+    void onGenerateReport(ActionEvent event) {
+        String selectedReport = reportTypeComboBox.getValue();
+        if (selectedReport == null) {
+            System.err.println("No report type selected.");
+            return;
+        }
+
+        // For now, we only have a date range for the revenue report.
+        // We will add date pickers for the others later.
+        try {
+            switch (selectedReport) {
+                case "Quarterly Revenue Report":
+                    // This is the same logic from your old onQuarterlyReport method
+                    java.sql.Date from = java.sql.Date.valueOf(java.time.LocalDate.now().minusMonths(12));
+                    java.sql.Date to   = java.sql.Date.valueOf(java.time.LocalDate.now());
+                    SimpleClient.getClient().sendToServer(new QuarterlyRevenueReportRequest(from, to));
+                    System.out.println("Quarterly revenue report requested");
+                    break;
+
+                case "Orders by Type Report":
+                    // We'll request data from the last 3 months as an example
+                    java.sql.Date fromDate = java.sql.Date.valueOf(java.time.LocalDate.now().minusMonths(3));
+                    java.sql.Date toDate   = java.sql.Date.valueOf(java.time.LocalDate.now());
+                    try {
+                        SimpleClient.getClient().sendToServer(new OrdersByProductTypeReportRequest(fromDate, toDate));
+                        System.out.println("Orders by Product Type report requested");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    break;
+
+                case "Complaints Report":
+                    // We'll request data from the last month as an example
+                    java.sql.Date fromComplaintDate = java.sql.Date.valueOf(java.time.LocalDate.now().minusMonths(1));
+                    java.sql.Date toComplaintDate   = java.sql.Date.valueOf(java.time.LocalDate.now());
+                    try {
+                        SimpleClient.getClient().sendToServer(new ComplaintsHistogramReportRequest(fromComplaintDate, toComplaintDate));
+                        System.out.println("Complaints Report requested");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    break;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    @Subscribe
+    public void onQuarterlyRevenueReport(QuarterlyRevenueReportResponse resp) {
+        Platform.runLater(() -> {
+            StringBuilder sb = new StringBuilder("Quarter | Revenue\n");
+            for (var row : resp.getRows()) {
+                sb.append(String.format("Y%d Q%d : ₪%.2f%n", row.getYear(), row.getQuarter(), row.getRevenue()));
+            }
+            Alert a = new Alert(Alert.AlertType.INFORMATION);
+            a.setTitle("Quarterly Revenue Report");
+            a.setHeaderText("Last 12 months");
+            a.setContentText(sb.toString());
+            a.getDialogPane().setExpandableContent(new TextArea(sb.toString()));
+            a.showAndWait();
+        });
+    }
+    @Subscribe
+    public void onOrdersByProductTypeReport(OrdersByProductTypeReportResponse response) {
+        Platform.runLater(() -> {
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.format("%-20s | %-15s | %s\n", "Product Type", "Orders Count", "Total Quantity"));
+            sb.append("----------------------------------------------------------\n");
+
+            if (response.getRows().isEmpty()) {
+                sb.append("No order data found for the selected period.");
+            } else {
+                for (OrdersByProductTypeReportResponse.Row row : response.getRows()) {
+                    sb.append(String.format("%-20s | %-15d | %d\n",
+                            row.getProductType(),
+                            row.getOrders(),
+                            row.getQuantity()));
+                }
+            }
+
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Orders by Product Type Report");
+            alert.setHeaderText("Report for the last 3 months");
+
+            // Use a TextArea for better formatting and scrolling
+            TextArea textArea = new TextArea(sb.toString());
+            textArea.setEditable(false);
+            textArea.setWrapText(false);
+            textArea.setFont(Font.font("monospaced")); // Use a monospaced font for alignment
+
+            alert.getDialogPane().setContent(textArea);
+            alert.setResizable(true);
+            alert.showAndWait();
+        });
+    }
+    @Subscribe
+    public void onComplaintsHistogramReport(ComplaintsHistogramReportResponse response) {
+        Platform.runLater(() -> {
+            // Create a new window (Stage) for the histogram
+            Stage histogramStage = new Stage();
+            histogramStage.setTitle("Complaints Histogram");
+
+            Map<LocalDate, Long> data = response.getCountsByDay();
+
+            if (data == null || data.isEmpty()) {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "No complaint data found for the selected period.");
+                alert.showAndWait();
+                return;
+            }
+
+            // --- Drawing the Histogram on a Canvas ---
+            double canvasWidth = 600;
+            double canvasHeight = 400;
+            Canvas canvas = new Canvas(canvasWidth, canvasHeight);
+            GraphicsContext gc = canvas.getGraphicsContext2D();
+
+            // Find the maximum value to scale the bars
+            long maxCount = 0;
+            for (Long count : data.values()) {
+                if (count > maxCount) {
+                    maxCount = count;
+                }
+            }
+            if (maxCount == 0) maxCount = 1; // Avoid division by zero
+
+            // Drawing parameters
+            double padding = 50;
+            double chartWidth = canvasWidth - 2 * padding;
+            double chartHeight = canvasHeight - 2 * padding;
+            double barWidth = chartWidth / data.size() * 0.7; // 70% of available space for the bar
+
+            // Draw Y-axis line
+            gc.strokeLine(padding, padding, padding, canvasHeight - padding);
+            // Draw X-axis line
+            gc.strokeLine(padding, canvasHeight - padding, canvasWidth - padding, canvasHeight - padding);
+
+            // Draw bars
+            int i = 0;
+            for (Map.Entry<LocalDate, Long> entry : data.entrySet()) {
+                double barHeight = (double) entry.getValue() / maxCount * chartHeight;
+                double x = padding + (i * (chartWidth / data.size())) + (chartWidth / data.size() * 0.15); // Center the bar
+                double y = canvasHeight - padding - barHeight;
+
+                gc.setFill(Color.CORNFLOWERBLUE);
+                gc.fillRect(x, y, barWidth, barHeight);
+
+                // Draw label for the bar (date and count)
+                gc.setFill(Color.BLACK);
+                gc.fillText(entry.getKey().toString(), x, canvasHeight - padding + 15);
+                gc.fillText(String.valueOf(entry.getValue()), x + barWidth / 2 - 5, y - 5);
+
+                i++;
+            }
+
+            // Put the canvas in a layout and show the window
+            Pane root = new Pane(canvas);
+            Scene scene = new Scene(root);
+            histogramStage.setScene(scene);
+            histogramStage.show();
+        });
     }
 }
