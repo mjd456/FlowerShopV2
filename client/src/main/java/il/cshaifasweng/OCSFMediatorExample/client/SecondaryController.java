@@ -418,7 +418,7 @@ public class SecondaryController {
 
             LocalTime orderTime = LocalTime.parse(order.getDeliveryTime());
             LocalDateTime orderDateTime = LocalDateTime.of(orderDate, orderTime);
-//the status is changed - auto check every 30 secs
+
             if (LocalDateTime.now().isAfter(orderDateTime)) {
                 statusLabel.setText("status: delivered");
                 if (cancelButton != null) cancelButton.setVisible(false);
