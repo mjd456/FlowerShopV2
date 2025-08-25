@@ -18,6 +18,10 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.*;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
+
 
 import javafx.scene.image.ImageView;
 
@@ -353,7 +357,7 @@ public class SecondaryController {
     public void updatePurchaseHistoryUI() {
         Platform.runLater(() -> {
             PurchaseHistoryVbox.getChildren().clear();
-            orderErrorLabels.clear(); // reset when reloading UI
+            orderErrorLabels.clear();
 
             for (OrderSQL order : purchaseHistoryList) {
                 VBox orderBox = new VBox(5);
@@ -366,55 +370,62 @@ public class SecondaryController {
                 Label timeLabel = new Label("Time: " + order.getDeliveryTime());
                 Label errorLabel = new Label();
                 errorLabel.setVisible(false);
-                orderErrorLabels.put((long)order.getId(), errorLabel);
 
-                // Only add Cancel button if not canceled already
-                boolean canCancel = true;
-                if ("canceled".equalsIgnoreCase(order.getStatus())) {
-                    canCancel = false;
-                } else {
+                orderErrorLabels.put((long) order.getId(), errorLabel);
+
+                Button cancelButton = new Button("Cancel");
+                cancelButton.setOnAction(e -> {
                     try {
-                        LocalDate orderDate;
-                        if (order.getDeliveryDate() instanceof java.sql.Date) {
-                            orderDate = ((java.sql.Date) order.getDeliveryDate()).toLocalDate();
-                        } else {
-                            orderDate = order.getDeliveryDate().toInstant()
-                                    .atZone(ZoneId.systemDefault())
-                                    .toLocalDate();
-                        }
-
-                        java.time.LocalTime orderTime = java.time.LocalTime.parse(order.getDeliveryTime());
-                        java.time.LocalDateTime orderDateTime = java.time.LocalDateTime.of(orderDate, orderTime);
-
-                        if (java.time.LocalDateTime.now().isAfter(orderDateTime)) {
-                            canCancel = false;
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        canCancel = false;
+                        SimpleClient.getClient().sendToServer(new CancelOrderRequest(order.getId()));
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
                     }
+                });
+
+                orderBox.getChildren().addAll(detailsLabel, priceLabel, statusLabel, dateLabel, timeLabel, errorLabel);
+
+                // Attach cancel button only if status is still upcoming
+                if (!"canceled".equalsIgnoreCase(order.getStatus())) {
+                    orderBox.getChildren().add(cancelButton);
+                    orderCancelButtons.put((long) order.getId(), cancelButton);
                 }
 
-                if (canCancel) {
-                    Button cancelButton = new Button("Cancel");
-                    cancelButton.setDisable(!canCancel);
-                    orderCancelButtons.put((long)order.getId(), cancelButton);
-
-                    cancelButton.setOnAction(e -> {
-                        try {
-                            SimpleClient.getClient().sendToServer(new CancelOrderRequest(order.getId()));
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
-                        }
-                    });
-                    orderBox.getChildren().addAll(detailsLabel, priceLabel, statusLabel, dateLabel, timeLabel, errorLabel, cancelButton);
-                } else {
-                    orderBox.getChildren().addAll(detailsLabel, priceLabel, statusLabel, dateLabel, timeLabel, errorLabel);
-                }
+                // 🔹 Schedule auto-update for this order card
+                setupOrderCard(order, statusLabel, cancelButton);
 
                 PurchaseHistoryVbox.getChildren().add(orderBox);
             }
         });
+    }
+
+    /** Schedules regular checks for order status */
+    private void setupOrderCard(OrderSQL order, Label statusLabel, Button cancelButton) {
+        updateOrderStatus(order, statusLabel, cancelButton);
+
+        Timeline timeline = new Timeline(
+                new KeyFrame(Duration.seconds(30), e -> updateOrderStatus(order, statusLabel, cancelButton))
+        );
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        timeline.play();
+    }
+
+    /** Marks as delivered & hides cancel after delivery time */
+    private void updateOrderStatus(OrderSQL order, Label statusLabel, Button cancelButton) {
+        try {
+            LocalDate orderDate = (order.getDeliveryDate() instanceof java.sql.Date)
+                    ? ((java.sql.Date) order.getDeliveryDate()).toLocalDate()
+                    : order.getDeliveryDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+
+            LocalTime orderTime = LocalTime.parse(order.getDeliveryTime());
+            LocalDateTime orderDateTime = LocalDateTime.of(orderDate, orderTime);
+
+            if (LocalDateTime.now().isAfter(orderDateTime)) {
+                statusLabel.setText("status: delivered");
+                if (cancelButton != null) cancelButton.setVisible(false);
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }
 
     public void addFlowersToVBox(Map<Flower, byte[]> flowerImageMap) {
