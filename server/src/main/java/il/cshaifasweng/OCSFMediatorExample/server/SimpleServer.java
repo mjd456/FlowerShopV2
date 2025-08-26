@@ -1474,6 +1474,7 @@ public class SimpleServer extends AbstractServer {
 		configuration.addAnnotatedClass(PasswordHistory.class);
 		configuration.addAnnotatedClass(FeedBackSQL.class);
 		configuration.addAnnotatedClass(OrderSQL.class);
+		configuration.addAnnotatedClass(Branch.class);
 
 		ServiceRegistry serviceRegistry = (new StandardServiceRegistryBuilder()).applySettings(configuration.getProperties()).build();
 		return configuration.buildSessionFactory(serviceRegistry);

@@ -4,6 +4,7 @@ import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
@@ -671,7 +672,22 @@ public class SecondaryController {
                 });
             });
         }
+        else if ("Branch Manager".equalsIgnoreCase(role)) {
+            Platform.runLater(() -> {
+                MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+                    if (newTab == ManagerPanel) {
 
+                        try {
+                            SimpleClient.getClient().sendToServer("RequestFlowerCatalogForManager");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    } else if (oldTab == ManagerPanel) {
+                        ManagerCatalogSelectorVbox.getChildren().clear();
+                    }
+                });
+            });
+        }
     }
 
     @org.greenrobot.eventbus.Subscribe
@@ -759,39 +775,89 @@ public class SecondaryController {
         ((Stage) CustomTitleBar.getScene().getWindow()).setIconified(true);
     }
 
+    private static final int BRANCH_HAIFA   = 1;
+    private static final int BRANCH_EILAT   = 2;
+    private static final int BRANCH_TEL_AVIV= 3;
+
     public void populateManagerCatalog(List<Flower> flowerList) {
         ManagerCatalogSelectorVbox.getChildren().clear();
         ManagerCatalogSelector.setFitToWidth(true);
 
+        final boolean isBranchManager =
+                account != null && "Branch Manager".equalsIgnoreCase(account.getAccountLevel());
+        final int branchId = resolveBranchId(account); // 1=Haifa, 2=Eilat, 3=TelAviv, 0=none
+
         for (Flower flower : flowerList) {
-            // Main Pane for the flower, vertical orientation
             VBox flowerBox = new VBox(8);
             flowerBox.setStyle("-fx-border-color: #4D8DFF; -fx-padding: 14 16 14 16; -fx-background-radius: 8;");
             flowerBox.setMaxWidth(430);
+            flowerBox.prefWidthProperty().bind(ManagerCatalogSelectorVbox.widthProperty().subtract(24));
 
-            // Name, Price, and Description (Label with wrap)
-            Label nameLabel = new Label("Name: " + flower.getName());
+            Label nameLabel  = new Label("Name: " + flower.getName());
             Label priceLabel = new Label("Price: ₪" + flower.getPrice());
-            Label colorLabel = new Label("Color: " + flower.getColor());           // <---- ADD THIS
-            Label supplyLabel = new Label("Supply: " + flower.getSupply());        // <---- AND THIS
+            Label colorLabel = new Label("Color: " + flower.getColor());
+
+            // Total (will refresh after edits)
+            Label totalLabel = new Label("Total Supply: " +
+                    (flower.getSupplyHaifa() + flower.getSupplyEilat() + flower.getSupplyTelAviv()));
+
             Label descLabel = new Label("Description: " + flower.getDescription());
             descLabel.setWrapText(true);
 
+            // ===== Supply rows: label + button (button shown only if allowed) =====
+            HBox haifaRow = buildSupplyRow(
+                    "Supply (Haifa): ", flower.getSupplyHaifa(),
+                    !isBranchManager || branchId == BRANCH_HAIFA,
+                    "Haifa",
+                    newVal -> {
+                        flower.setSupplyHaifa(newVal);
+                        int total = newVal + flower.getSupplyEilat() + flower.getSupplyTelAviv();
+                        flower.setSupply(total);
+                        totalLabel.setText("Total Supply: " + total);
+                        pushUpdateAndRefresh(flower, flowerList);
+                    }
+            );
+
+            HBox eilatRow = buildSupplyRow(
+                    "Supply (Eilat): ", flower.getSupplyEilat(),
+                    !isBranchManager || branchId == BRANCH_EILAT,
+                    "Eilat",
+                    newVal -> {
+                        flower.setSupplyEilat(newVal);
+                        int total = flower.getSupplyHaifa() + newVal + flower.getSupplyTelAviv();
+                        flower.setSupply(total);
+                        totalLabel.setText("Total Supply: " + total);
+                        pushUpdateAndRefresh(flower, flowerList);
+                    }
+            );
+
+            HBox taRow = buildSupplyRow(
+                    "Supply (Tel Aviv): ", flower.getSupplyTelAviv(),
+                    !isBranchManager || branchId == BRANCH_TEL_AVIV,
+                    "Tel Aviv",
+                    newVal -> {
+                        flower.setSupplyTelAviv(newVal);
+                        int total = flower.getSupplyHaifa() + flower.getSupplyEilat() + newVal;
+                        flower.setSupply(total);
+                        totalLabel.setText("Total Supply: " + total);
+                        pushUpdateAndRefresh(flower, flowerList);
+                    }
+            );
+
+            // ===== Non-supply edit panel (name/price/color/desc) =====
             Button editBtn = new Button("Edit");
+            Button deleteBtn = new Button("Delete");
+
             VBox editPane = new VBox(10);
             editPane.setStyle("-fx-background-color: #242b3b; -fx-padding: 12; -fx-background-radius: 0 0 8 8;");
             editPane.setMaxWidth(Double.MAX_VALUE);
             editPane.setVisible(false);
-            editPane.setManaged(false); // So the VBox height is correct when not expanded
+            editPane.setManaged(false);
 
-            Button deleteBtn = new Button("Delete");
-
-            // Input fields
-            TextField nameField = new TextField(flower.getName());
+            TextField nameField  = new TextField(flower.getName());
             TextField colorField = new TextField(flower.getColor());
             TextField priceField = new TextField(String.valueOf(flower.getPrice()));
-            TextField supplyField = new TextField(String.valueOf(flower.getSupply()));
-            TextArea descField = new TextArea(flower.getDescription());
+            TextArea  descField  = new TextArea(flower.getDescription());
             descField.setPrefHeight(80);
             descField.setWrapText(true);
             descField.setMaxWidth(Double.MAX_VALUE);
@@ -800,141 +866,131 @@ public class SecondaryController {
             Button cancelBtn = new Button("Cancel");
             HBox buttonBox = new HBox(8, saveBtn, cancelBtn);
 
-            // --- Input validation on Save ---
             saveBtn.setOnAction(e -> {
-                String newName = nameField.getText().trim();
-                String newDesc = descField.getText().trim();
-                String priceText = priceField.getText().trim();
-                String supplyText = supplyField.getText().trim();
+                String newName  = nameField.getText().trim();
+                String newDesc  = descField.getText().trim();
+                String priceTxt = priceField.getText().trim();
                 String newColor = colorField.getText().trim();
-                int newSupply = -1;
+
                 boolean valid = true;
+                if (newName.isEmpty() || !newName.matches("^[A-Za-z\\s]+$")) { nameField.setStyle("-fx-border-color: red;"); valid = false; } else nameField.setStyle("");
+                if (newColor.isEmpty() || !newColor.matches("^[A-Za-z\\s]+$")) { colorField.setStyle("-fx-border-color: red;"); valid = false; } else colorField.setStyle("");
+                if (!priceTxt.matches("^\\d+(\\.\\d{1,2})?$")) { priceField.setStyle("-fx-border-color: red;"); valid = false; } else priceField.setStyle("");
+                if (!valid) return;
 
-                try {
-                    newSupply = Integer.parseInt(supplyText);
-                    if (newSupply < 0) throw new NumberFormatException();
-                    supplyField.setStyle("");
-                } catch (NumberFormatException ex) {
-                    supplyField.setStyle("-fx-border-color: red;");
-                    valid = false;
-                }
-
-                if (newName.isEmpty() || !newName.matches("^[A-Za-z\\s]+$")) {
-                    nameField.setStyle("-fx-border-color: red;");
-                    valid = false;
-                } else {
-                    nameField.setStyle("");
-                }
-
-                if (newColor.isEmpty() || !newColor.matches("^[A-Za-z\\s]+$")) {
-                    colorField.setStyle("-fx-border-color: red;");
-                    valid = false;
-                } else {
-                    colorField.setStyle("");
-                }
-
-                // Price: only digits, at most one dot, no leading dot
-                if (!priceText.matches("^\\d+(\\.\\d{1,2})?$")) {
-                    priceField.setStyle("-fx-border-color: red;");
-                    valid = false;
-                } else {
-                    priceField.setStyle("");
-                }
-
-                if (!valid) {
-                    System.err.println("Validation failed: please fix highlighted fields.");
-                    return;
-                }
-
-                double newPrice = Double.parseDouble(priceText);
-
-                // Update and send
+                double newPrice = Double.parseDouble(priceTxt);
                 flower.setName(newName);
                 flower.setDescription(newDesc);
                 flower.setPrice(newPrice);
                 flower.setColor(newColor);
-                flower.setSupply(newSupply);
 
-                try {
-                    SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
-                    System.out.println("Flower updated and sent to server.");
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
+                try { SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower)); }
+                catch (Exception ex) { ex.printStackTrace(); }
 
                 populateManagerCatalog(flowerList);
             });
 
-            cancelBtn.setOnAction(e -> {
-                editPane.setVisible(false);
-                editPane.setManaged(false);
-            });
+            cancelBtn.setOnAction(e -> { editPane.setVisible(false); editPane.setManaged(false); });
 
-            deleteBtn.setOnAction(e -> {
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                alert.setTitle("Delete Confirmation");
-                alert.setHeaderText(null);
-                alert.setGraphic(null);
-                alert.setContentText("Are you sure you want to delete this flower?\n\n" + "Flower name : "+  flower.getName());
-
-                DialogPane dialogPane = alert.getDialogPane();
-                URL cssUrl = getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/dark-theme.css");
-                if (cssUrl != null) {
-                    dialogPane.getStylesheets().add(cssUrl.toExternalForm());
-                } else {
-                    System.err.println("Could not find dark-theme.css!");
-                }
-
-
-                Optional<ButtonType> result = alert.showAndWait();
-                if (result.isPresent() && result.get() == ButtonType.OK) {
-                    // Send delete request to server
-                    try {
-                        SimpleClient.getClient().sendToServer(new DeleteFlowerRequest(flower.getId()));
-                        System.out.println("Sent delete request for flower: " + flower.getName());
-                    } catch (Exception ex) {
-                        ex.printStackTrace();
-                    }
-                }
-            });
-
-
-            // --- Show/Hide edit pane with animation (optional) ---
             editBtn.setOnAction(e -> {
                 boolean nowVisible = !editPane.isVisible();
                 editPane.setVisible(nowVisible);
                 editPane.setManaged(nowVisible);
-                if (nowVisible) {
-                    // Optionally focus first input field
-                    nameField.requestFocus();
-                }
+                if (nowVisible) nameField.requestFocus();
             });
 
-            // Layout for edit pane
             editPane.getChildren().setAll(
                     new Label("Edit Name:"), nameField,
                     new Label("Edit Price:"), priceField,
-                    new Label("Edit Supply:"), supplyField,
                     new Label("Edit Color:"), colorField,
                     new Label("Edit Description:"), descField,
                     buttonBox
             );
 
-            // Add components to the main flower box
+            // delete (unchanged)
+            deleteBtn.setOnAction(e -> {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Delete Confirmation");
+                alert.setHeaderText(null);
+                alert.setGraphic(null);
+                alert.setContentText("Are you sure you want to delete this flower?\n\nFlower name: " + flower.getName());
+                Optional<ButtonType> result = alert.showAndWait();
+                if (result.isPresent() && result.get() == ButtonType.OK) {
+                    try { SimpleClient.getClient().sendToServer(new DeleteFlowerRequest(flower.getId())); }
+                    catch (Exception ex) { ex.printStackTrace(); }
+                }
+            });
+
             HBox actionsBox = new HBox(8, editBtn, deleteBtn);
+
             flowerBox.getChildren().addAll(
-                    nameLabel,
-                    priceLabel,
-                    colorLabel,
-                    supplyLabel,
-                    descLabel,
-                    actionsBox,
-                    editPane
+                    nameLabel, priceLabel, colorLabel,
+                    haifaRow, eilatRow, taRow,   // <-- label + button rows
+                    totalLabel,
+                    descLabel, actionsBox, editPane
             );
-            // Add to VBox
+
             ManagerCatalogSelectorVbox.getChildren().add(flowerBox);
         }
         ManagerCatalogSelectorVbox.setFillWidth(true);
+    }
+
+    // Build "Supply (X): N   [Change Supply]" row
+    private HBox buildSupplyRow(String labelPrefix,
+                                int currentValue,
+                                boolean showButton,
+                                String branchShortNameForPrompt,
+                                java.util.function.Consumer<Integer> onValid) {
+
+        Label lbl = new Label(labelPrefix + currentValue);
+        lbl.setWrapText(true);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox row = new HBox(8);
+        row.getChildren().addAll(lbl, spacer);
+
+        if (showButton) {
+            Button b = new Button("Change Supply");
+            b.setOnAction(e -> promptAndUpdateSupply(branchShortNameForPrompt, currentValue, newVal -> {
+                lbl.setText(labelPrefix + newVal); // reflect change immediately
+                onValid.accept(newVal);
+            }));
+            row.getChildren().add(b);
+        }
+
+        return row;
+    }
+
+    private static int resolveBranchId(Account acc) {
+        if (acc == null) return 0;
+        // using relation mapping
+        Branch b = acc.getBranch();
+        return (b != null) ? b.getId() : 0;
+    }
+
+    private void promptAndUpdateSupply(String branchLabel, int current, java.util.function.Consumer<Integer> onValid) {
+        TextInputDialog dlg = new TextInputDialog(String.valueOf(current));
+        dlg.setTitle("Change Supply");
+        dlg.setHeaderText(null);
+        dlg.setContentText("New supply for " + branchLabel + " (>= 0):");
+        Optional<String> res = dlg.showAndWait();
+        if (res.isEmpty()) return;
+
+        try {
+            int val = Integer.parseInt(res.get().trim());
+            if (val < 0) throw new NumberFormatException();
+            onValid.accept(val);
+        } catch (NumberFormatException nfe) {
+            new Alert(Alert.AlertType.ERROR, "Please enter a non-negative integer.", ButtonType.OK).showAndWait();
+        }
+    }
+
+    private void pushUpdateAndRefresh(Flower flower, List<Flower> flowerList) {
+        try { SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower)); }
+        catch (Exception ex) { ex.printStackTrace(); }
+        populateManagerCatalog(flowerList);
     }
 
     private void updateFlowerOnServer(Flower flower) {
@@ -1745,13 +1801,11 @@ public class SecondaryController {
         }
     }
 
-
     public void addToCart(Flower flower) {
         cartMap.put(flower, 1); // Add with default quantity 1
         showCart();
         System.out.println("Added custom item to cart: " + flower.getName());
     }
-
 
     @Subscribe
     public void onUpdateCreditCardResponse(UpdateCreditCardResponse response) {
