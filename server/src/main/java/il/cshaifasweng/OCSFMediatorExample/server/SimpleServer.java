@@ -1361,7 +1361,7 @@ public class SimpleServer extends AbstractServer {
 				tx = session.beginTransaction();
 
 				Account oldAccount = session.get(Account.class, account.getId());
-
+				Branch newBranch = session.get(Branch.class, account.getBranch().getId());
 				if (oldAccount != null) {
 					oldAccount.setFirstName(account.getFirstName());
 					oldAccount.setLastName(account.getLastName());
@@ -1371,6 +1371,8 @@ public class SimpleServer extends AbstractServer {
 					oldAccount.setCreditCardValidUntil(account.getCreditCardValidUntil());
 					oldAccount.setCreditCardNumber(account.getCreditCardNumber());
 					oldAccount.setPhoneNumber(account.getPhoneNumber());
+					oldAccount.setAccountLevel(account.getAccountLevel());
+					oldAccount.setBranch(newBranch);
 					session.update(oldAccount);
 
 					tx.commit();
