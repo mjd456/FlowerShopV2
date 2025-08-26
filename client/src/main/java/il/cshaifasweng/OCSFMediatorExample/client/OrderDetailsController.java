@@ -1,24 +1,24 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
-import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
-import javafx.util.Duration;
-import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.io.IOException;
 import java.net.URL;
-import java.sql.Date;
 import java.util.Arrays;
 import java.util.Map;
 
-import static il.cshaifasweng.OCSFMediatorExample.client.SimpleClient.account;
-
 public class OrderDetailsController {
+
+    @FXML
+    private ComboBox<String> BranchComboBox;
+
+    @FXML
+    private Label BranchLabel;
 
     @FXML
     private RadioButton DeliveryRadio;
@@ -67,18 +67,27 @@ public class OrderDetailsController {
         DeliveryRadio.setToggleGroup(deliveryGroup);
         PickupRadio.setToggleGroup(deliveryGroup);
         DeliveryRadio.setSelected(true);
+
+        // Add branch options
+        BranchComboBox.getItems().addAll("Haifa", "Eilat", "Tel Aviv");
+
         DatePicker.valueProperty().addListener((obs, oldDate, newDate) -> {
             updateAvailableTimes(newDate);
         });
+
         // Setup time slots
         TimeComboBox.getItems().addAll(Arrays.asList("09:00", "12:00", "15:00", "18:00"));
 
-        // Enable/disable address field
+        // Enable/disable fields depending on delivery type
         deliveryGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {
             if (PickupRadio.isSelected()) {
                 AddressField.setDisable(true);
+                BranchLabel.setVisible(true);
+                BranchComboBox.setVisible(true);
             } else {
                 AddressField.setDisable(false);
+                BranchLabel.setVisible(false);
+                BranchComboBox.setVisible(false);
             }
 
             // Clear fields
@@ -87,7 +96,7 @@ public class OrderDetailsController {
             AddressField.clear();
             GreetingField.clear();
 
-            // Also clear the error stars if you want
+            // Clear error stars
             DateStar.setVisible(false);
             TimeStar.setVisible(false);
             AddressStar.setVisible(false);
@@ -95,6 +104,10 @@ public class OrderDetailsController {
             // Reset time options
             updateAvailableTimes(null);
         });
+
+        // Initially hide branch selector
+        BranchLabel.setVisible(false);
+        BranchComboBox.setVisible(false);
 
         updateAvailableTimes(DatePicker.getValue());
     }
@@ -168,6 +181,47 @@ public class OrderDetailsController {
             }
         }
 
+        // --- Branch validation for pickup ---
+        String pickupBranch = null;
+        if (PickupRadio.isSelected()) {
+            pickupBranch = BranchComboBox.getValue();
+            if (pickupBranch == null || pickupBranch.isEmpty()) {
+                showWarning("Please select a branch for pickup.");
+                return;
+            }
+
+            // Check stock for this branch
+            for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
+                Flower flower = entry.getKey();
+                int requested = entry.getValue();
+
+                int available = flower.getSupply(pickupBranch);
+                if (requested > available) {
+                    showWarning("Branch " + pickupBranch + " does not have enough " + flower.getName() + ".");
+                    return;
+                }
+            }
+
+            // Reduce stock + sync with server
+            for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
+                Flower flower = entry.getKey();
+                int requested = entry.getValue();
+                flower.reduceSupply(pickupBranch, requested);
+
+                SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
+            }
+        } else {
+            // --- Delivery: reduce stock across all branches ---
+            for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
+                Flower flower = entry.getKey();
+                int requested = entry.getValue();
+
+                flower.reduceSupplyForDelivery(requested);
+
+                SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
+            }
+        }
+
         // Prepare order details string
         StringBuilder details = new StringBuilder();
         for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
@@ -180,12 +234,12 @@ public class OrderDetailsController {
         PlaceOrderRequest request = new PlaceOrderRequest(
                 cartMap,
                 customer,
-                date, // LocalDate, or java.sql.Date.valueOf(date)
+                date,
                 time,
                 status,
                 details.toString(),
                 totalPrice,
-                PickupRadio.isSelected() ? "Store Pickup" : address,
+                PickupRadio.isSelected() ? pickupBranch + " Pickup" : address,
                 greeting
         );
 
@@ -196,13 +250,14 @@ public class OrderDetailsController {
 
         Stage stage = (Stage) GreetingField.getScene().getWindow();
         stage.close();
-
     }
+
+
 
     @Subscribe
     public void onPlaceOrderResponse(PlaceOrderResponse response) {
         Platform.runLater(() -> {
-
+            // Handle server response if needed
         });
     }
 
@@ -220,5 +275,4 @@ public class OrderDetailsController {
 
         alert.showAndWait();
     }
-
 }

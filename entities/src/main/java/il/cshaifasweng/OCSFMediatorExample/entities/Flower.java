@@ -42,6 +42,13 @@ public class Flower implements Serializable {
     @Column(name = "Supply_TelAviv", nullable = false)
     private int supplyTelAviv = 0;
 
+    @PreUpdate
+    @PrePersist
+    public void syncSupply() {
+        this.supply = supplyHaifa + supplyEilat + supplyTelAviv;
+    }
+
+
     // ----- Constructors -----
 
     public Flower() {}
@@ -61,6 +68,68 @@ public class Flower implements Serializable {
     }
 
     // ----- Getters and Setters -----
+
+    // --- Branch-aware supply helpers ---
+    public int getSupply(String branch) {
+        switch (branch) {
+            case "Haifa": return supplyHaifa;
+            case "Eilat": return supplyEilat;
+            case "Tel Aviv": return supplyTelAviv;
+            default: return 0;
+        }
+    }
+
+
+
+    public void reduceSupply(String branch, int amount) {
+        switch (branch) {
+            case "Haifa":
+                supplyHaifa = Math.max(0, supplyHaifa - amount);
+                break;
+            case "Eilat":
+                supplyEilat = Math.max(0, supplyEilat - amount);
+                break;
+            case "Tel Aviv":
+                supplyTelAviv = Math.max(0, supplyTelAviv - amount);
+                break;
+        }
+    }
+
+    public void reduceSupplyForDelivery(int amount) {
+        while (amount > 0) {
+            // Find the branch with the maximum supply
+            if (supplyHaifa >= supplyEilat && supplyHaifa >= supplyTelAviv && supplyHaifa > 0) {
+                supplyHaifa--;
+            } else if (supplyEilat >= supplyHaifa && supplyEilat >= supplyTelAviv && supplyEilat > 0) {
+                supplyEilat--;
+            } else if (supplyTelAviv >= supplyHaifa && supplyTelAviv >= supplyEilat && supplyTelAviv > 0) {
+                supplyTelAviv--;
+            } else {
+                // No stock left anywhere
+                break;
+            }
+            amount--; // Reduce requested amount after each deduction
+        }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Flower)) return false;
+        Flower flower = (Flower) o;
+        return id == flower.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
+
+
+    private void recalcTotalSupply() {
+        this.supply = supplyHaifa + supplyEilat + supplyTelAviv;
+    }
+
 
     public int getId() { return id; }
 
