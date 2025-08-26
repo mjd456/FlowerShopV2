@@ -206,9 +206,6 @@ public class SecondaryController {
     private TextField NewFlowerPrice;
 
     @FXML
-    private TextField NewFlowerSupply;
-
-    @FXML
     private Label NewPassError;
 
     @FXML
@@ -258,6 +255,15 @@ public class SecondaryController {
 
     @FXML
     private Pane SettingsPane;
+
+    @FXML
+    private TextField NewHaifaFlowerSupply;
+
+    @FXML
+    private TextField NewTelAvivFlowerSupply;
+
+    @FXML
+    private TextField NewEilatFlowerSupply;
 
     @FXML
     private Tab SettingsTab;
@@ -1543,7 +1549,9 @@ public class SecondaryController {
         String name = NewFlowerName.getText().trim();
         String color = NewFlowerColor.getText().trim();
         String priceText = NewFlowerPrice.getText().trim();
-        String supplyText = NewFlowerSupply.getText().trim();
+        String supplyHaifaText = NewHaifaFlowerSupply.getText().trim();
+        String supplyTelAvivText = NewTelAvivFlowerSupply.getText().trim();
+        String supplyEilatText = NewEilatFlowerSupply.getText().trim();
         String desc = NewFlowerDesc.getText().trim();
         String imageId = "";
 
@@ -1564,7 +1572,9 @@ public class SecondaryController {
         }
 
         double price = -1;
-        int supply = -1;
+        int supplyHaifa = -1;
+        int supplyEilat = -1;
+        int supplyTelAviv = -1;
 
         try {
             price = Double.parseDouble(priceText);
@@ -1575,13 +1585,34 @@ public class SecondaryController {
         }
 
         try {
-            supply = Integer.parseInt(supplyText);
-            if (supply < 0) throw new NumberFormatException();
-            NewFlowerSupply.setStyle("");
+            supplyTelAviv = Integer.parseInt(supplyTelAvivText);
+            if (supplyTelAviv < 0) throw new NumberFormatException();
+            NewTelAvivFlowerSupply.setStyle("");
+
         } catch (NumberFormatException e) {
-            NewFlowerSupply.setStyle("-fx-border-color: red;");
+            NewTelAvivFlowerSupply.setStyle("-fx-border-color: red;");
             valid = false;
         }
+
+        try {
+            supplyEilat = Integer.parseInt(supplyEilatText);
+            if (supplyEilat < 0) throw new NumberFormatException();
+
+            NewEilatFlowerSupply.setStyle("");
+        } catch (NumberFormatException e) {
+            NewEilatFlowerSupply.setStyle("-fx-border-color: red;");
+            valid = false;
+        }
+        try {
+            supplyHaifa = Integer.parseInt(supplyHaifaText);
+            if (supplyHaifa < 0) throw new NumberFormatException();
+            NewHaifaFlowerSupply.setStyle("");
+        } catch (NumberFormatException e) {
+            NewHaifaFlowerSupply.setStyle("-fx-border-color: red;");
+            valid = false;
+        }
+
+
 
         if (desc.isEmpty()) {
             NewFlowerDesc.setStyle("-fx-border-color: red;");
@@ -1601,7 +1632,10 @@ public class SecondaryController {
                 desc,
                 imageId,
                 price,
-                supply
+                supplyHaifa + supplyEilat + supplyTelAviv,
+                supplyHaifa,
+                supplyEilat,
+                supplyTelAviv
         );
 
         try {
@@ -1611,7 +1645,9 @@ public class SecondaryController {
             NewFlowerName.setText("");
             NewFlowerColor.setText("");
             NewFlowerPrice.setText("");
-            NewFlowerSupply.setText("");
+            NewEilatFlowerSupply.setText("");
+            NewTelAvivFlowerSupply.setText("");
+            NewHaifaFlowerSupply.setText("");
             NewFlowerDesc.setText("");
             //Cleared the fields after sending request
         } catch (Exception e) {
@@ -1902,7 +1938,6 @@ public class SecondaryController {
         assert NewFlowerDesc != null : "fx:id=\"NewFlowerDesc\" was not injected: check your FXML file 'secondary.fxml'.";
         assert NewFlowerName != null : "fx:id=\"NewFlowerName\" was not injected: check your FXML file 'secondary.fxml'.";
         assert NewFlowerPrice != null : "fx:id=\"NewFlowerPrice\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert NewFlowerSupply != null : "fx:id=\"NewFlowerSupply\" was not injected: check your FXML file 'secondary.fxml'.";
         assert NewPassError != null : "fx:id=\"NewPassError\" was not injected: check your FXML file 'secondary.fxml'.";
         assert PlusLabelPayment != null : "fx:id=\"PlusLabelPayment\" was not injected: check your FXML file 'secondary.fxml'.";
         assert PlusUpgradeButton != null : "fx:id=\"PlusUpgradeButton\" was not injected: check your FXML file 'secondary.fxml'.";
