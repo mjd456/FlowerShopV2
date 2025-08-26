@@ -86,7 +86,10 @@ public class CustomItemDialogController {
                 "Custom item with user details. Price range: " + priceRange,
                 "",
                 price,
-                1
+                1,
+                0,
+                0,
+                0
         );
 
         if (mainController != null) {

@@ -519,14 +519,29 @@ public class SimpleServer extends AbstractServer {
 					String oldName = flowerInDb.getName();
 					String newName = updatedData.getName();
 
+					// 1) Basic fields
 					flowerInDb.setName(newName);
 					flowerInDb.setPrice(updatedData.getPrice());
 					flowerInDb.setDescription(updatedData.getDescription());
 					flowerInDb.setColor(updatedData.getColor());
-					flowerInDb.setSupply(updatedData.getSupply());
+
+					// 2) Store-specific supplies (defensive: no negatives)
+					int haifa   = Math.max(0, updatedData.getSupplyHaifa());
+					int eilat   = Math.max(0, updatedData.getSupplyEilat());
+					int telAviv = Math.max(0, updatedData.getSupplyTelAviv());
+
+					flowerInDb.setSupplyHaifa(haifa);
+					flowerInDb.setSupplyEilat(eilat);
+					flowerInDb.setSupplyTelAviv(telAviv);
+
+					// 3) Recompute total supply = sum of stores
+					int total = haifa + eilat + telAviv;
+					flowerInDb.setSupply(total);
+
+					// Persist flower
 					session.update(flowerInDb);
 
-					// Fetch all orders that mention this flower name in details
+					// 4) Keep existing “rename in orders.details” logic
 					List<OrderSQL> affectedOrders = session.createQuery(
 									"FROM OrderSQL WHERE details LIKE :oldName", OrderSQL.class)
 							.setParameter("oldName", "%" + oldName + "%")

@@ -17,9 +17,9 @@ public class OrderSQL implements Serializable {
     @JoinColumn(name = "account_id", nullable = false)
     private Account account;
 
+    // in OrderSQL
     @Column(name = "delivery_date")
-    @Temporal(TemporalType.DATE)
-    private Date deliveryDate;
+    private Date deliveryDate; // <- no @Temporal
 
     @Column(name = "delivery_time")
     private String deliveryTime;
