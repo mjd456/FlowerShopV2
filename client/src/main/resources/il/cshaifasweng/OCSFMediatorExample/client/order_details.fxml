@@ -15,6 +15,10 @@
         <RadioButton fx:id="PickupRadio" text="Pickup" style="-fx-text-fill: #ffffff;" />
     </HBox>
 
+    <!-- Branch selection (for pickup only, hidden initially) -->
+    <Label fx:id="BranchLabel" text="Pickup branch:" style="-fx-text-fill: #ffffff;" visible="false"/>
+    <ComboBox fx:id="BranchComboBox" prefWidth="200" visible="false" />
+
     <Label text="Delivery date:" style="-fx-text-fill: #ffffff;" />
     <HBox spacing="5">
         <DatePicker fx:id="DatePicker" />
@@ -36,5 +40,6 @@
     <Label text="Greeting (optional):" style="-fx-text-fill: #ffffff;" />
     <TextField fx:id="GreetingField" promptText="Write a greeting message" />
 
-    <Button text="Confirm Order" onAction="#confirmOrder" style="-fx-background-color: #2fc4ca; -fx-text-fill: #222; -fx-font-weight: bold; -fx-background-radius: 8;" />
+    <Button text="Confirm Order" onAction="#confirmOrder"
+            style="-fx-background-color: #2fc4ca; -fx-text-fill: #222; -fx-font-weight: bold; -fx-background-radius: 8;" />
 </VBox>
