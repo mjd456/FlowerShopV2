@@ -55,6 +55,9 @@ public class Account implements Serializable {
     @Column(name = "auto_renew_subscription")
     private String Auto_renew_subscription;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "branch_id", foreignKey = @ForeignKey(name = "fk_accounts_branch"))
+    private Branch branch;   // null means no branch assigned
     // ----- Constructors -----
 
     public Account() {
@@ -194,5 +197,13 @@ public class Account implements Serializable {
 
     public void setAuto_renew_subscription(String Auto_renew_subscription) {
         this.Auto_renew_subscription = Auto_renew_subscription;
+    }
+
+    public Branch getBranch() {
+        return branch;
+    }
+
+    public void setBranch(Branch branch) {
+        this.branch = branch;
     }
 }
