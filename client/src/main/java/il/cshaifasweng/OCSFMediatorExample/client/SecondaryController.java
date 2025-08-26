@@ -341,8 +341,6 @@ public class SecondaryController {
 
     public static SecondaryController instance;
 
-
-
     public Map<Flower, Integer> getCartMap() {
         return cartMap;
     }

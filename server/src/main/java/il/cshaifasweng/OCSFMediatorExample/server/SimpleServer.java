@@ -9,7 +9,12 @@ import java.io.InputStream;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.regex.Pattern;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+
 
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
 import jakarta.mail.MessagingException;
@@ -29,10 +34,14 @@ public class SimpleServer extends AbstractServer {
 	private static final List<SubscribedClient> SubscribersList = new CopyOnWriteArrayList<>();
 	private static SessionFactory sessionFactory;
 	private static Session session;
+	private final ScheduledExecutorService orderDeliverySweeper = Executors.newSingleThreadScheduledExecutor();
+	private final ZoneId sweeperZone = ZoneId.of("Asia/Jerusalem"); // or ZoneId.systemDefault()
 
 	public SimpleServer(int port) {
 		super(port);
 		initializeSession();
+		startOrderDeliverySweeper();
+		Runtime.getRuntime().addShutdownHook(new Thread(this::stopOrderDeliverySweeper));
 
 		DailyTaskScheduler.scheduleDailyAtTime(0, 0, SimpleServer::expireAllSubscriptionsAndNotifyLoggedClients);
 	}
@@ -1547,6 +1556,91 @@ public class SimpleServer extends AbstractServer {
 
 		} catch (Exception e) {
 			e.printStackTrace();
+		}
+	}
+
+	private void startOrderDeliverySweeper() {
+		// run immediately, then every 60 seconds
+		orderDeliverySweeper.scheduleAtFixedRate(this::checkAndMarkDelivered, 0, 60, TimeUnit.SECONDS);
+	}
+
+	private void stopOrderDeliverySweeper() {
+		orderDeliverySweeper.shutdown();
+		try {
+			if (!orderDeliverySweeper.awaitTermination(5, TimeUnit.SECONDS)) {
+				orderDeliverySweeper.shutdownNow();
+			}
+		} catch (InterruptedException ie) {
+			orderDeliverySweeper.shutdownNow();
+			Thread.currentThread().interrupt();
+		}
+	}
+
+	private void checkAndMarkDelivered() {
+		LocalDate today = LocalDate.now(sweeperZone);
+		LocalTime nowTime = LocalTime.now(sweeperZone);
+
+		// ---- Step 1: bulk update all strictly past dates ----
+		try (Session s = sessionFactory.openSession()) {
+			Transaction tx = s.beginTransaction();
+			try {
+				Query<?> q = s.createQuery(
+						"update OrderSQL o " +
+								"set o.status = :delivered " +
+								"where (o.status is null or lower(o.status) <> 'delivered') " +
+								"and o.deliveryDate < :today"
+				);
+				q.setParameter("delivered", "delivered");
+				q.setParameter("today", java.sql.Date.valueOf(today));
+				q.executeUpdate();
+				tx.commit();
+			} catch (Exception e) {
+				tx.rollback();
+				e.printStackTrace();
+			}
+		}
+
+		// ---- Step 2: handle today's rows by time ----
+		try (Session s = sessionFactory.openSession()) {
+			Transaction tx = s.beginTransaction();
+			try {
+				List<OrderSQL> todays = s.createQuery(
+								"from OrderSQL o " +
+										"where (o.status is null or lower(o.status) <> 'delivered') " +
+										"and o.deliveryDate = :today", OrderSQL.class)
+						.setParameter("today", java.sql.Date.valueOf(today))
+						.list();
+
+				DateTimeFormatter hhmm = DateTimeFormatter.ofPattern("HH:mm");
+
+				for (OrderSQL o : todays) {
+					String t = o.getDeliveryTime();
+					LocalTime dueTime;
+
+					if (t == null || t.isBlank()) {
+						// treat missing as 00:00
+						dueTime = LocalTime.MIDNIGHT;
+					} else {
+						try {
+							dueTime = LocalTime.parse(t.trim(), hhmm);
+						} catch (DateTimeParseException dtpe) {
+							// bad format; skip but keep the server healthy
+							System.err.println("[Sweeper] Bad delivery_time for order " + o.getId() + ": " + t);
+							continue;
+						}
+					}
+
+					if (!nowTime.isBefore(dueTime)) {
+						o.setStatus("delivered");
+						s.update(o);
+					}
+				}
+
+				tx.commit();
+			} catch (Exception e) {
+				tx.rollback();
+				e.printStackTrace();
+			}
 		}
 	}
 
