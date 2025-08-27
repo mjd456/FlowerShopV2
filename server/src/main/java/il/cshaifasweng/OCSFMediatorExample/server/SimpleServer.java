@@ -696,56 +696,62 @@ public class SimpleServer extends AbstractServer {
 			}
 		}
 		else if (msg instanceof QuarterlyRevenueReportRequest req) {
-			System.out.println("Received QuarterlyRevenueReportRequest: from "
-					+ req.getFrom() + " to " + req.getTo());
+			System.out.println("Received QuarterlyRevenueReportRequest for branch ID: " + req.getBranchId());
 
 			try (Session s = sessionFactory.openSession()) {
+				String hql = "SELECT YEAR(o.deliveryDate), QUARTER(o.deliveryDate), SUM(COALESCE(o.totalPrice, 0) - COALESCE(o.refundAmount, 0)) " +
+						"FROM OrderSQL o " +
+						"WHERE o.deliveryDate BETWEEN :from AND :to ";
 
-				String hql = """
-            select year(o.deliveryDate),
-                   quarter(o.deliveryDate),
-                   sum( coalesce(o.totalPrice, 0) - coalesce(o.refundAmount, 0) )
-            from OrderSQL o
-            where o.deliveryDate between :from and :to
-            group by year(o.deliveryDate), quarter(o.deliveryDate)
-            order by year(o.deliveryDate), quarter(o.deliveryDate)
-        """;
+				if (req.getBranchId() > 0) { // If a specific branch is requested
+					hql += "AND o.branch.id = :branchId ";
+				}
 
-				@SuppressWarnings("unchecked")
-				List<Object[]> rows = (List<Object[]>) s.createQuery(hql)
+				hql += "GROUP BY YEAR(o.deliveryDate), QUARTER(o.deliveryDate) " +
+						"ORDER BY YEAR(o.deliveryDate), QUARTER(o.deliveryDate)";
+
+				Query<Object[]> query = s.createQuery(hql, Object[].class)
 						.setParameter("from", req.getFrom())
-						.setParameter("to",   req.getTo())
-						.list();
+						.setParameter("to", req.getTo());
 
+				if (req.getBranchId() > 0) {
+					query.setParameter("branchId", req.getBranchId());
+				}
+
+				List<Object[]> rows = query.list();
 				List<QuarterlyRevenueReportResponse.Row> out = new ArrayList<>();
 				for (Object[] r : rows) {
 					int year    = ((Number) r[0]).intValue();
-					int quarter = ((Number) r[1]).intValue();   // 1..4
-					double rev  = ((Number) r[2]).doubleValue();
+					int quarter = ((Number) r[1]).intValue();
+					double rev  = r[2] != null ? ((Number) r[2]).doubleValue() : 0.0;
 					out.add(new QuarterlyRevenueReportResponse.Row(year, quarter, rev));
 				}
 
 				client.sendToClient(new QuarterlyRevenueReportResponse(out));
 			} catch (Exception e) {
 				e.printStackTrace();
-				try { client.sendToClient("Error generating quarterly revenue report"); }
-				catch (IOException io) { io.printStackTrace(); }
 			}
 		}
 		else if (msg instanceof OrdersByProductTypeReportRequest req) {
-			System.out.println("Received OrdersByProductTypeReportRequest from " + req.getFrom() + " to " + req.getTo());
+			System.out.println("Received OrdersByProductTypeReportRequest for branch ID: " + req.getBranchId());
 
 			try (Session s = sessionFactory.openSession()) {
-				// Step 1: Fetch all orders within the date range
-				String hql = "FROM OrderSQL o WHERE o.deliveryDate BETWEEN :from AND :to";
-				List<OrderSQL> orders = s.createQuery(hql, OrderSQL.class)
-						.setParameter("from", req.getFrom())
-						.setParameter("to", req.getTo())
-						.list();
+				String hql = "FROM OrderSQL o WHERE o.deliveryDate BETWEEN :from AND :to ";
 
-				// Step 2: Process the data in Java
+				if (req.getBranchId() > 0) {
+					hql += "AND o.branch.id = :branchId";
+				}
+
+				Query<OrderSQL> query = s.createQuery(hql, OrderSQL.class)
+						.setParameter("from", req.getFrom())
+						.setParameter("to", req.getTo());
+
+				if (req.getBranchId() > 0) {
+					query.setParameter("branchId", req.getBranchId());
+				}
+
+				List<OrderSQL> orders = query.list();
 				Map<String, long[]> aggregationMap = new HashMap<>();
-				// The map will store: ProductType -> {orderCount, quantity, totalValue}
 
 				for (OrderSQL order : orders) {
 					String details = order.getDetails();
@@ -758,53 +764,46 @@ public class SimpleServer extends AbstractServer {
 						if (separatorIndex > 0) {
 							String productType = item.substring(0, separatorIndex).trim();
 							int quantity = Integer.parseInt(item.substring(separatorIndex + 2).trim());
-
-							// Get the current values or initialize a new array
 							long[] values = aggregationMap.computeIfAbsent(productType, k -> new long[3]);
-							values[0]++; // Increment order count for this product type
-							values[1] += quantity; // Add to total quantity
-							// We don't have price per item, so we can't calculate total value here.
-							// We will leave the 'total' field as 0 for now.
+							values[0]++;
+							values[1] += quantity;
 						}
 					}
 				}
 
-				// Step 3: Convert the aggregated map to a list of Row objects
 				List<OrdersByProductTypeReportResponse.Row> responseRows = new ArrayList<>();
 				for (Map.Entry<String, long[]> entry : aggregationMap.entrySet()) {
-					String productType = entry.getKey();
-					long[] values = entry.getValue();
-					responseRows.add(new OrdersByProductTypeReportResponse.Row(productType, values[0], values[1], 0.0));
+					responseRows.add(new OrdersByProductTypeReportResponse.Row(entry.getKey(), entry.getValue()[0], entry.getValue()[1], 0.0));
 				}
 
-				// Step 4: Send the response to the client
 				client.sendToClient(new OrdersByProductTypeReportResponse(responseRows));
-				System.out.println("Sent OrdersByProductTypeReportResponse to client.");
-
 			} catch (Exception e) {
 				e.printStackTrace();
-				try {
-					client.sendToClient("Error generating orders by product type report");
-				} catch (IOException io) {
-					io.printStackTrace();
-				}
 			}
 		}
 		else if (msg instanceof ComplaintsHistogramReportRequest req) {
-			System.out.println("Received ComplaintsHistogramReportRequest from " + req.getFrom() + " to " + req.getTo());
+			System.out.println("Received ComplaintsHistogramReportRequest for branch ID: " + req.getBranchId());
 
 			try (Session s = sessionFactory.openSession()) {
-				String hql = "FROM FeedBackSQL f WHERE f.submittedAt BETWEEN :from AND :to";
-				List<FeedBackSQL> complaints = s.createQuery(hql, FeedBackSQL.class)
-						.setParameter("from", req.getFrom())
-						.setParameter("to", req.getTo())
-						.list();
+				String hql = "FROM FeedBackSQL f WHERE f.submittedAt BETWEEN :from AND :to ";
 
+				if (req.getBranchId() > 0) {
+					hql += "AND f.account.branch.id = :branchId";
+				}
+
+				Query<FeedBackSQL> query = s.createQuery(hql, FeedBackSQL.class)
+						.setParameter("from", req.getFrom())
+						.setParameter("to", req.getTo());
+
+				if (req.getBranchId() > 0) {
+					query.setParameter("branchId", req.getBranchId());
+				}
+
+				List<FeedBackSQL> complaints = query.list();
 				System.out.println("[SERVER] Found " + complaints.size() + " complaints in the database.");
 
 				Map<LocalDate, Long> countsByDay = new LinkedHashMap<>();
 				for (FeedBackSQL complaint : complaints) {
-					// ADDED A NULL CHECK HERE FOR SAFETY
 					if (complaint.getSubmittedAt() != null) {
 						LocalDate day = complaint.getSubmittedAt().toLocalDate();
 						countsByDay.merge(day, 1L, Long::sum);
@@ -812,16 +811,8 @@ public class SimpleServer extends AbstractServer {
 				}
 
 				client.sendToClient(new ComplaintsHistogramReportResponse(countsByDay));
-				System.out.println("Sent ComplaintsHistogramReportResponse with " + countsByDay.size() + " daily entries.");
-
 			} catch (Exception e) {
 				e.printStackTrace();
-				// We should also send an error response to the client on failure
-				try {
-					client.sendToClient(new ComplaintsHistogramReportResponse(new HashMap<>())); // Send empty report on error
-				} catch (IOException io) {
-					io.printStackTrace();
-				}
 			}
 		}
 		else if (msg instanceof UpdateFeedbackStatusRequest) {

@@ -363,18 +363,17 @@ public class SecondaryController {
         return cartMap;
     }
     private void setupManagerUI() {
-        // Make sure the account object is available
         if (account == null) {
             return;
         }
 
         String accountLevel = account.getAccountLevel();
 
-        // Logic for Branch Manager
         if ("Branch Manager".equalsIgnoreCase(accountLevel)) {
-            branchSelectorBox.setVisible(true);      // Show the HBox container
-            managerScopeLabel.setVisible(true);      // Show the label
-            branchSelectorComboBox.setVisible(false); // Hide the dropdown
+            branchSelectorBox.setVisible(true);
+            managerScopeLabel.setVisible(true);
+            branchSelectorComboBox.setVisible(false);
+            branchSelectorComboBox.setManaged(false); // Ensures it doesn't take up space
 
             if (account.getBranch() != null) {
                 managerScopeLabel.setText("Reports for: " + account.getBranch().getName());
@@ -382,15 +381,19 @@ public class SecondaryController {
                 managerScopeLabel.setText("Error: No branch assigned!");
             }
         }
-        // Logic for Network Manager
         else if ("Network Manager".equalsIgnoreCase(accountLevel)) {
-            branchSelectorBox.setVisible(true);         // Show the HBox container
-            managerScopeLabel.setVisible(false);        // Hide the label
-            branchSelectorComboBox.setVisible(true);    // Show the dropdown
+            branchSelectorBox.setVisible(true);
+            managerScopeLabel.setVisible(false);
+            managerScopeLabel.setManaged(false); // Ensures it doesn't take up space
+            branchSelectorComboBox.setVisible(true);
 
-            // We will populate this dropdown in the next step
+            // **NEW:** Ask the server for the list of all branches
+            try {
+                SimpleClient.getClient().sendToServer(new GetAllBranchesRequest());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
-        // Hide for all other roles
         else {
             branchSelectorBox.setVisible(false);
         }
@@ -2309,46 +2312,55 @@ public class SecondaryController {
             return;
         }
 
-        // For now, we only have a date range for the revenue report.
-        // We will add date pickers for the others later.
+        int branchId = 0; // Default to "All Network"
+        String accountLevel = account.getAccountLevel();
+
+        if ("Branch Manager".equalsIgnoreCase(accountLevel)) {
+            if (account.getBranch() != null) {
+                branchId = account.getBranch().getId();
+            }
+        } else if ("Network Manager".equalsIgnoreCase(accountLevel)) {
+            Branch selectedBranch = branchSelectorComboBox.getValue();
+            if (selectedBranch != null) {
+                branchId = selectedBranch.getId(); // Will be 0 for "All Network"
+            } else {
+                // Handle case where nothing is selected
+                System.err.println("Network Manager has not selected a branch.");
+                return;
+            }
+        }
+
         try {
+            java.sql.Date fromDate;
+            java.sql.Date toDate;
+
             switch (selectedReport) {
                 case "Quarterly Revenue Report":
-                    // This is the same logic from your old onQuarterlyReport method
-                    java.sql.Date from = java.sql.Date.valueOf(java.time.LocalDate.now().minusMonths(12));
-                    java.sql.Date to   = java.sql.Date.valueOf(java.time.LocalDate.now());
-                    SimpleClient.getClient().sendToServer(new QuarterlyRevenueReportRequest(from, to));
-                    System.out.println("Quarterly revenue report requested");
+                    fromDate = java.sql.Date.valueOf(LocalDate.now().minusMonths(12));
+                    toDate = java.sql.Date.valueOf(LocalDate.now());
+                    SimpleClient.getClient().sendToServer(new QuarterlyRevenueReportRequest(fromDate, toDate, branchId));
+                    System.out.println("Quarterly revenue report requested for branch ID: " + branchId);
                     break;
 
                 case "Orders by Type Report":
-                    // We'll request data from the last 3 months as an example
-                    java.sql.Date fromDate = java.sql.Date.valueOf(java.time.LocalDate.now().minusMonths(3));
-                    java.sql.Date toDate   = java.sql.Date.valueOf(java.time.LocalDate.now());
-                    try {
-                        SimpleClient.getClient().sendToServer(new OrdersByProductTypeReportRequest(fromDate, toDate));
-                        System.out.println("Orders by Product Type report requested");
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    fromDate = java.sql.Date.valueOf(LocalDate.now().minusMonths(3));
+                    toDate = java.sql.Date.valueOf(LocalDate.now());
+                    SimpleClient.getClient().sendToServer(new OrdersByProductTypeReportRequest(fromDate, toDate, branchId));
+                    System.out.println("Orders by Product Type report requested for branch ID: " + branchId);
                     break;
 
                 case "Complaints Report":
-                    // We'll request data from the last month as an example
-                    java.sql.Date fromComplaintDate = java.sql.Date.valueOf(java.time.LocalDate.now().minusMonths(1));
-                    java.sql.Date toComplaintDate   = java.sql.Date.valueOf(java.time.LocalDate.now());
-                    try {
-                        SimpleClient.getClient().sendToServer(new ComplaintsHistogramReportRequest(fromComplaintDate, toComplaintDate));
-                        System.out.println("Complaints Report requested");
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    fromDate = java.sql.Date.valueOf(LocalDate.now().minusMonths(1));
+                    toDate = java.sql.Date.valueOf(LocalDate.now());
+                    SimpleClient.getClient().sendToServer(new ComplaintsHistogramReportRequest(fromDate, toDate, branchId));
+                    System.out.println("Complaints Report requested for branch ID: " + branchId);
                     break;
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
     @Subscribe
     public void onQuarterlyRevenueReport(QuarterlyRevenueReportResponse resp) {
         Platform.runLater(() -> {
@@ -2395,6 +2407,36 @@ public class SecondaryController {
             alert.getDialogPane().setContent(textArea);
             alert.setResizable(true);
             alert.showAndWait();
+        });
+    }
+    @Subscribe
+    public void onGetAllBranchesResponse(GetAllBranchesResponse response) {
+        Platform.runLater(() -> {
+            List<Branch> branches = response.getBranches();
+
+            // Create a special "Branch" object to represent the "All Network" option
+            Branch allNetworkOption = new Branch("All Network");
+
+            // Clear previous items and add the new list
+            branchSelectorComboBox.getItems().clear();
+            branchSelectorComboBox.getItems().add(allNetworkOption); // Add "All Network" first
+            branchSelectorComboBox.getItems().addAll(branches);
+
+            // Set the display text for each item in the ComboBox
+            branchSelectorComboBox.setConverter(new javafx.util.StringConverter<Branch>() {
+                @Override
+                public String toString(Branch branch) {
+                    return (branch == null) ? "" : branch.getName();
+                }
+
+                @Override
+                public Branch fromString(String string) {
+                    return null; // Not needed
+                }
+            });
+
+            // Select the "All Network" option by default
+            branchSelectorComboBox.setValue(allNetworkOption);
         });
     }
     @Subscribe
