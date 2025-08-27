@@ -702,7 +702,8 @@ public class SimpleServer extends AbstractServer {
 						"WHERE o.deliveryDate BETWEEN :from AND :to ";
 
 				if (req.getBranchId() > 0) { // If a specific branch is requested
-					hql += "AND o.branch.id = :branchId ";
+					// CORRECTED PATH: o.account.branch.id
+					hql += "AND o.account.branch.id = :branchId ";
 				}
 
 				hql += "GROUP BY YEAR(o.deliveryDate), QUARTER(o.deliveryDate) " +
@@ -737,7 +738,8 @@ public class SimpleServer extends AbstractServer {
 				String hql = "FROM OrderSQL o WHERE o.deliveryDate BETWEEN :from AND :to ";
 
 				if (req.getBranchId() > 0) {
-					hql += "AND o.branch.id = :branchId";
+					// CORRECTED PATH: o.account.branch.id
+					hql += "AND o.account.branch.id = :branchId";
 				}
 
 				Query<OrderSQL> query = s.createQuery(hql, OrderSQL.class)
