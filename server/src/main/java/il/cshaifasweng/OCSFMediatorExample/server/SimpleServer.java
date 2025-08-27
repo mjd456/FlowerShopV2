@@ -529,13 +529,15 @@ public class SimpleServer extends AbstractServer {
 					int haifa   = Math.max(0, updatedData.getSupplyHaifa());
 					int eilat   = Math.max(0, updatedData.getSupplyEilat());
 					int telAviv = Math.max(0, updatedData.getSupplyTelAviv());
+					int storage = Math.max(0, updatedData.getStorage());
 
 					flowerInDb.setSupplyHaifa(haifa);
 					flowerInDb.setSupplyEilat(eilat);
 					flowerInDb.setSupplyTelAviv(telAviv);
+					flowerInDb.setStorage(storage);
 
 					// 3) Recompute total supply = sum of stores
-					int total = haifa + eilat + telAviv;
+					int total = haifa + eilat + telAviv + storage;
 					flowerInDb.setSupply(total);
 
 					// Persist flower
@@ -685,7 +687,6 @@ public class SimpleServer extends AbstractServer {
 				session.close();
 			}
 		}
-
 		else if (msg instanceof GetUserFeedbacksRequest) {
 			GetUserFeedbacksRequest req = (GetUserFeedbacksRequest) msg;
 			int accountId = req.getAccountId();

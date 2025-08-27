@@ -461,7 +461,7 @@ public class SecondaryController {
                 Label timeLabel = new Label("Time: " + (order.getDeliveryTime() != null ? order.getDeliveryTime() : "—"));
 
                 // Fulfillment (Delivery vs Pickup)
-                String fulfillmentText = "Delivery";
+                String fulfillmentText =  order.getPickupBranch() == null?"Delivery":"Pick-up";
                 try {
                     if (order.getPickupBranch() != null) {
                         Integer bid = order.getPickupBranch().getId();
@@ -702,6 +702,7 @@ public class SecondaryController {
 
     public void setUserRole() {
         String role = account == null? "Guest":account.getAccountLevel();
+        System.out.println("role: " + role);
         if ("Guest".equalsIgnoreCase(role)){
             Platform.runLater(() -> {
                 List<Tab> toRemove = new ArrayList<>();
@@ -737,7 +738,7 @@ public class SecondaryController {
                 }
             });
         }
-        else if ("Manager".equalsIgnoreCase(role)) {
+        else if ("Manager".equalsIgnoreCase(role) || "BranchManager".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 MainTabsFrame.getTabs().remove(detailsChange);
                 MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
@@ -754,7 +755,7 @@ public class SecondaryController {
                 });
             });
         }
-        else if ("Customer service".equalsIgnoreCase(role)) {
+        else if ("CustomerService".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 for (Tab tab : ManagerTabs) {
                     if(tab != CustomerServicePanel){
@@ -763,11 +764,10 @@ public class SecondaryController {
                 }
             });
         }
-        else if ("Network Manager".equalsIgnoreCase(role)) {
+        else if ("NetworkManager".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
                     if (newTab == ManagerPanel) {
-
                         try {
                             SimpleClient.getClient().sendToServer("RequestFlowerCatalogForManager");
                         } catch (Exception e) {
@@ -779,21 +779,8 @@ public class SecondaryController {
                 });
             });
         }
-        else if ("Branch Manager".equalsIgnoreCase(role)) {
-            Platform.runLater(() -> {
-                MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
-                    if (newTab == ManagerPanel) {
-
-                        try {
-                            SimpleClient.getClient().sendToServer("RequestFlowerCatalogForManager");
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    } else if (oldTab == ManagerPanel) {
-                        ManagerCatalogSelectorVbox.getChildren().clear();
-                    }
-                });
-            });
+        else  {
+            System.out.println("Unknown role: " + role);
         }
     }
 
@@ -884,172 +871,325 @@ public class SecondaryController {
         ((Stage) CustomTitleBar.getScene().getWindow()).setIconified(true);
     }
 
-    // Branch IDs
-    private static final int BRANCH_HAIFA    = 1;
-    private static final int BRANCH_EILAT    = 2;
-    private static final int BRANCH_TEL_AVIV = 3;
+    // Branch ids you already use:
+    private static final int BRANCH_HAIFA     = 1;
+    private static final int BRANCH_EILAT     = 2;
+    private static final int BRANCH_TEL_AVIV  = 3;
 
     public void populateManagerCatalog(List<Flower> flowerList) {
         ManagerCatalogSelectorVbox.getChildren().clear();
         ManagerCatalogSelector.setFitToWidth(true);
 
-        final boolean isNetworkManager =
-                account != null && "Network Manager".equalsIgnoreCase(account.getAccountLevel());
-        final boolean isBranchManager =
-                account != null && "Branch Manager".equalsIgnoreCase(account.getAccountLevel());
-        final int branchId = resolveBranchId(account); // 1=Haifa, 2=Eilat, 3=TelAviv, 0=none
+        // Normalize account level once (accepts "BranchManager" or "Branch Manager")
+        String role = (account != null && account.getAccountLevel() != null)
+                ? account.getAccountLevel().replaceAll("\\s+", "").toLowerCase()
+                : "";
+
+        final boolean isNetworkManager = role.equals("networkmanager") || role.equals("managernetwork");
+        final boolean isBranchManager  = role.equals("branchmanager")  || role.equals("managerbranch");
+        final boolean isManagerAll     = isNetworkManager || role.equals("manager"); // "Manager" can edit all
+        final int branchId             = resolveBranchId(account); // 1=Haifa, 2=Eilat, 3=TelAviv, 0=none
 
         for (Flower flower : flowerList) {
-            VBox flowerBox = new VBox(8);
-            flowerBox.setStyle("-fx-border-color: #4D8DFF; -fx-padding: 14 16 14 16; -fx-background-radius: 8;");
-            flowerBox.setMaxWidth(430);
-            flowerBox.prefWidthProperty().bind(ManagerCatalogSelectorVbox.widthProperty().subtract(24));
+            VBox card = new VBox(8);
+            card.setStyle("-fx-border-color: #4D8DFF; -fx-padding: 14 16 14 16; -fx-background-radius: 8;");
+            card.setMaxWidth(430);
+            card.prefWidthProperty().bind(ManagerCatalogSelectorVbox.widthProperty().subtract(24));
 
-            Label nameLabel  = new Label("Name: " + flower.getName());
-            Label priceLabel = new Label("Price: ₪" + flower.getPrice());
-            Label colorLabel = new Label("Color: " + flower.getColor());
+            // --- Header info
+            Label name  = new Label("Name: " + flower.getName());
+            Label price = new Label("Price: ₪" + flower.getPrice());
+            Label color = new Label("Color: " + flower.getColor());
 
-            Label descLabel = new Label("Description: " + flower.getDescription());
-            descLabel.setWrapText(true);
+            Label total = new Label();
+            updateTotalAndModel(flower, total); // total = Haifa+Eilat+TA+Storage; also writes flower.setSupply(total)
 
-            // total supply = all branches + storage
-            Label totalLabel = new Label("Total Supply: " +
-                    (flower.getSupplyHaifa() + flower.getSupplyEilat() + flower.getSupplyTelAviv() + flower.getStorage()));
+            Label desc = new Label("Description: " + flower.getDescription());
+            desc.setWrapText(true);
 
-            // ===== Build rows =====
+            // --- Per-branch rows (buttons only if user can edit that branch)
             HBox haifaRow = buildSupplyRow(
                     "Supply (Haifa): ", flower.getSupplyHaifa(),
-                    isNetworkManager || (isBranchManager && branchId == BRANCH_HAIFA),
-                    "Haifa",
+                    isManagerAll || (isBranchManager && branchId == BRANCH_HAIFA),
                     newVal -> {
                         flower.setSupplyHaifa(newVal);
-                        updateTotal(flower, totalLabel);
+                        updateTotalAndModel(flower, total);
                         pushUpdateAndRefresh(flower, flowerList);
-                    }
-            );
+                    });
 
             HBox eilatRow = buildSupplyRow(
                     "Supply (Eilat): ", flower.getSupplyEilat(),
-                    isNetworkManager || (isBranchManager && branchId == BRANCH_EILAT),
-                    "Eilat",
+                    isManagerAll || (isBranchManager && branchId == BRANCH_EILAT),
                     newVal -> {
                         flower.setSupplyEilat(newVal);
-                        updateTotal(flower, totalLabel);
+                        updateTotalAndModel(flower, total);
                         pushUpdateAndRefresh(flower, flowerList);
-                    }
-            );
+                    });
 
-            HBox taRow = buildSupplyRow(
+            HBox telAvivRow = buildSupplyRow(
                     "Supply (Tel Aviv): ", flower.getSupplyTelAviv(),
-                    isNetworkManager || (isBranchManager && branchId == BRANCH_TEL_AVIV),
-                    "Tel Aviv",
+                    isManagerAll || (isBranchManager && branchId == BRANCH_TEL_AVIV),
                     newVal -> {
                         flower.setSupplyTelAviv(newVal);
-                        updateTotal(flower, totalLabel);
+                        updateTotalAndModel(flower, total);
                         pushUpdateAndRefresh(flower, flowerList);
-                    }
-            );
+                    });
 
+            // “Storage” acts as delivery pool; only network manager / manager can edit
             HBox storageRow = buildSupplyRow(
-                    "Storage: ", flower.getStorage(),
-                    isNetworkManager, // only network manager can modify
-                    "Storage",
+                    "Supply (Delivery): ", flower.getStorage(),
+                    isManagerAll,
                     newVal -> {
                         flower.setStorage(newVal);
-                        updateTotal(flower, totalLabel);
+                        updateTotalAndModel(flower, total);
                         pushUpdateAndRefresh(flower, flowerList);
-                    }
-            );
+                    });
 
-            // ===== Edit + Delete buttons (unchanged) =====
-            Button editBtn = new Button("Edit");
-            Button deleteBtn = new Button("Delete");
-
+            // --- Edit & Delete (ONLY for Network Manager / Manager)
+            HBox actions = new HBox(8);
             VBox editPane = new VBox(10);
             editPane.setStyle("-fx-background-color: #242b3b; -fx-padding: 12; -fx-background-radius: 0 0 8 8;");
             editPane.setMaxWidth(Double.MAX_VALUE);
             editPane.setVisible(false);
             editPane.setManaged(false);
 
-            TextField nameField  = new TextField(flower.getName());
-            TextField colorField = new TextField(flower.getColor());
-            TextField priceField = new TextField(String.valueOf(flower.getPrice()));
-            TextArea  descField  = new TextArea(flower.getDescription());
-            descField.setPrefHeight(80);
-            descField.setWrapText(true);
-            descField.setMaxWidth(Double.MAX_VALUE);
+            if (isManagerAll) {
+                Button editBtn = new Button("Edit");
+                Button deleteBtn = new Button("Delete");
+                actions.getChildren().addAll(editBtn, deleteBtn);
 
-            Button saveBtn = new Button("Save");
-            Button cancelBtn = new Button("Cancel");
-            HBox buttonBox = new HBox(8, saveBtn, cancelBtn);
+                // Fields inside the drawer
+                TextField nameField  = new TextField(flower.getName());
+                TextField colorField = new TextField(flower.getColor());
+                TextField priceField = new TextField(String.valueOf(flower.getPrice()));
+                TextArea  descField  = new TextArea(flower.getDescription());
+                descField.setPrefHeight(80);
+                descField.setWrapText(true);
+                descField.setMaxWidth(Double.MAX_VALUE);
 
-            saveBtn.setOnAction(e -> {
-                String newName  = nameField.getText().trim();
-                String newDesc  = descField.getText().trim();
-                String priceTxt = priceField.getText().trim();
-                String newColor = colorField.getText().trim();
+                Button saveBtn   = new Button("Save");
+                Button cancelBtn = new Button("Cancel");
+                HBox buttonBox   = new HBox(8, saveBtn, cancelBtn);
 
-                boolean valid = true;
-                if (newName.isEmpty() || !newName.matches("^[A-Za-z\\s]+$")) { nameField.setStyle("-fx-border-color: red;"); valid = false; } else nameField.setStyle("");
-                if (newColor.isEmpty() || !newColor.matches("^[A-Za-z\\s]+$")) { colorField.setStyle("-fx-border-color: red;"); valid = false; } else colorField.setStyle("");
-                if (!priceTxt.matches("^\\d+(\\.\\d{1,2})?$")) { priceField.setStyle("-fx-border-color: red;"); valid = false; } else priceField.setStyle("");
-                if (!valid) return;
+                // Save handler with simple validation
+                saveBtn.setOnAction(e -> {
+                    String newName  = nameField.getText().trim();
+                    String newColor = colorField.getText().trim();
+                    String priceTxt = priceField.getText().trim();
+                    String newDesc  = descField.getText().trim();
 
-                double newPrice = Double.parseDouble(priceTxt);
-                flower.setName(newName);
-                flower.setDescription(newDesc);
-                flower.setPrice(newPrice);
-                flower.setColor(newColor);
+                    boolean valid = true;
+                    if (newName.isEmpty() || !newName.matches("^[A-Za-z\\s]+$")) {
+                        nameField.setStyle("-fx-border-color: red;"); valid = false;
+                    } else nameField.setStyle("");
 
-                try { SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower)); }
-                catch (Exception ex) { ex.printStackTrace(); }
+                    if (newColor.isEmpty() || !newColor.matches("^[A-Za-z\\s]+$")) {
+                        colorField.setStyle("-fx-border-color: red;"); valid = false;
+                    } else colorField.setStyle("");
 
-                populateManagerCatalog(flowerList);
-            });
+                    if (!priceTxt.matches("^\\d+(\\.\\d{1,2})?$")) {
+                        priceField.setStyle("-fx-border-color: red;"); valid = false;
+                    } else priceField.setStyle("");
 
-            cancelBtn.setOnAction(e -> { editPane.setVisible(false); editPane.setManaged(false); });
+                    if (!valid) return;
 
-            editBtn.setOnAction(e -> {
-                boolean nowVisible = !editPane.isVisible();
-                editPane.setVisible(nowVisible);
-                editPane.setManaged(nowVisible);
-                if (nowVisible) nameField.requestFocus();
-            });
+                    double newPrice = Double.parseDouble(priceTxt);
 
-            editPane.getChildren().setAll(
-                    new Label("Edit Name:"), nameField,
-                    new Label("Edit Price:"), priceField,
-                    new Label("Edit Color:"), colorField,
-                    new Label("Edit Description:"), descField,
-                    buttonBox
+                    // Apply and push
+                    flower.setName(newName);
+                    flower.setColor(newColor);
+                    flower.setPrice(newPrice);
+                    flower.setDescription(newDesc);
+
+                    try {
+                        SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                    populateManagerCatalog(flowerList); // immediate visual refresh
+                });
+
+                cancelBtn.setOnAction(e -> {
+                    editPane.setVisible(false);
+                    editPane.setManaged(false);
+                });
+
+                // Delete handler
+                deleteBtn.setOnAction(e -> {
+                    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                    alert.setTitle("Delete Confirmation");
+                    alert.setHeaderText(null);
+                    alert.setGraphic(null);
+                    alert.setContentText("Are you sure you want to delete this flower?\n\nFlower name: " + flower.getName());
+
+                    Optional<ButtonType> result = alert.showAndWait();
+                    if (result.isPresent() && result.get() == ButtonType.OK) {
+                        try {
+                            SimpleClient.getClient().sendToServer(new DeleteFlowerRequest(flower.getId()));
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                        // Remove locally and refresh
+                        flowerList.remove(flower);
+                        populateManagerCatalog(flowerList);
+                    }
+                });
+
+                // Toggle drawer
+                editBtn.setOnAction(e -> {
+                    boolean now = !editPane.isVisible();
+                    editPane.setVisible(now);
+                    editPane.setManaged(now);
+                    if (now) nameField.requestFocus();
+                });
+
+                editPane.getChildren().setAll(
+                        new Label("Edit Name:"), nameField,
+                        new Label("Edit Price:"), priceField,
+                        new Label("Edit Color:"), colorField,
+                        new Label("Edit Description:"), descField,
+                        buttonBox
+                );
+            } else {
+                // Not a network manager → keep actions area empty and the drawer hidden
+                actions.setManaged(false);
+                actions.setVisible(false);
+            }
+
+            // --- Assemble card
+            card.getChildren().addAll(
+                    name, price, color,
+                    haifaRow, eilatRow, telAvivRow, storageRow,
+                    total,
+                    desc
             );
+            if (isManagerAll) {
+                card.getChildren().addAll(actions, editPane);
+            }
 
-            deleteBtn.setOnAction(e -> {
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                alert.setTitle("Delete Confirmation");
-                alert.setHeaderText(null);
-                alert.setGraphic(null);
-                alert.setContentText("Are you sure you want to delete this flower?\n\nFlower name: " + flower.getName());
-                Optional<ButtonType> result = alert.showAndWait();
-                if (result.isPresent() && result.get() == ButtonType.OK) {
-                    try { SimpleClient.getClient().sendToServer(new DeleteFlowerRequest(flower.getId())); }
-                    catch (Exception ex) { ex.printStackTrace(); }
-                }
-            });
-
-            HBox actionsBox = new HBox(8, editBtn, deleteBtn);
-
-            flowerBox.getChildren().addAll(
-                    nameLabel, priceLabel, colorLabel,
-                    haifaRow, eilatRow, taRow, storageRow,  // include storage row
-                    totalLabel,
-                    descLabel, actionsBox, editPane
-            );
-
-            ManagerCatalogSelectorVbox.getChildren().add(flowerBox);
+            ManagerCatalogSelectorVbox.getChildren().add(card);
         }
+
         ManagerCatalogSelectorVbox.setFillWidth(true);
     }
+
+    // ===== HELPERS =====
+
+    // Safe branch-id read (works even if Branch is a lazy proxy)
+    private int resolveBranchId(Account acc) {
+        if (acc == null) return 0;
+        Branch br = acc.getBranch();
+        if (br == null) return 0;
+        // The proxy always has the identifier available without needing a Hibernate Session
+        return br.getId();
+    }
+
+    /**
+     * Build a row:  [Label "Supply (X): <value>"]  [Change Supply] (button can be hidden)
+     * onSave is called with a validated non-negative int.
+     */
+    private HBox buildSupplyRow(String labelPrefix,
+                                int initialValue,
+                                boolean canEdit,
+                                java.util.function.IntConsumer onSave) {
+        Label valueLabel = new Label(labelPrefix + initialValue);
+        Button changeBtn = new Button("Change Supply");
+
+        if (!canEdit) {
+            // Hide and remove from layout if not allowed
+            changeBtn.setVisible(false);
+            changeBtn.setManaged(false);
+        } else {
+            changeBtn.setOnAction(ev -> {
+                TextInputDialog dialog = new TextInputDialog(String.valueOf(initialValue));
+                dialog.setTitle("Update Supply");
+                dialog.setHeaderText(null);
+                dialog.setContentText("Enter new amount (≥ 0):");
+                dialog.getDialogPane().getScene().getWindow().sizeToScene();
+
+                dialog.showAndWait().ifPresent(input -> {
+                    try {
+                        int v = Integer.parseInt(input.trim());
+                        if (v < 0) throw new NumberFormatException();
+                        valueLabel.setText(labelPrefix + v);
+                        onSave.accept(v);
+                    } catch (NumberFormatException ex) {
+                        // simple inline feedback; replace with your styled alert if you prefer
+                        Alert a = new Alert(Alert.AlertType.WARNING, "Please enter a non-negative integer.", ButtonType.OK);
+                        a.setHeaderText(null);
+                        a.showAndWait();
+                    }
+                });
+            });
+        }
+
+        HBox row = new HBox(8, valueLabel, changeBtn);
+        return row;
+    }
+
+    /** Recalculate total (Haifa + Eilat + TelAviv + Storage), write label, and keep model’s total in sync. */
+    private void updateTotalAndModel(Flower f, Label totalLabel) {
+        int total = (f.getSupplyHaifa() + f.getSupplyEilat() + f.getSupplyTelAviv() + f.getStorage());
+        f.setSupply(total); // keep the 'supply' column as the grand total
+        totalLabel.setText("Total Supply: " + total);
+    }
+
+    /**
+     * Send the update to the server and refresh the UI immediately so the new value is visible
+     * without a manual refresh. (This keeps the live feel in the manager panel.)
+     */
+    private void pushUpdateAndRefresh(Flower flower, List<Flower> currentList) {
+        try {
+            SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        // Rebuild the list immediately with the updated in-memory values
+        populateManagerCatalog(currentList);
+    }
+
+    /* ---------- Helpers ---------- */
+
+    private static class Row {
+        final HBox box;
+        final Label label;
+        Row(HBox b, Label l) { this.box = b; this.label = l; }
+    }
+
+
+
+    /** Prompts for a non-negative integer; returns Optional.empty() if invalid/canceled. */
+    private Optional<Integer> promptForInt(String title, String content, int current) {
+        TextInputDialog d = new TextInputDialog(String.valueOf(current));
+        d.setHeaderText(null);
+        d.setTitle(title);
+        d.setContentText(content);
+        Optional<String> res = d.showAndWait();
+        if (res.isEmpty()) return Optional.empty();
+        try {
+            int val = Integer.parseInt(res.get().trim());
+            if (val < 0) throw new NumberFormatException();
+            return Optional.of(val);
+        } catch (NumberFormatException ex) {
+            new Alert(Alert.AlertType.WARNING, "Please enter a valid non-negative integer.").showAndWait();
+            return Optional.empty();
+        }
+    }
+
+    /** Sends update to server (fire-and-forget). Keep optimistic UI already updated. */
+    private void pushUpdate(Flower flower) {
+        try {
+            SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            new Alert(Alert.AlertType.ERROR, "Failed to push update to server.").showAndWait();
+        }
+    }
+
+
+    private static String safe(String s) { return s == null ? "" : s; }
+    private static int nz(Integer i)      { return i == null ? 0 : i; }
+
 
     private void updateTotal(Flower flower, Label totalLabel) {
         int total = flower.getSupplyHaifa() + flower.getSupplyEilat() + flower.getSupplyTelAviv() + flower.getStorage();
@@ -1058,40 +1198,37 @@ public class SecondaryController {
     }
 
 
-    // Build "Supply (X): N   [Change Supply]" row
-    private HBox buildSupplyRow(String labelPrefix,
-                                int currentValue,
-                                boolean showButton,
-                                String branchShortNameForPrompt,
-                                java.util.function.Consumer<Integer> onValid) {
+    private HBox buildSupplyRow(
+            String labelText,
+            int currentValue,
+            boolean canEdit,
+            String supplyKey,
+            java.util.function.IntConsumer onChange
+    ) {
+        Label label = new Label(labelText + currentValue);
+        Button changeBtn = new Button("Change Supply");
+        changeBtn.setDisable(!canEdit);
 
-        Label lbl = new Label(labelPrefix + currentValue);
-        lbl.setWrapText(true);
+        changeBtn.setOnAction(e -> {
+            TextInputDialog dlg = new TextInputDialog(String.valueOf(currentValue));
+            dlg.setTitle("Update Supply");
+            dlg.setHeaderText("Set new supply for " + supplyKey);
+            dlg.setContentText("Enter a non-negative integer:");
+            dlg.showAndWait().ifPresent(txt -> {
+                try {
+                    int val = Integer.parseInt(txt.trim());
+                    if (val < 0) throw new NumberFormatException();
+                    onChange.accept(val);
+                    label.setText(labelText + val);
+                } catch (NumberFormatException ex) {
+                    new Alert(Alert.AlertType.WARNING, "Please enter a non-negative integer.").showAndWait();
+                }
+            });
+        });
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        HBox row = new HBox(8);
-        row.getChildren().addAll(lbl, spacer);
-
-        if (showButton) {
-            Button b = new Button("Change Supply");
-            b.setOnAction(e -> promptAndUpdateSupply(branchShortNameForPrompt, currentValue, newVal -> {
-                lbl.setText(labelPrefix + newVal); // reflect change immediately
-                onValid.accept(newVal);
-            }));
-            row.getChildren().add(b);
-        }
-
-        return row;
+        return new HBox(8, label, changeBtn);
     }
 
-    private static int resolveBranchId(Account acc) {
-        if (acc == null) return 0;
-        // using relation mapping
-        Branch b = acc.getBranch();
-        return (b != null) ? b.getId() : 0;
-    }
 
     private void promptAndUpdateSupply(String branchLabel, int current, java.util.function.Consumer<Integer> onValid) {
         TextInputDialog dlg = new TextInputDialog(String.valueOf(current));
@@ -1110,11 +1247,6 @@ public class SecondaryController {
         }
     }
 
-    private void pushUpdateAndRefresh(Flower flower, List<Flower> flowerList) {
-        try { SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower)); }
-        catch (Exception ex) { ex.printStackTrace(); }
-        populateManagerCatalog(flowerList);
-    }
 
     private void updateFlowerOnServer(Flower flower) {
         try {
@@ -1324,16 +1456,21 @@ public class SecondaryController {
                 emailLabel.setStyle("-fx-font-size: 12; -fx-text-fill: #2196F3;");
 
                 // Branch (safe against null/lazy)
-                String branchText;
-                try {
-                    branchText = (feedback.getBranch() != null && feedback.getBranch().getName() != null)
-                            ? feedback.getBranch().getName()
-                            : "—";
-                } catch (Exception ex) {
-                    branchText = "—";
+                String branchText = "—";
+                Branch branch = feedback.getBranch();
+                if (branch != null) {
+                    int branchId = branch.getId();  // safe, ID is available even if lazy
+                    switch (branchId) {
+                        case BRANCH_HAIFA:    branchText = "Haifa"; break;
+                        case BRANCH_EILAT:    branchText = "Eilat"; break;
+                        case BRANCH_TEL_AVIV: branchText = "Tel Aviv"; break;
+                        default:              branchText = "Unknown"; break;
+                    }
                 }
+
                 Label branchLabel = new Label("Branch: " + branchText);
                 branchLabel.setStyle("-fx-font-size: 12; -fx-text-fill: #B0B9FF;");
+
 
                 // Submitted at
                 Label sentLabel = new Label("Sent: " + feedback.getSubmittedAt());

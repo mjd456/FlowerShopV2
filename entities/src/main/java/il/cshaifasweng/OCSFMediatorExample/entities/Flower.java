@@ -101,20 +101,9 @@ public class Flower implements Serializable {
     }
 
     public void reduceSupplyForDelivery(int amount) {
-        while (amount > 0) {
-            // Find the branch with the maximum supply
-            if (supplyHaifa >= supplyEilat && supplyHaifa >= supplyTelAviv && supplyHaifa > 0) {
-                supplyHaifa--;
-            } else if (supplyEilat >= supplyHaifa && supplyEilat >= supplyTelAviv && supplyEilat > 0) {
-                supplyEilat--;
-            } else if (supplyTelAviv >= supplyHaifa && supplyTelAviv >= supplyEilat && supplyTelAviv > 0) {
-                supplyTelAviv--;
-            } else {
-                // No stock left anywhere
-                break;
-            }
-            amount--; // Reduce requested amount after each deduction
-        }
+
+            storage -= amount;
+
     }
 
     @Override

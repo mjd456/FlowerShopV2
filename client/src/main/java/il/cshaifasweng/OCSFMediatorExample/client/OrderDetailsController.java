@@ -202,8 +202,10 @@ public class OrderDetailsController {
             }
         } else {
             // delivery: reduce across all branches (your existing strategy)
+
             for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
                 Flower flower = entry.getKey();
+                System.out.println("No pickup branch selected. = " + entry.getValue());
                 int requested = entry.getValue();
                 flower.reduceSupplyForDelivery(requested);
                 SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
