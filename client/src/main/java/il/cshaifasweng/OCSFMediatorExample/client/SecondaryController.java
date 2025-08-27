@@ -216,6 +216,9 @@ public class SecondaryController {
     private Button PlusUpgradeButton;
 
     @FXML
+    private TextField NewStorageSupply;
+
+    @FXML
     private Label PlusUserLabel;
 
     @FXML
@@ -430,16 +433,66 @@ public class SecondaryController {
                 VBox orderBox = new VBox(5);
                 orderBox.setStyle("-fx-padding: 10; -fx-border-color: #4D8DFF; -fx-border-radius: 8; -fx-background-radius: 8;");
 
+                // Basic info
                 Label detailsLabel = new Label("Details: " + order.getDetails());
-                Label priceLabel = new Label("Price: ₪" + order.getTotalPrice());
-                Label statusLabel = new Label("Status: " + order.getStatus());
-                Label dateLabel = new Label("Date: " + order.getDeliveryDate());
-                Label timeLabel = new Label("Time: " + order.getDeliveryTime());
+                Label priceLabel   = new Label("Price: ₪" + order.getTotalPrice());
+                Label statusLabel  = new Label("Status: " + order.getStatus());
+
+                // Date (date-only)
+                String dateOnly;
+                try {
+                    java.text.DateFormat fmt = new java.text.SimpleDateFormat("yyyy-MM-dd");
+                    dateOnly = order.getDeliveryDate() != null ? fmt.format(order.getDeliveryDate()) : "—";
+                } catch (Exception ex) {
+                    dateOnly = "—";
+                }
+                Label dateLabel = new Label("Date: " + dateOnly);
+
+                // Time
+                Label timeLabel = new Label("Time: " + (order.getDeliveryTime() != null ? order.getDeliveryTime() : "—"));
+
+                // Fulfillment (Delivery vs Pickup)
+                String fulfillmentText = "Delivery";
+                try {
+                    if (order.getPickupBranch() != null) {
+                        Integer bid = order.getPickupBranch().getId();
+                        if (bid != null && bid > 0) {
+                            String bname = order.getPickupBranch().getName();
+                            fulfillmentText = "Pickup: " + (bname != null ? bname : ("Branch #" + bid));
+                        }
+                    }
+                } catch (Exception ignored) { /* lazy/detached: leave Delivery */ }
+
+                Label fulfillmentLabel = new Label("Fulfillment: " + fulfillmentText);
+
+                orderBox.getChildren().addAll(detailsLabel, priceLabel, statusLabel, fulfillmentLabel);
+
+                // Address for deliveries only
+                if ("Delivery".equals(fulfillmentText)
+                        && order.getAddress() != null
+                        && !order.getAddress().isBlank()) {
+                    orderBox.getChildren().add(new Label("Address: " + order.getAddress()));
+                }
+
+                orderBox.getChildren().addAll(dateLabel, timeLabel);
+
+                // If canceled, show refunded amount
+                boolean isCanceled = order.getStatus() != null && order.getStatus().equalsIgnoreCase("canceled");
+                if (isCanceled) {
+                    Double refund = order.getRefundAmount();
+                    String refundText = (refund != null) ? String.format("₪%.2f", refund) : "₪0.00";
+                    Label refundLabel = new Label("Refunded amount: " + refundText);
+                    refundLabel.setStyle("-fx-text-fill: #4CAF50; -fx-font-weight: bold;");
+                    orderBox.getChildren().add(refundLabel);
+                }
+
+                // Error label (per order)
                 Label errorLabel = new Label();
                 errorLabel.setVisible(false);
+                orderErrorLabels.put(order.getId(), errorLabel);
+                orderBox.getChildren().add(errorLabel);
 
-                orderErrorLabels.put((long) order.getId(), errorLabel);
-
+                // Cancel button (hide if already canceled)
                 Button cancelButton = new Button("Cancel");
                 cancelButton.setOnAction(e -> {
                     try {
@@ -449,21 +502,19 @@ public class SecondaryController {
                     }
                 });
 
-                orderBox.getChildren().addAll(detailsLabel, priceLabel, statusLabel, dateLabel, timeLabel, errorLabel);
-
-                // Attach cancel button only if status is still upcoming
-                if (!"canceled".equalsIgnoreCase(order.getStatus())) {
+                if (!isCanceled) {
                     orderBox.getChildren().add(cancelButton);
-                    orderCancelButtons.put((long) order.getId(), cancelButton);
+                    orderCancelButtons.put(order.getId(), cancelButton);
                 }
 
-                // 🔹 Schedule auto-update for this order card
+                // Keep card auto-update behavior
                 setupOrderCard(order, statusLabel, cancelButton);
 
                 PurchaseHistoryVbox.getChildren().add(orderBox);
             }
         });
     }
+
 
     /** Schedules regular checks for order status */
     private void setupOrderCard(OrderSQL order, Label statusLabel, Button cancelButton) {
@@ -807,7 +858,7 @@ public class SecondaryController {
 
     @FXML
     private void closeWindow() {
-        ((Stage) CustomTitleBar.getScene().getWindow()).close();
+
         if(!Guest) {
             try {
                 SimpleClient.getClient().sendToServer(new LogoutRequest(account));
@@ -815,6 +866,7 @@ public class SecondaryController {
                 throw new RuntimeException(e);
             }
         }
+        ((Stage) CustomTitleBar.getScene().getWindow()).close();
         account = null;
     }
 
@@ -1226,8 +1278,7 @@ public class SecondaryController {
             UnresolvedFeedbackVBOX.getChildren().clear();
 
             for (FeedBackSQL feedback : event.getResponse().getFeedbacks()) {
-                VBox feedbackBox = new VBox();
-                feedbackBox.setSpacing(5);
+                VBox feedbackBox = new VBox(5);
                 feedbackBox.setStyle(
                         "-fx-padding: 10;" +
                                 "-fx-border-color: #4D8DFF;" +
@@ -1237,31 +1288,46 @@ public class SecondaryController {
                 feedbackBox.setMinHeight(Region.USE_PREF_SIZE);
                 feedbackBox.setFocusTraversable(false);
 
+                // Title
                 Label titleLabel = new Label("Title: " + feedback.getTitle());
                 titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14;");
 
+                // Details
                 Label descLabel = new Label("Details: " + feedback.getDetails());
                 descLabel.setWrapText(true);
 
+                // From (email)
                 Label emailLabel = new Label("From: " + feedback.getAccount().getEmail());
                 emailLabel.setStyle("-fx-font-size: 12; -fx-text-fill: #2196F3;");
 
+                // Branch (safe against null/lazy)
+                String branchText;
+                try {
+                    branchText = (feedback.getBranch() != null && feedback.getBranch().getName() != null)
+                            ? feedback.getBranch().getName()
+                            : "—";
+                } catch (Exception ex) {
+                    branchText = "—";
+                }
+                Label branchLabel = new Label("Branch: " + branchText);
+                branchLabel.setStyle("-fx-font-size: 12; -fx-text-fill: #B0B9FF;");
+
+                // Submitted at
                 Label sentLabel = new Label("Sent: " + feedback.getSubmittedAt());
                 sentLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #888;");
 
-                feedbackBox.getChildren().addAll(titleLabel, descLabel, emailLabel, sentLabel);
+                feedbackBox.getChildren().addAll(titleLabel, descLabel, emailLabel, branchLabel, sentLabel);
 
                 if (feedback.getStatus() == FeedBackSQL.FeedbackStatus.Pending) {
-                    HBox buttons = new HBox();
-                    buttons.setSpacing(10);
+                    // Action buttons for pending
+                    HBox buttons = new HBox(10);
 
                     Button rejectBtn = new Button("Reject");
                     rejectBtn.setStyle("-fx-background-color: #F44336; -fx-text-fill: white; -fx-font-weight: bold;");
+                    rejectBtn.setOnAction(e -> markFeedbackRejected(feedback));
+
                     Button doneBtn = new Button("Done");
                     doneBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;");
-
-                    // Add your button logic here, e.g.:
-                    rejectBtn.setOnAction(e -> markFeedbackRejected(feedback));
                     doneBtn.setOnAction(e -> markFeedbackResolved(feedback));
 
                     buttons.getChildren().addAll(rejectBtn, doneBtn);
@@ -1269,19 +1335,20 @@ public class SecondaryController {
 
                     UnresolvedFeedbackVBOX.getChildren().add(feedbackBox);
                 } else {
-                    String statusText = (feedback.getStatus() == FeedBackSQL.FeedbackStatus.Resolved) ? "Resolved" : "Rejected";
-                    String statusColor = (feedback.getStatus() == FeedBackSQL.FeedbackStatus.Resolved) ? "#4CAF50" : "#F44336";
+                    // Status & resolved time for non-pending
+                    boolean isResolved = feedback.getStatus() == FeedBackSQL.FeedbackStatus.Resolved;
+                    String statusText = isResolved ? "Resolved" : "Rejected";
+                    String statusColor = isResolved ? "#4CAF50" : "#F44336";
+
                     Label statusLabel = new Label("Status: " + statusText);
                     statusLabel.setStyle("-fx-font-size: 12; -fx-font-weight: bold; -fx-text-fill: " + statusColor + ";");
-
-                    Label resolvedLabel = null;
-                    if (feedback.getResolvedAt() != null) {
-                        resolvedLabel = new Label("At: " + feedback.getResolvedAt());
-                        resolvedLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #888;");
-                    }
-
                     feedbackBox.getChildren().add(statusLabel);
-                    if (resolvedLabel != null) feedbackBox.getChildren().add(resolvedLabel);
+
+                    if (feedback.getResolvedAt() != null) {
+                        Label resolvedLabel = new Label("At: " + feedback.getResolvedAt());
+                        resolvedLabel.setStyle("-fx-font-size: 11; -fx-text-fill: #888;");
+                        feedbackBox.getChildren().add(resolvedLabel);
+                    }
 
                     ResolvedFeedbackVBOX.getChildren().add(feedbackBox);
                 }
@@ -1666,6 +1733,7 @@ public class SecondaryController {
         String supplyHaifaText = NewHaifaFlowerSupply.getText().trim();
         String supplyTelAvivText = NewTelAvivFlowerSupply.getText().trim();
         String supplyEilatText = NewEilatFlowerSupply.getText().trim();
+        String supplyStorageText = NewStorageSupply.getText().trim();
         String desc = NewFlowerDesc.getText().trim();
         String imageId = "";
 
@@ -1689,7 +1757,16 @@ public class SecondaryController {
         int supplyHaifa = -1;
         int supplyEilat = -1;
         int supplyTelAviv = -1;
+        int supplyStorage = -1;
+        try {
+            supplyStorage = Integer.parseInt(supplyStorageText);
+            if (supplyStorage < 0) throw new NumberFormatException();
+            NewStorageSupply.setStyle("");
 
+        } catch (NumberFormatException e) {
+            NewTelAvivFlowerSupply.setStyle("-fx-border-color: red;");
+            valid = false;
+        }
         try {
             price = Double.parseDouble(priceText);
             NewFlowerPrice.setStyle("");
@@ -1697,7 +1774,6 @@ public class SecondaryController {
             NewFlowerPrice.setStyle("-fx-border-color: red;");
             valid = false;
         }
-
         try {
             supplyTelAviv = Integer.parseInt(supplyTelAvivText);
             if (supplyTelAviv < 0) throw new NumberFormatException();
@@ -1707,7 +1783,6 @@ public class SecondaryController {
             NewTelAvivFlowerSupply.setStyle("-fx-border-color: red;");
             valid = false;
         }
-
         try {
             supplyEilat = Integer.parseInt(supplyEilatText);
             if (supplyEilat < 0) throw new NumberFormatException();
@@ -1746,10 +1821,11 @@ public class SecondaryController {
                 desc,
                 imageId,
                 price,
-                supplyHaifa + supplyEilat + supplyTelAviv,
+                supplyHaifa + supplyEilat + supplyTelAviv + supplyStorage,
                 supplyHaifa,
                 supplyEilat,
-                supplyTelAviv
+                supplyTelAviv,
+                supplyStorage
         );
 
         try {

@@ -89,6 +89,7 @@ public class CustomItemDialogController {
                 1,
                 0,
                 0,
+                0,
                 0
         );
 

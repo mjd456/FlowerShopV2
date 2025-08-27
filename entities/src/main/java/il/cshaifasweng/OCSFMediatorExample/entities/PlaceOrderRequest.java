@@ -7,13 +7,16 @@ import java.util.Map;
 public class PlaceOrderRequest implements Serializable {
     private final Map<Flower, Integer> cartMap;
     private final Account customer;
-    private final LocalDate date;    // Or use java.sql.Date if you prefer
+    private final LocalDate date;
     private final String time;
     private final String status;
     private final String details;
     private final double totalPrice;
     private final String addressOrPickup;
     private final String greeting;
+
+    // NEW: branch to pick up from (nullable: null or 0 means delivery)
+    private final Integer pickupBranchId;
 
     public PlaceOrderRequest(
             Map<Flower, Integer> cartMap,
@@ -24,7 +27,8 @@ public class PlaceOrderRequest implements Serializable {
             String details,
             double totalPrice,
             String addressOrPickup,
-            String greeting
+            String greeting,
+            Integer pickupBranchId   // <--- NEW
     ) {
         this.cartMap = cartMap;
         this.customer = customer;
@@ -35,6 +39,7 @@ public class PlaceOrderRequest implements Serializable {
         this.totalPrice = totalPrice;
         this.addressOrPickup = addressOrPickup;
         this.greeting = greeting;
+        this.pickupBranchId = pickupBranchId;
     }
 
     public Map<Flower, Integer> getCartMap() { return cartMap; }
@@ -46,4 +51,5 @@ public class PlaceOrderRequest implements Serializable {
     public double getTotalPrice() { return totalPrice; }
     public String getAddressOrPickup() { return addressOrPickup; }
     public String getGreeting() { return greeting; }
+    public Integer getPickupBranchId() { return pickupBranchId; } // <--- NEW
 }
