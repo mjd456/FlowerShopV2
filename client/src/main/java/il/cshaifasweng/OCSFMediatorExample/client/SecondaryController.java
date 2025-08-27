@@ -345,6 +345,9 @@ public class SecondaryController {
     @FXML
     private AnchorPane window;
 
+    @FXML
+    private ComboBox<String> BranchComboBox;
+
 
     @FXML private TableView<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row> QuarterlyTable;
     @FXML private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colYear;
@@ -461,18 +464,28 @@ public class SecondaryController {
                 Label timeLabel = new Label("Time: " + (order.getDeliveryTime() != null ? order.getDeliveryTime() : "—"));
 
                 // Fulfillment (Delivery vs Pickup)
-                String fulfillmentText =  order.getPickupBranch() == null?"Delivery":"Pick-up";
+                String fulfillmentText = order.getPickupBranch() == null ? "Delivery" : "Pick-up";
+
                 try {
                     if (order.getPickupBranch() != null) {
-                        Integer bid = order.getPickupBranch().getId();
-                        if (bid != null && bid > 0) {
-                            String bname = order.getPickupBranch().getName();
-                            fulfillmentText = "Pickup: " + (bname != null ? bname : ("Branch #" + bid));
+                        Integer bid = order.getPickupBranch();
+                        String bname = "Unknown";
+                        if (bid != null) {
+                            switch (bid) {
+                                case 1: bname = "Haifa"; break;
+                                case 2: bname = "Eilat"; break;
+                                case 3: bname = "Tel Aviv"; break;
+                                default: bname = "Network"; break;
+                            }
                         }
+                        fulfillmentText = "Pickup: " + bname;
                     }
-                } catch (Exception ignored) { /* lazy/detached: leave Delivery */ }
+                } catch (Exception ignored) {
+                    // lazy/detached entity or null branch
+                }
 
                 Label fulfillmentLabel = new Label("Fulfillment: " + fulfillmentText);
+
 
                 orderBox.getChildren().addAll(detailsLabel, priceLabel, statusLabel, fulfillmentLabel);
 
@@ -2427,6 +2440,17 @@ public class SecondaryController {
             }
         });
 
+        BranchComboBox.getItems().addAll(
+                "Network",
+                "Haifa Branch (1)",
+                "Eilat Branch (2)",
+                "Tel Aviv Branch (3)"
+        );
+
+        BranchComboBox.setValue("Network");
+
+
+
         this.sub.setCellFactory((col) ->{
             return new TextFieldTableCell(new DefaultStringConverter());
         });
@@ -2597,22 +2621,25 @@ public class SecondaryController {
         }
 
         int branchId = 0; // Default to "All Network"
-        String accountLevel = account.getAccountLevel();
+// Normalize role string once
+        String accountLevel = account.getAccountLevel()
+                .replaceAll("\\s+", "")  // remove spaces
+                .toLowerCase();
 
-        if ("Branch Manager".equalsIgnoreCase(accountLevel)) {
+        if (accountLevel.equals("BranchManager")) {
             if (account.getBranch() != null) {
                 branchId = account.getBranch().getId();
             }
-        } else if ("Network Manager".equalsIgnoreCase(accountLevel)) {
+        } else if (accountLevel.equals("NetworkManager")) {
             Branch selectedBranch = branchSelectorComboBox.getValue();
             if (selectedBranch != null) {
-                branchId = selectedBranch.getId(); // Will be 0 for "All Network"
+                branchId = selectedBranch.getId(); // 0 for "All Network"
             } else {
-                // Handle case where nothing is selected
                 System.err.println("Network Manager has not selected a branch.");
                 return;
             }
         }
+
 
         try {
             java.sql.Date fromDate;
