@@ -714,44 +714,35 @@ public class SimpleServer extends AbstractServer {
 			}
 		}
 		else if (msg instanceof QuarterlyRevenueReportRequest req) {
-			System.out.println("Received QuarterlyRevenueReportRequest for branch ID: " + req.getBranchId());
+			System.out.println("QuarterlyRevenueReportRequest: branchId=" + req.getBranchId()
+					+ ", from=" + req.getFrom() + ", to=" + req.getTo());
 
 			try (Session s = sessionFactory.openSession()) {
-				String hql = "SELECT YEAR(o.deliveryDate), QUARTER(o.deliveryDate), " +
-						"SUM(COALESCE(o.totalPrice, 0) - COALESCE(o.refundAmount, 0)) " +
-						"FROM OrderSQL o " +
-						"WHERE o.status = 'delivered' " + // ✅ only delivered
-						"AND o.deliveryDate BETWEEN :from AND :to ";
+				// Quarter = ((month-1)/3)+1  → avoids relying on vendor-specific QUARTER()
+				String hql =
+						"SELECT YEAR(o.deliveryDate), ((MONTH(o.deliveryDate)-1)/3)+1, " +
+								"       SUM(COALESCE(o.totalPrice, 0)) " +
+								"FROM   OrderSQL o " +
+								"WHERE  LOWER(o.status) = 'delivered' " +
+								"  AND  o.deliveryDate BETWEEN :from AND :to " +
+								(req.getBranchId() > 0 ? "  AND  o.pickupBranch = :branchId " : "") +
+								"GROUP BY YEAR(o.deliveryDate), ((MONTH(o.deliveryDate)-1)/3)+1 " +
+								"ORDER BY YEAR(o.deliveryDate), ((MONTH(o.deliveryDate)-1)/3)+1";
 
-				if (req.getBranchId() > 0) {
-					hql += "AND o.pickupBranch = :branchId ";
-				}
-
-				if (req.getBranchId() > 0) {
-					hql += "AND o.pickupBranch = :branchId " +
-							"GROUP BY YEAR(o.deliveryDate), QUARTER(o.deliveryDate) " +
-							"ORDER BY YEAR(o.deliveryDate), QUARTER(o.deliveryDate)";
-				} else {
-					// Network (all branches) → group by year+quarter only
-					hql += "GROUP BY YEAR(o.deliveryDate), QUARTER(o.deliveryDate) " +
-							"ORDER BY YEAR(o.deliveryDate), QUARTER(o.deliveryDate)";
-				}
-
-
-				Query<Object[]> query = s.createQuery(hql, Object[].class)
+				Query<Object[]> q = s.createQuery(hql, Object[].class)
 						.setParameter("from", req.getFrom())
-						.setParameter("to", req.getTo());
+						.setParameter("to",   req.getTo());
 
 				if (req.getBranchId() > 0) {
-					query.setParameter("branchId", req.getBranchId());
+					q.setParameter("branchId", req.getBranchId());
 				}
 
-				List<Object[]> rows = query.list();
-				List<QuarterlyRevenueReportResponse.Row> out = new ArrayList<>();
+				List<Object[]> rows = q.list();
+				List<QuarterlyRevenueReportResponse.Row> out = new ArrayList<>(rows.size());
 				for (Object[] r : rows) {
 					int year    = ((Number) r[0]).intValue();
 					int quarter = ((Number) r[1]).intValue();
-					double rev  = r[2] != null ? ((Number) r[2]).doubleValue() : 0.0;
+					double rev  = (r[2] != null) ? ((Number) r[2]).doubleValue() : 0.0;
 					out.add(new QuarterlyRevenueReportResponse.Row(year, quarter, req.getBranchId(), rev));
 				}
 
@@ -765,52 +756,148 @@ public class SimpleServer extends AbstractServer {
 			System.out.println("Received OrdersByProductTypeReportRequest for branch ID: " + req.getBranchId());
 
 			try (Session s = sessionFactory.openSession()) {
-				String hql = "FROM OrderSQL o WHERE o.deliveryDate BETWEEN :from AND :to ";
-
-				if (req.getBranchId() > 0) {
-					// CORRECTED PATH: o.account.branch.id
-					hql += "AND o.account.branch.id = :branchId";
-				}
+				String hql =
+						"FROM OrderSQL o " +
+								"WHERE LOWER(o.status) = 'delivered' " +
+								"  AND o.deliveryDate BETWEEN :from AND :to " +
+								(req.getBranchId() > 0 ? "  AND o.pickupBranch = :branchId " : ""); // or o.account.branch.id
 
 				Query<OrderSQL> query = s.createQuery(hql, OrderSQL.class)
 						.setParameter("from", req.getFrom())
-						.setParameter("to", req.getTo());
+						.setParameter("to",   req.getTo());
 
 				if (req.getBranchId() > 0) {
 					query.setParameter("branchId", req.getBranchId());
 				}
 
 				List<OrderSQL> orders = query.list();
-				Map<String, long[]> aggregationMap = new HashMap<>();
 
-				for (OrderSQL order : orders) {
-					String details = order.getDetails();
+				// Aggregates: productType -> [ordersCount, totalQty] + totalAmount
+				Map<String, long[]> counts = new HashMap<>();      // [0]=ordersCount (distinct), [1]=totalQty
+				Map<String, Double> totals = new HashMap<>();      // money per product type
+
+				for (OrderSQL o : orders) {
+					String details = o.getDetails();
 					if (details == null || details.isBlank()) continue;
 
-					String[] items = details.split(",");
-					for (String item : items) {
-						item = item.trim();
-						int separatorIndex = item.lastIndexOf(" x");
-						if (separatorIndex > 0) {
-							String productType = item.substring(0, separatorIndex).trim();
-							int quantity = Integer.parseInt(item.substring(separatorIndex + 2).trim());
-							long[] values = aggregationMap.computeIfAbsent(productType, k -> new long[3]);
-							values[0]++;
-							values[1] += quantity;
+					// Parse all items from this order
+					class Item { String type; int qty; Double unitPrice; }
+					List<Item> items = new ArrayList<>();
+					Set<String> seenThisOrder = new HashSet<>();
+
+					for (String raw : details.split(",")) {
+						String itemStr = raw.trim();
+						int idx = itemStr.lastIndexOf(" x");
+						if (idx <= 0) continue;
+
+						String left = itemStr.substring(0, idx).trim();     // name + maybe price
+						String qtyStr = itemStr.substring(idx + 2).trim();
+						int qty;
+						try { qty = Integer.parseInt(qtyStr); } catch (NumberFormatException ex) { continue; }
+
+						// Try to extract unit price if present: "(₪12.5)" or "₪12.5" or "... 12.5"
+						Double unit = null;
+						String name = left;
+
+						// 1) (₪12.5) pattern
+						java.util.regex.Matcher mParen = java.util.regex.Pattern
+								.compile("\\((?:₪|ILS\\s*)?([0-9]+(?:\\.[0-9]+)?)\\)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE)
+								.matcher(left);
+						if (mParen.find()) {
+							unit = Double.valueOf(mParen.group(1));
+							name = left.substring(0, mParen.start()).trim();
+						} else {
+							// 2) trailing currency/number: "... ₪12.5" or "... 12.5"
+							java.util.regex.Matcher mTail = java.util.regex.Pattern
+									.compile("(?:₪|ILS\\s*)?([0-9]+(?:\\.[0-9]+)?)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE)
+									.matcher(left);
+							if (mTail.find()) {
+								unit = Double.valueOf(mTail.group(1));
+								name = left.substring(0, mTail.start()).trim();
+							}
+						}
+
+						Item it = new Item();
+						it.type = name;
+						it.qty = qty;
+						it.unitPrice = unit;
+						items.add(it);
+
+						// distinct-order count per type
+						if (seenThisOrder.add(name)) {
+							long[] arr = counts.computeIfAbsent(name, k -> new long[2]);
+							arr[0]++; // orders count
+						}
+						// total qty
+						long[] arr = counts.computeIfAbsent(name, k -> new long[2]);
+						arr[1] += qty;
+					}
+
+					if (items.isEmpty()) continue;
+
+					double orderNet = (o.getTotalPrice() != null ? o.getTotalPrice() : 0.0)
+							- (o.getRefundAmount() != null ? o.getRefundAmount() : 0.0);
+
+					// If we have any priced items, use their explicit totals; apportion any leftover to unpriced by qty.
+					double knownSum = 0.0;
+					int unknownQtySum = 0;
+					for (Item it : items) {
+						if (it.unitPrice != null) {
+							knownSum += it.unitPrice * it.qty;
+						} else {
+							unknownQtySum += it.qty;
+						}
+					}
+
+					if (knownSum > 0 && orderNet > 0 && unknownQtySum > 0) {
+						// Scale explicitly priced totals to match the order net (in case of rounding/fees),
+						// then distribute leftover to unpriced by qty.
+						double leftover = orderNet - knownSum;
+						// If leftover negative (fees/discounts), still distribute proportionally.
+						for (Item it : items) {
+							double add;
+							if (it.unitPrice != null) {
+								add = it.unitPrice * it.qty + 0.0; // already counted in knownSum
+							} else {
+								add = (unknownQtySum == 0) ? 0.0 : leftover * ((double) it.qty / unknownQtySum);
+							}
+							totals.merge(it.type, add, Double::sum);
+						}
+					} else if (knownSum > 0) {
+						// Only priced items → use their totals; ignore orderNet mismatch
+						for (Item it : items) {
+							if (it.unitPrice != null) {
+								totals.merge(it.type, it.unitPrice * it.qty, Double::sum);
+							}
+						}
+					} else {
+						// No unit prices at all → apportion entire orderNet by quantities
+						int sumQty = items.stream().mapToInt(it -> it.qty).sum();
+						if (sumQty == 0) continue;
+						for (Item it : items) {
+							double add = (orderNet <= 0) ? 0.0 : orderNet * ((double) it.qty / sumQty);
+							totals.merge(it.type, add, Double::sum);
 						}
 					}
 				}
 
-				List<OrdersByProductTypeReportResponse.Row> responseRows = new ArrayList<>();
-				for (Map.Entry<String, long[]> entry : aggregationMap.entrySet()) {
-					responseRows.add(new OrdersByProductTypeReportResponse.Row(entry.getKey(), entry.getValue()[0], entry.getValue()[1], 0.0));
+				// Build response rows
+				List<OrdersByProductTypeReportResponse.Row> rows = new ArrayList<>(counts.size());
+				for (Map.Entry<String, long[]> e : counts.entrySet()) {
+					String type   = e.getKey();
+					long ordersCt = e.getValue()[0];
+					long qtySum   = e.getValue()[1];
+					double total  = totals.getOrDefault(type, 0.0);
+					rows.add(new OrdersByProductTypeReportResponse.Row(type, ordersCt, qtySum, total));
 				}
 
-				client.sendToClient(new OrdersByProductTypeReportResponse(responseRows));
+				client.sendToClient(new OrdersByProductTypeReportResponse(rows));
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		}
+
+
 		else if (msg instanceof ComplaintsHistogramReportRequest req) {
 			System.out.println("Received ComplaintsHistogramReportRequest for branch ID: " + req.getBranchId());
 

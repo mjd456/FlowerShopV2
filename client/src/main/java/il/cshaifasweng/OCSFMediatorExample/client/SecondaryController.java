@@ -11,6 +11,7 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.fxml.FXML;
+import java.sql.Date;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -1407,7 +1408,7 @@ public class SecondaryController {
     }
 
     public boolean isCardStillValid(Account account) {
-        Date validUntil = account.getCreditCardValidUntil();
+        Date validUntil = (Date) account.getCreditCardValidUntil();
         if (validUntil == null) return false;
 
         // java.sql.Date has .toLocalDate()
@@ -2617,95 +2618,178 @@ public class SecondaryController {
     }
     @FXML
     void onGenerateReport(ActionEvent e) {
-        String report = BranchComboBox.getValue();
-        if (report == null) { System.err.println("Pick a report type."); return; }
-
-        int branchId = 0; // default -> Network
-
-        String lvl = account != null ? account.getAccountLevel() : null;
-        if ("BranchManager".equalsIgnoreCase(lvl)) {
-            Branch my = account.getBranch();
-            branchId = (my != null) ? my.getId() : 0;
-        } else if ("NetworkManager".equalsIgnoreCase(lvl)) {
-            String selected = BranchComboBox.getValue();  // <Branch> object
-            branchId =  branchNameToId(selected);
-        } else {
-            String selected = BranchComboBox.getValue();
-            branchId =  branchNameToId(selected);
+        // 1) Which report?
+        String reportType = reportTypeComboBox.getValue();
+        if (reportType == null || reportType.isBlank()) {
+            System.err.println("Pick a report type.");
+            return;
         }
 
-        System.out.println("Using branchId = " + branchId);
-        // ... send the appropriate request with branchId
+        // 2) Which branch?
+        String lvl = (account != null) ? account.getAccountLevel() : null;
+        int branchId;
+        if ("BranchManager".equalsIgnoreCase(lvl) || "Branch Manager".equalsIgnoreCase(lvl)) {
+            Branch my = (account != null) ? account.getBranch() : null;
+            branchId = (my != null) ? my.getId() : 0;  // 0 = Network
+        } else {
+            String selected = BranchComboBox.getValue();     // e.g. "Haifa Branch (1)"
+            branchId = branchNameToId(selected);             // -> 0/1/2/3
+        }
+
+        System.out.println("Using branchId = " + branchId + " | report = " + reportType);
+
+        // 3) Dispatch request
+        switch (reportType) {
+            case "Quarterly Revenue Report" -> requestQuarterlyRevenue(branchId);
+            case "Orders by Type Report"    -> requestOrdersByType(branchId);
+            // case "Complaints Report" -> requestComplaints(...);   // later
+            default -> System.err.println("Unknown report type: " + reportType);
+        }
     }
 
-    private int branchNameToId(String s) {
-        if (s == null) return 0; // default -> Network
 
-        s = s.toLowerCase();
+    private void requestQuarterlyRevenue(int branchId) {
+        LocalDate toLD   = LocalDate.now();
+        LocalDate fromLD = toLD.minusMonths(3);
 
-        if (s.startsWith("network")) {
-            return 0;
-        } else if (s.startsWith("haifa")) {
-            return 1;
-        } else if (s.startsWith("eilat")) {
-            return 2;
-        } else if (s.startsWith("tel aviv") || s.startsWith("telaviv")) {
-            return 3;
+        Date from = Date.valueOf(fromLD);
+        Date to   = Date.valueOf(toLD);
+
+        try {
+            SimpleClient.getClient().sendToServer(
+                    new QuarterlyRevenueReportRequest(from, to, branchId)
+            );
+            System.out.println("[SEND] QuarterlyRevenueReportRequest(from=" + from + ", to=" + to + ", branchId=" + branchId + ")");
+        } catch (IOException ex) {
+            System.err.println("[ERROR] QuarterlyRevenueReportRequest failed: " + ex.getMessage());
+            new Alert(Alert.AlertType.ERROR, "Could not request Quarterly Revenue Report:\n" + ex.getMessage()).showAndWait();
         }
+    }
 
-        // Fallback
+    private void requestOrdersByType(int branchId) {
+        LocalDate toLD   = LocalDate.now();
+        LocalDate fromLD = toLD.minusMonths(3);
+
+        Date from = Date.valueOf(fromLD);
+        Date to   = Date.valueOf(toLD);
+        try {
+            SimpleClient.getClient().sendToServer(new OrdersByProductTypeReportRequest(from,to,branchId));
+            System.out.println("[SEND] OrdersByProductTypeReportRequest(branchId=" + branchId + ")");
+        } catch (IOException ex) {
+            System.err.println("[ERROR] OrdersByProductTypeReportRequest failed: " + ex.getMessage());
+            new Alert(Alert.AlertType.ERROR, "Could not request Orders by Type Report:\n" + ex.getMessage()).showAndWait();
+        }
+    }
+
+    private static String formatCurrency(double value) {
+        // Simple IL shekel formatting without locale headaches
+        return "₪" + String.format("%,.2f", value);
+    }
+
+    // Your existing mapping is fine; keeping here for completeness
+    private int branchNameToId(String s) {
+        if (s == null) return 0;
+        s = s.toLowerCase();
+        if (s.startsWith("network")) return 0;
+        if (s.startsWith("haifa"))   return 1;
+        if (s.startsWith("eilat"))   return 2;
+        if (s.startsWith("tel aviv") || s.startsWith("telaviv")) return 3;
         return 0;
     }
-
 
     @Subscribe
     public void onQuarterlyRevenueReport(QuarterlyRevenueReportResponse resp) {
         Platform.runLater(() -> {
-            StringBuilder sb = new StringBuilder("Quarter | Revenue\n");
-            for (var row : resp.getRows()) {
-                sb.append(String.format("Y%d Q%d : ₪%.2f%n", row.getYear(), row.getQuarter(), row.getRevenue()));
+            var rows = (resp != null && resp.getRows() != null) ? resp.getRows() : List.<QuarterlyRevenueReportResponse.Row>of();
+
+            // Optional: sort by Year, Quarter
+            rows.sort(java.util.Comparator
+                    .comparingInt(QuarterlyRevenueReportResponse.Row::getYear)
+                    .thenComparingInt(QuarterlyRevenueReportResponse.Row::getQuarter));
+
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.format("%-8s | %-8s | %s%n", "Year", "Quarter", "Revenue (₪)"));
+            sb.append("------------------------------------------\n");
+
+            double total = 0.0;
+            for (var row : rows) {
+                total += row.getRevenue();
+                sb.append(String.format("%-8d | %-8d | %s%n",
+                        row.getYear(),
+                        row.getQuarter(),
+                        formatCurrency(row.getRevenue())));
             }
+            sb.append("------------------------------------------\n");
+            sb.append(String.format("%-19s %s%n", "Total:", formatCurrency(total)));
+
+            var textArea = new TextArea(sb.toString());
+            textArea.setEditable(false);
+            textArea.setWrapText(false);
+            textArea.setFont(Font.font("monospaced"));
+
             Alert a = new Alert(Alert.AlertType.INFORMATION);
             a.setTitle("Quarterly Revenue Report");
-            a.setHeaderText("Last 12 months");
-            a.setContentText(sb.toString());
-            a.getDialogPane().setExpandableContent(new TextArea(sb.toString()));
+            a.setHeaderText(rows.isEmpty() ? "No data in range" : "Last 12 months (by quarter)");
+            a.getDialogPane().setContent(textArea);
+            a.setResizable(true);
             a.showAndWait();
         });
     }
+
     @Subscribe
     public void onOrdersByProductTypeReport(OrdersByProductTypeReportResponse response) {
         Platform.runLater(() -> {
-            StringBuilder sb = new StringBuilder();
-            sb.append(String.format("%-20s | %-15s | %s\n", "Product Type", "Orders Count", "Total Quantity"));
-            sb.append("----------------------------------------------------------\n");
+            var rows = (response != null && response.getRows() != null) ? response.getRows() : List.<OrdersByProductTypeReportResponse.Row>of();
 
-            if (response.getRows().isEmpty()) {
+            // Optional: sort by orders desc, then product name
+            rows.sort(java.util.Comparator
+                    .comparingLong(OrdersByProductTypeReportResponse.Row::getOrders).reversed()
+                    .thenComparing(OrdersByProductTypeReportResponse.Row::getProductType, String.CASE_INSENSITIVE_ORDER));
+
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.format("%-24s | %12s | %14s | %14s%n",
+                    "Product Type", "Orders", "Total Qty", "Total (₪)"));
+            sb.append("--------------------------------------------------------------------------\n");
+
+            long totalOrders = 0;
+            long totalQty    = 0;
+            double totalSum  = 0.0;
+
+            if (rows.isEmpty()) {
                 sb.append("No order data found for the selected period.");
             } else {
-                for (OrdersByProductTypeReportResponse.Row row : response.getRows()) {
-                    sb.append(String.format("%-20s | %-15d | %d\n",
+                for (var row : rows) {
+                    totalOrders += row.getOrders();
+                    totalQty    += row.getQuantity();
+                    totalSum    += row.getTotal();
+                    sb.append(String.format("%-24s | %12d | %14d | %14s%n",
                             row.getProductType(),
                             row.getOrders(),
-                            row.getQuantity()));
+                            row.getQuantity(),
+                            formatCurrency(row.getTotal())));
                 }
+                sb.append("--------------------------------------------------------------------------\n");
+                sb.append(String.format("%-24s | %12d | %14d | %14s%n",
+                        "TOTAL",
+                        totalOrders,
+                        totalQty,
+                        formatCurrency(totalSum)));
             }
+
+            TextArea textArea = new TextArea(sb.toString());
+            textArea.setEditable(false);
+            textArea.setWrapText(false);
+            textArea.setFont(Font.font("monospaced"));
 
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setTitle("Orders by Product Type Report");
             alert.setHeaderText("Report for the last 3 months");
-
-            // Use a TextArea for better formatting and scrolling
-            TextArea textArea = new TextArea(sb.toString());
-            textArea.setEditable(false);
-            textArea.setWrapText(false);
-            textArea.setFont(Font.font("monospaced")); // Use a monospaced font for alignment
-
             alert.getDialogPane().setContent(textArea);
             alert.setResizable(true);
             alert.showAndWait();
         });
     }
+
     @Subscribe
     public void onGetAllBranchesResponse(GetAllBranchesResponse response) {
         Platform.runLater(() -> {
@@ -2831,4 +2915,5 @@ public class SecondaryController {
             histogramStage.show();
         });
     }
+
 }
