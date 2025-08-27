@@ -290,6 +290,14 @@ public class SecondaryController {
     @FXML
     private Label DiscountLabel;
 
+    @FXML
+    private HBox branchSelectorBox;
+
+    @FXML
+    private Label managerScopeLabel;
+
+    @FXML
+    private ComboBox<Branch> branchSelectorComboBox;
 
     // ====================================
 
@@ -350,6 +358,39 @@ public class SecondaryController {
 
     public Map<Flower, Integer> getCartMap() {
         return cartMap;
+    }
+    private void setupManagerUI() {
+        // Make sure the account object is available
+        if (account == null) {
+            return;
+        }
+
+        String accountLevel = account.getAccountLevel();
+
+        // Logic for Branch Manager
+        if ("Branch Manager".equalsIgnoreCase(accountLevel)) {
+            branchSelectorBox.setVisible(true);      // Show the HBox container
+            managerScopeLabel.setVisible(true);      // Show the label
+            branchSelectorComboBox.setVisible(false); // Hide the dropdown
+
+            if (account.getBranch() != null) {
+                managerScopeLabel.setText("Reports for: " + account.getBranch().getName());
+            } else {
+                managerScopeLabel.setText("Error: No branch assigned!");
+            }
+        }
+        // Logic for Network Manager
+        else if ("Network Manager".equalsIgnoreCase(accountLevel)) {
+            branchSelectorBox.setVisible(true);         // Show the HBox container
+            managerScopeLabel.setVisible(false);        // Hide the label
+            branchSelectorComboBox.setVisible(true);    // Show the dropdown
+
+            // We will populate this dropdown in the next step
+        }
+        // Hide for all other roles
+        else {
+            branchSelectorBox.setVisible(false);
+        }
     }
 
     public void addOrderToHistory(OrderSQL order) {
@@ -703,6 +744,7 @@ public class SecondaryController {
     public void onSetAccountLevel(SetAccountLevel event) {
         javafx.application.Platform.runLater(()-> {
             account = event.getAccount();
+            setupManagerUI();
             Guest = account == null;
             if(!Guest) {
                 System.out.println("Received sticky event for role: " + event.getAccount().getAccountLevel());

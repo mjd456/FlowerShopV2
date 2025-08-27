@@ -19,6 +19,4 @@ public class LoginRequest implements Serializable {
     public String getPassword() {
         return password;
     }
-
-    // Optionally setters if needed
 }

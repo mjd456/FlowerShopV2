@@ -1389,6 +1389,15 @@ public class SimpleServer extends AbstractServer {
 				if (session != null) session.close();
 			}
 		}
+		else if (msg instanceof GetAllBranchesRequest) {
+			try (Session s = sessionFactory.openSession()) {
+				List<Branch> branches = s.createQuery("FROM Branch", Branch.class).list();
+				client.sendToClient(new GetAllBranchesResponse(branches));
+				System.out.println("Sent list of all branches to client.");
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}
