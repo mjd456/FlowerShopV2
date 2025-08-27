@@ -41,6 +41,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.Pair;
+import javafx.util.StringConverter;
 import javafx.util.converter.DefaultStringConverter;
 import javafx.util.converter.NumberStringConverter;
 import javassist.Loader;
@@ -766,6 +767,8 @@ public class SecondaryController {
                         ManagerCatalogSelectorVbox.getChildren().clear();
                     }
                 });
+                BranchComboBox.setDisable(true);
+                BranchComboBox.setVisible(false);
             });
         }
         else if ("CustomerService".equalsIgnoreCase(role)) {
@@ -2613,64 +2616,47 @@ public class SecondaryController {
         App.notifySecondaryReady();
     }
     @FXML
-    void onGenerateReport(ActionEvent event) {
-        String selectedReport = reportTypeComboBox.getValue();
-        if (selectedReport == null) {
-            System.err.println("No report type selected.");
-            return;
+    void onGenerateReport(ActionEvent e) {
+        String report = BranchComboBox.getValue();
+        if (report == null) { System.err.println("Pick a report type."); return; }
+
+        int branchId = 0; // default -> Network
+
+        String lvl = account != null ? account.getAccountLevel() : null;
+        if ("BranchManager".equalsIgnoreCase(lvl)) {
+            Branch my = account.getBranch();
+            branchId = (my != null) ? my.getId() : 0;
+        } else if ("NetworkManager".equalsIgnoreCase(lvl)) {
+            String selected = BranchComboBox.getValue();  // <Branch> object
+            branchId =  branchNameToId(selected);
+        } else {
+            String selected = BranchComboBox.getValue();
+            branchId =  branchNameToId(selected);
         }
 
-        int branchId = 0; // Default to "All Network"
-// Normalize role string once
-        String accountLevel = account.getAccountLevel()
-                .replaceAll("\\s+", "")  // remove spaces
-                .toLowerCase();
-
-        if (accountLevel.equals("BranchManager")) {
-            if (account.getBranch() != null) {
-                branchId = account.getBranch().getId();
-            }
-        } else if (accountLevel.equals("NetworkManager")) {
-            Branch selectedBranch = branchSelectorComboBox.getValue();
-            if (selectedBranch != null) {
-                branchId = selectedBranch.getId(); // 0 for "All Network"
-            } else {
-                System.err.println("Network Manager has not selected a branch.");
-                return;
-            }
-        }
-
-
-        try {
-            java.sql.Date fromDate;
-            java.sql.Date toDate;
-
-            switch (selectedReport) {
-                case "Quarterly Revenue Report":
-                    fromDate = java.sql.Date.valueOf(LocalDate.now().minusMonths(12));
-                    toDate = java.sql.Date.valueOf(LocalDate.now());
-                    SimpleClient.getClient().sendToServer(new QuarterlyRevenueReportRequest(fromDate, toDate, branchId));
-                    System.out.println("Quarterly revenue report requested for branch ID: " + branchId);
-                    break;
-
-                case "Orders by Type Report":
-                    fromDate = java.sql.Date.valueOf(LocalDate.now().minusMonths(3));
-                    toDate = java.sql.Date.valueOf(LocalDate.now());
-                    SimpleClient.getClient().sendToServer(new OrdersByProductTypeReportRequest(fromDate, toDate, branchId));
-                    System.out.println("Orders by Product Type report requested for branch ID: " + branchId);
-                    break;
-
-                case "Complaints Report":
-                    fromDate = java.sql.Date.valueOf(LocalDate.now().minusMonths(1));
-                    toDate = java.sql.Date.valueOf(LocalDate.now());
-                    SimpleClient.getClient().sendToServer(new ComplaintsHistogramReportRequest(fromDate, toDate, branchId));
-                    System.out.println("Complaints Report requested for branch ID: " + branchId);
-                    break;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        System.out.println("Using branchId = " + branchId);
+        // ... send the appropriate request with branchId
     }
+
+    private int branchNameToId(String s) {
+        if (s == null) return 0; // default -> Network
+
+        s = s.toLowerCase();
+
+        if (s.startsWith("network")) {
+            return 0;
+        } else if (s.startsWith("haifa")) {
+            return 1;
+        } else if (s.startsWith("eilat")) {
+            return 2;
+        } else if (s.startsWith("tel aviv") || s.startsWith("telaviv")) {
+            return 3;
+        }
+
+        // Fallback
+        return 0;
+    }
+
 
     @Subscribe
     public void onQuarterlyRevenueReport(QuarterlyRevenueReportResponse resp) {
@@ -2725,31 +2711,60 @@ public class SecondaryController {
         Platform.runLater(() -> {
             List<Branch> branches = response.getBranches();
 
-            // Create a special "Branch" object to represent the "All Network" option
-            Branch allNetworkOption = new Branch("All Network");
+            // Special "Network" option -> id = 0
+            Branch network = new Branch();
+            network.setId(0);
+            network.setName("Network");
 
-            // Clear previous items and add the new list
-            branchSelectorComboBox.getItems().clear();
-            branchSelectorComboBox.getItems().add(allNetworkOption); // Add "All Network" first
-            branchSelectorComboBox.getItems().addAll(branches);
+            var items = FXCollections.<Branch>observableArrayList();
+            items.add(network);
+            items.addAll(branches);
+            branchSelectorComboBox.setItems(items);
 
-            // Set the display text for each item in the ComboBox
-            branchSelectorComboBox.setConverter(new javafx.util.StringConverter<Branch>() {
-                @Override
-                public String toString(Branch branch) {
-                    return (branch == null) ? "" : branch.getName();
+            // Show: "Haifa Branch (1)" etc.
+            branchSelectorComboBox.setConverter(new StringConverter<Branch>() {
+                @Override public String toString(Branch b) {
+                    return (b == null) ? "" : (b.getId() == 0 ? b.getName() : b.getName() + " Branch (" + b.getId() + ")");
                 }
-
-                @Override
-                public Branch fromString(String string) {
-                    return null; // Not needed
+                @Override public Branch fromString(String s) { return null; }
+            });
+            branchSelectorComboBox.setCellFactory(cb -> new ListCell<>() {
+                @Override protected void updateItem(Branch b, boolean empty) {
+                    super.updateItem(b, empty);
+                    setText(empty || b == null ? "" : (b.getId() == 0 ? b.getName() : b.getName() + " Branch (" + b.getId() + ")"));
                 }
             });
 
-            // Select the "All Network" option by default
-            branchSelectorComboBox.setValue(allNetworkOption);
+            // Default selection: Network Managers -> Network; Branch Managers -> their own branch
+            String lvl = account != null ? account.getAccountLevel() : null;
+            if ("NetworkManager".equalsIgnoreCase(lvl)) {
+                branchSelectorComboBox.getSelectionModel().select(network);
+                branchSelectorComboBox.setDisable(false);
+            } else if ("BranchManager".equalsIgnoreCase(lvl) || "Branch Manager".equalsIgnoreCase(lvl)) {
+                Branch my = account != null ? account.getBranch() : null;
+                if (my != null) {
+                    // select the matching object from items (same id)
+                    items.stream().filter(b -> b.getId() == my.getId()).findFirst()
+                            .ifPresent(b -> branchSelectorComboBox.getSelectionModel().select(b));
+                } else {
+                    branchSelectorComboBox.getSelectionModel().select(network);
+                }
+                // Lock selection for branch managers
+                branchSelectorComboBox.setDisable(true);
+            } else {
+                // Other roles: select Network by default
+                branchSelectorComboBox.getSelectionModel().select(network);
+            }
+
+            // Safety net: keep a selection if items ever refresh
+            branchSelectorComboBox.getSelectionModel().selectedItemProperty().addListener((o, oldV, newV) -> {
+                if (newV == null && !branchSelectorComboBox.getItems().isEmpty()) {
+                    branchSelectorComboBox.getSelectionModel().selectFirst();
+                }
+            });
         });
     }
+
     @Subscribe
     public void onComplaintsHistogramReport(ComplaintsHistogramReportResponse response) {
         Platform.runLater(() -> {
