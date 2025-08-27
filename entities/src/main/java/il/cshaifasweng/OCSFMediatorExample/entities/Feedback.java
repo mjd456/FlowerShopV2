@@ -6,7 +6,7 @@ public class Feedback implements Serializable {
     private Account account;
     private String feedbackTtitle;
     private String feedbackTdesc;
-    private String branch;  // 👈 add branch
+    private String branch;
 
     public Feedback(Account account, String feedbackTtitle, String feedbackTdesc, String branch) {
         this.account = account;

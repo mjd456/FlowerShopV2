@@ -42,10 +42,13 @@ public class Flower implements Serializable {
     @Column(name = "Supply_TelAviv", nullable = false)
     private int supplyTelAviv = 0;
 
+    @Column(name = "Storage", nullable = false)
+    private int storage;
+
     @PreUpdate
     @PrePersist
     public void syncSupply() {
-        this.supply = supplyHaifa + supplyEilat + supplyTelAviv;
+        this.supply = storage + supplyHaifa + supplyEilat + supplyTelAviv;
     }
 
 
@@ -54,7 +57,7 @@ public class Flower implements Serializable {
     public Flower() {}
 
     public Flower(String name, String color, String description, String imageId,
-                  double price, int supply, int supplyHaifa, int supplyEilat, int supplyTelAviv) {
+                  double price, int supply, int supplyHaifa, int supplyEilat, int supplyTelAviv,int storage) {
         this.name = name;
         this.color = color;
         this.description = description;
@@ -65,6 +68,7 @@ public class Flower implements Serializable {
         this.supplyEilat = supplyEilat;
         this.supplyTelAviv = supplyTelAviv;
         this.popularity = 0;
+        this.storage = storage;
     }
 
     // ----- Getters and Setters -----
@@ -75,6 +79,7 @@ public class Flower implements Serializable {
             case "Haifa": return supplyHaifa;
             case "Eilat": return supplyEilat;
             case "Tel Aviv": return supplyTelAviv;
+            case "Storage": return storage;
             default: return 0;
         }
     }
@@ -163,5 +168,8 @@ public class Flower implements Serializable {
 
     public int getSupplyTelAviv() { return supplyTelAviv; }
     public void setSupplyTelAviv(int supplyTelAviv) { this.supplyTelAviv = supplyTelAviv; }
+
+    public int getStorage() { return storage; }
+    public void setStorage(int storage) { this.storage = Math.max(0, storage); }
 
 }

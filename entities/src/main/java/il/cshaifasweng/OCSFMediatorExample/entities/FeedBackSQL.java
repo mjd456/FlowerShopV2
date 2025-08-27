@@ -19,12 +19,13 @@ public class FeedBackSQL implements Serializable {
     @Column(name = "title", nullable = false)
     private String title;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "branch", foreignKey = @ForeignKey(name = "fk_feedback_branch"))
+    private Branch branch;
+
     @Column(name = "details", nullable = false, columnDefinition="TEXT")
     private String details;
 
-    // 🔹 New column for branch
-    @Column(name = "branch", nullable = false)
-    private String branch;
 
     @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
@@ -44,20 +45,12 @@ public class FeedBackSQL implements Serializable {
 
     public FeedBackSQL() {}
 
-    public FeedBackSQL(Account account, String title, String details, String branch) {
+    public FeedBackSQL(Account account, String title, String details, Branch branch) {
         this.account = account;
         this.title = title;
         this.details = details;
-        this.branch = branch;  // 👈 include branch
         this.status = FeedbackStatus.Pending;
         this.submittedAt = LocalDateTime.now();
-    }
-
-    // Getters and setters
-    public String getBranch() {
-        return branch;
-    }
-    public void setBranch(String branch) {
         this.branch = branch;
     }
 
@@ -113,5 +106,13 @@ public class FeedBackSQL implements Serializable {
 
     public void setResolvedAt(LocalDateTime resolvedAt) {
         this.resolvedAt = resolvedAt;
+    }
+
+    public Branch getBranch() {
+        return branch;
+    }
+
+    public void setBranch(Branch branch) {
+        this.branch = branch;
     }
 }

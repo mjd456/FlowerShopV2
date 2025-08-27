@@ -79,9 +79,7 @@
 
                      <Button fx:id="PushFeedBack" layoutX="486.0" layoutY="288.0" onAction="#SendFeedBack" text="Send feedback" />
 
-                     <Label fx:id="FeedBackLabelText" alignment="CENTER" contentDisplay="CENTER"
-                            layoutX="21.0" layoutY="285.0" prefHeight="57.0" prefWidth="455.0"
-                            text="[Message]" visible="false" />
+                     <Label fx:id="FeedBackLabelText" alignment="CENTER" contentDisplay="CENTER" layoutX="21.0" layoutY="285.0" prefHeight="57.0" prefWidth="455.0" text="[Message]" visible="false" />
                   </children>
 
                </AnchorPane>
@@ -324,15 +322,15 @@
                                  <Label alignment="CENTER_RIGHT" layoutX="129.0" layoutY="375.0" prefHeight="32.0" prefWidth="100.0" text="Flower name :" />
                                  <Label alignment="CENTER_RIGHT" layoutX="129.0" layoutY="407.0" prefHeight="32.0" prefWidth="100.0" text="Color :" />
                                  <Label alignment="CENTER_RIGHT" layoutX="128.0" layoutY="437.0" prefHeight="32.0" prefWidth="100.0" text="Price :" />
-                                 <Label alignment="CENTER_RIGHT" layoutX="127.0" layoutY="469.0" prefHeight="32.0" prefWidth="100.0" text="Haifa Supply :" />
-                                 <Label alignment="CENTER_RIGHT" layoutX="32.0" layoutY="564.0" prefHeight="32.0" prefWidth="100.0" text="Description :" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="22.0" layoutY="467.0" prefHeight="32.0" prefWidth="100.0" text="Haifa Supply :" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="32.0" layoutY="533.0" prefHeight="32.0" prefWidth="100.0" text="Description :" />
                                  <TextField fx:id="NewFlowerName" layoutX="229.0" layoutY="378.0" promptText="Name" />
                                  <TextField fx:id="NewFlowerColor" layoutX="229.0" layoutY="410.0" promptText="Color" />
                                  <TextField fx:id="NewFlowerPrice" layoutX="229.0" layoutY="442.0" promptText="Price" />
-                                 <TextField fx:id="NewHaifaFlowerSupply" layoutX="229.0" layoutY="474.0" promptText="Amount in Haifa storage" />
-                                 <Label layoutX="115.0" layoutY="677.0" text="Note : To add a picture for the flower you need to access database." />
-                                 <TextArea fx:id="NewFlowerDesc" layoutX="135.0" layoutY="572.0" prefHeight="105.0" prefWidth="342.0" promptText="Ex. Flower looks in weddings..." />
-                                 <Button fx:id="AddNewFlower" layoutX="490.0" layoutY="652.0" mnemonicParsing="false" onAction="#RequestToAddNewFlower" prefHeight="25.0" prefWidth="84.0" text="Add" />
+                                 <TextField fx:id="NewHaifaFlowerSupply" layoutX="124.0" layoutY="472.0" promptText="Amount in Haifa storage" />
+                                 <Label layoutX="115.0" layoutY="646.0" text="Note : To add a picture for the flower you need to access database." />
+                                 <TextArea fx:id="NewFlowerDesc" layoutX="135.0" layoutY="541.0" prefHeight="105.0" prefWidth="342.0" promptText="Ex. Flower looks in weddings..." />
+                                 <Button fx:id="AddNewFlower" layoutX="490.0" layoutY="621.0" mnemonicParsing="false" onAction="#RequestToAddNewFlower" prefHeight="25.0" prefWidth="84.0" text="Add" />
                                  <VBox alignment="CENTER" layoutY="700.0" prefWidth="585.0" spacing="15.0">
                                     <children>
                                        <Label text="Reports" underline="true">
@@ -361,10 +359,12 @@
                                        <TableColumn fx:id="colRevenue" prefWidth="195.0" text="Column 3" />
                                     </columns>
                                  </TableView>
-                                 <Label alignment="CENTER_RIGHT" layoutX="127.0" layoutY="501.0" prefHeight="32.0" prefWidth="100.0" text="Eilat Supply :" />
-                                 <TextField fx:id="NewEilatFlowerSupply" layoutX="229.0" layoutY="506.0" promptText="Amount in Eilat storage" />
-                                 <Label alignment="CENTER_RIGHT" layoutX="127.0" layoutY="533.0" prefHeight="32.0" prefWidth="100.0" text="TelAviv Supply :" />
-                                 <TextField fx:id="NewTelAvivFlowerSupply" layoutX="229.0" layoutY="538.0" promptText="Amount in TelAviv storage" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="22.0" layoutY="499.0" prefHeight="32.0" prefWidth="100.0" text="Eilat Supply :" />
+                                 <TextField fx:id="NewEilatFlowerSupply" layoutX="124.0" layoutY="504.0" promptText="Amount in Eilat storage" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="281.0" layoutY="469.0" prefHeight="32.0" prefWidth="100.0" text="TelAviv Supply :" />
+                                 <TextField fx:id="NewTelAvivFlowerSupply" layoutX="383.0" layoutY="474.0" promptText="Amount in TelAviv storage" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="281.0" layoutY="501.0" prefHeight="32.0" prefWidth="100.0" text="Storage Supply :" />
+                                 <TextField fx:id="NewStorageSupply" layoutX="383.0" layoutY="506.0" promptText="Amount in storage" />
                               </children>
                            </Pane>
                         </content>

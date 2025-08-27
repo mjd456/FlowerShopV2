@@ -41,11 +41,17 @@ public class OrderSQL implements Serializable {
 
     @Column(name = "refund_amount")
     private Double refundAmount;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "pickup_branch", foreignKey = @ForeignKey(name = "fk_orders_pickup_branch"))
+    private Branch pickupBranch;
+
     // ===== Constructors =====
     public OrderSQL() {}
 
     public OrderSQL(Account account, Date deliveryDate, String deliveryTime,
-                 String status, String details, Double totalPrice, String address, String greetingText) {
+                    String status, String details, Double totalPrice,
+                    String address, String greetingText, Branch pickupBranch) {
         this.account = account;
         this.deliveryDate = deliveryDate;
         this.deliveryTime = deliveryTime;
@@ -55,6 +61,7 @@ public class OrderSQL implements Serializable {
         this.address = address;
         this.greetingText = greetingText;
         this.refundAmount = 0.0;
+        this.pickupBranch = pickupBranch;
     }
 
     // ===== Getters and Setters =====
@@ -88,5 +95,8 @@ public class OrderSQL implements Serializable {
     public Double getRefundAmount() { return refundAmount; }
 
     public void setRefundAmount(Double refundAmount) { this.refundAmount = refundAmount; }
+
+    public Branch getPickupBranch() { return pickupBranch; }
+    public void setPickupBranch(Branch pickupBranch) { this.pickupBranch = pickupBranch; }
 
 }

@@ -144,28 +144,16 @@ public class OrderDetailsController {
 
         boolean valid = true;
 
-        // Reset stars
+        // reset stars
         DateStar.setVisible(false);
         TimeStar.setVisible(false);
         AddressStar.setVisible(false);
 
-        if (date == null) {
-            DateStar.setVisible(true);
-            valid = false;
-        }
-        if (time == null || time.isEmpty()) {
-            TimeStar.setVisible(true);
-            valid = false;
-        }
-        if (!PickupRadio.isSelected() && address.isEmpty()) {
-            AddressStar.setVisible(true);
-            valid = false;
-        }
+        if (date == null) { DateStar.setVisible(true); valid = false; }
+        if (time == null || time.isEmpty()) { TimeStar.setVisible(true); valid = false; }
+        if (!PickupRadio.isSelected() && address.isEmpty()) { AddressStar.setVisible(true); valid = false; }
 
-        if (!valid) {
-            showWarning("Please fill in all required fields!");
-            return;
-        }
+        if (!valid) { showWarning("Please fill in all required fields!"); return; }
 
         var today = java.time.LocalDate.now();
         var nowTime = java.time.LocalTime.now();
@@ -181,48 +169,48 @@ public class OrderDetailsController {
             }
         }
 
-        // --- Branch validation for pickup ---
-        String pickupBranch = null;
+        // --- Branch validation & stock updates ---
+        String pickupBranchName = null;
+        int pickupBranchId = 0; // default for delivery
+
         if (PickupRadio.isSelected()) {
-            pickupBranch = BranchComboBox.getValue();
-            if (pickupBranch == null || pickupBranch.isEmpty()) {
+            pickupBranchName = BranchComboBox.getValue();
+            if (pickupBranchName == null || pickupBranchName.isEmpty()) {
                 showWarning("Please select a branch for pickup.");
                 return;
             }
 
-            // Check stock for this branch
+            pickupBranchId = mapBranchNameToId(pickupBranchName); // 1/2/3 based on name
+
+            // check stock at that branch
             for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
                 Flower flower = entry.getKey();
                 int requested = entry.getValue();
-
-                int available = flower.getSupply(pickupBranch);
+                int available = flower.getSupply(pickupBranchName);
                 if (requested > available) {
-                    showWarning("Branch " + pickupBranch + " does not have enough " + flower.getName() + ".");
+                    showWarning("Branch " + pickupBranchName + " does not have enough " + flower.getName() + ".");
                     return;
                 }
             }
 
-            // Reduce stock + sync with server
+            // reduce stock at that branch
             for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
                 Flower flower = entry.getKey();
                 int requested = entry.getValue();
-                flower.reduceSupply(pickupBranch, requested);
-
+                flower.reduceSupply(pickupBranchName, requested);
                 SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
             }
         } else {
-            // --- Delivery: reduce stock across all branches ---
+            // delivery: reduce across all branches (your existing strategy)
             for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
                 Flower flower = entry.getKey();
                 int requested = entry.getValue();
-
                 flower.reduceSupplyForDelivery(requested);
-
                 SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
             }
         }
 
-        // Prepare order details string
+        // details string
         StringBuilder details = new StringBuilder();
         for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
             details.append(entry.getKey().getName())
@@ -230,7 +218,14 @@ public class OrderDetailsController {
                     .append(entry.getValue())
                     .append(", ");
         }
+        if (details.length() > 2) details.setLength(details.length() - 2);
 
+        // addressOrPickup label (unchanged)
+        String addrOrPickup = PickupRadio.isSelected()
+                ? pickupBranchName + " Pickup"
+                : address;
+
+        // NOTE: last argument now uses the INT, not the name
         PlaceOrderRequest request = new PlaceOrderRequest(
                 cartMap,
                 customer,
@@ -239,8 +234,9 @@ public class OrderDetailsController {
                 status,
                 details.toString(),
                 totalPrice,
-                PickupRadio.isSelected() ? pickupBranch + " Pickup" : address,
-                greeting
+                addrOrPickup,
+                greeting,
+                pickupBranchId   // <-- int ID (0 for delivery)
         );
 
         SimpleClient.getClient().sendToServer(request);
@@ -251,6 +247,20 @@ public class OrderDetailsController {
         Stage stage = (Stage) GreetingField.getScene().getWindow();
         stage.close();
     }
+
+    /** Map branch display name to DB id. Defaults to 0 if unknown. */
+    private static int mapBranchNameToId(String name) {
+        if (name == null) return 0;
+        switch (name.trim().toLowerCase()) {
+            case "haifa":   return 1;
+            case "eilat":   return 2;
+            case "tel aviv":
+            case "telaviv":
+            case "tel-aviv": return 3;
+            default:        return 0;
+        }
+    }
+
 
 
 

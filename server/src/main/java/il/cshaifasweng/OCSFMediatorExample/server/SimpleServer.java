@@ -621,12 +621,10 @@ public class SimpleServer extends AbstractServer {
 			Session session = sessionFactory.openSession();
 			Transaction tx = null;
 
-			FeedBackSQL feedbackEntity = null;
-
 			try {
 				tx = session.beginTransaction();
 
-				// Always fetch the Account from the DB using the ID sent from the client
+				// 1) Load managed Account
 				int accountId = feedbackMsg.getAccount().getId();
 				Account account = session.get(Account.class, accountId);
 				if (account == null) {
@@ -635,25 +633,43 @@ public class SimpleServer extends AbstractServer {
 					return;
 				}
 
-				// Create the feedback entity with the managed Account instance
-				feedbackEntity = new FeedBackSQL(
+				// 2) Resolve Branch from the String (may be null/blank)
+				Branch branchEntity = null;
+				String branchName = feedbackMsg.getBranch(); // String from client
+				if (branchName != null && !branchName.isBlank()) {
+					String normalized = branchName.trim().toLowerCase();
+					// normalize common variants for Tel Aviv
+					if (normalized.equals("tel aviv") || normalized.equals("tel-aviv")) {
+						normalized = "telaviv";
+					}
+
+					// Find by name case-insensitively
+					branchEntity = session.createQuery(
+									"from Branch b where lower(b.name) = :name", Branch.class)
+							.setParameter("name", normalized)
+							.setMaxResults(1)
+							.uniqueResult();
+					// If not found, leave as null (optional: send warning back)
+				}
+
+				// 3) Create and persist feedback
+				FeedBackSQL feedbackEntity = new FeedBackSQL(
 						account,
 						feedbackMsg.getfeedbackTtitle(),
 						feedbackMsg.getfeedbackTdesc(),
-						feedbackMsg.getBranch()   //
+						branchEntity // <--- pass Branch, not String
 				);
-
 
 				session.save(feedbackEntity);
 
-				// Eager-load account fields that will be needed by clients
+				// touch needed lazy fields for clients
 				feedbackEntity.getAccount().getEmail();
 
 				tx.commit();
 				System.out.println("Feedback succeeded for account: " + accountId);
 				client.sendToClient("Feedback added successfully");
 
-				// SOFT UPDATE: Send only the new feedback to all customer service clients
+				// Notify listeners
 				NewFeedbackNotification notif = new NewFeedbackNotification(feedbackEntity);
 				sendToAllClients(notif);
 
@@ -669,6 +685,7 @@ public class SimpleServer extends AbstractServer {
 				session.close();
 			}
 		}
+
 		else if (msg instanceof GetUserFeedbacksRequest) {
 			GetUserFeedbacksRequest req = (GetUserFeedbacksRequest) msg;
 			int accountId = req.getAccountId();
@@ -1182,31 +1199,62 @@ public class SimpleServer extends AbstractServer {
 					refundMsg = "Your order was cancelled. According to shop policy, no refund is given for cancellation within 1 hour of delivery.";
 				}
 
-				// --- Restock flowers ---
-				String details = order.getDetails(); // e.g., "Rose x3, Lily x2,"
+// --- Restock flowers ---
+				String details = order.getDetails(); // e.g., "Rose x3, Lily x2"
+				Integer branchId = null; // null => delivery
+				if (order.getPickupBranch() != null && order.getPickupBranch() != null) {
+					branchId = order.getPickupBranch().getId(); // 1=Haifa, 2=Eilat, 3=TelAviv
+				}
+
 				if (details != null && !details.isBlank()) {
 					String[] parts = details.split(",");
 					for (String part : parts) {
 						part = part.trim();
 						if (part.isEmpty()) continue;
 
-						// Expected format: "Rose x3"
-						int xIdx = part.lastIndexOf("x");
-						if (xIdx > 0) {
-							String name = part.substring(0, xIdx).trim();
-							String qtyStr = part.substring(xIdx + 1).replaceAll("[^\\d]", "").trim();
-							int qty = qtyStr.isEmpty() ? 1 : Integer.parseInt(qtyStr);
+						int xIdx = part.lastIndexOf('x');
+						if (xIdx <= 0) continue;
 
-							// Find the flower by name
-							Query<Flower> flowerQuery = session.createQuery("from Flower where name = :name", Flower.class);
-							flowerQuery.setParameter("name", name);
-							Flower flower = flowerQuery.uniqueResult();
-							if (flower != null) {
-								flower.setSupply(flower.getSupply() + qty);
-								session.update(flower);
-								restockedFlowers.add(flower);
+						String name = part.substring(0, xIdx).trim();
+						String qtyStr = part.substring(xIdx + 1).replaceAll("[^\\d]", "").trim();
+						int qty = qtyStr.isEmpty() ? 1 : Integer.parseInt(qtyStr);
+						if (qty <= 0) continue;
+
+						// Find the flower by exact name
+						Flower flower = session.createQuery("from Flower where name = :name", Flower.class)
+								.setParameter("name", name)
+								.uniqueResult();
+
+						if (flower == null) continue;
+
+						// Restock by branch or storage
+						if (branchId != null && branchId > 0) {
+							switch (branchId) {
+								case 1: // Haifa
+									flower.setSupplyHaifa(flower.getSupplyHaifa() + qty);
+									break;
+								case 2: // Eilat
+									flower.setSupplyEilat(flower.getSupplyEilat() + qty);
+									break;
+								case 3: // TelAviv
+									flower.setSupplyTelAviv(flower.getSupplyTelAviv() + qty);
+									break;
+								default:
+									// Unknown branch id – be safe, drop into Storage
+									flower.setStorage(flower.getStorage() + qty);
+									break;
 							}
+						} else {
+							// Delivery: goes back to Storage
+							flower.setStorage(flower.getStorage() + qty);
 						}
+
+						// keep total supply consistent
+						int total = flower.getSupplyHaifa() + flower.getSupplyEilat() + flower.getSupplyTelAviv() + flower.getStorage();
+						flower.setSupply(total);
+
+						session.update(flower);
+						restockedFlowers.add(flower);
 					}
 				}
 				order.setStatus("canceled");
@@ -1256,17 +1304,14 @@ public class SimpleServer extends AbstractServer {
 			try {
 				tx = session.beginTransaction();
 
-				// 1. Check supply for real flowers only
+				// 1) Supply checks (kept as-is; consider enforcing per-branch if Pickup)
 				for (Map.Entry<Flower, Integer> entry : request.getCartMap().entrySet()) {
 					Flower clientFlower = entry.getKey();
 					int qty = entry.getValue();
 
-					if (clientFlower.getId() == 0) {
-						// Custom item → skip DB lookup (no supply to check)
-						continue;
-					}
+					if (clientFlower.getId() == 0) continue;
 
-					Flower flower = session.get(Flower.class, clientFlower.getId()); // get fresh from DB
+					Flower flower = session.get(Flower.class, clientFlower.getId());
 					if (flower == null) {
 						tx.rollback();
 						client.sendToClient(new PlaceOrderResponse(false,
@@ -1281,15 +1326,11 @@ public class SimpleServer extends AbstractServer {
 					}
 				}
 
-				// 2. Update supply & popularity for real flowers only
+				// 2) Update supply/popularity (kept as-is)
 				for (Map.Entry<Flower, Integer> entry : request.getCartMap().entrySet()) {
 					Flower clientFlower = entry.getKey();
 					int qty = entry.getValue();
-
-					if (clientFlower.getId() == 0) {
-						// Custom item → no supply update
-						continue;
-					}
+					if (clientFlower.getId() == 0) continue;
 
 					Flower flower = session.get(Flower.class, clientFlower.getId());
 					flower.setSupply(flower.getSupply() - qty);
@@ -1297,7 +1338,7 @@ public class SimpleServer extends AbstractServer {
 					session.update(flower);
 				}
 
-				// 3. Save order to DB
+				// 3) Save order to DB
 				Account managedAccount = session.get(Account.class, request.getCustomer().getId());
 				if (managedAccount == null) {
 					tx.rollback();
@@ -1313,10 +1354,16 @@ public class SimpleServer extends AbstractServer {
 							.append(entry.getValue())
 							.append(", ");
 				}
-				if (details.length() > 2) {
-					details.setLength(details.length() - 2);
+				if (details.length() > 2) details.setLength(details.length() - 2);
+
+				// NEW: resolve Branch from the request’s INT id (0 or null => delivery/no branch)
+				Branch pickup = null;
+				Integer branchId = request.getPickupBranchId();  // <<-- from your updated PlaceOrderRequest
+				if (branchId != null && branchId > 0) {
+					pickup = session.get(Branch.class, branchId); // null if not found
 				}
 
+				// Use the ctor that accepts Branch, or set via setter if you didn’t add that ctor
 				OrderSQL orderSQL = new OrderSQL(
 						managedAccount,
 						java.sql.Date.valueOf(request.getDate()),
@@ -1325,15 +1372,19 @@ public class SimpleServer extends AbstractServer {
 						details.toString(),
 						request.getTotalPrice(),
 						request.getAddressOrPickup(),
-						request.getGreeting()
+						request.getGreeting(),
+						pickup                    // <<-- persists to orders.pickup_branch
 				);
+				// If you don’t have that ctor, do:
+				// OrderSQL orderSQL = new OrderSQL(... without pickup ...);
+				// orderSQL.setPickupBranch(pickup);
+
 				orderSQL.setAccount(managedAccount);
 
 				session.save(orderSQL);
 				tx.commit();
 
-				client.sendToClient(new PlaceOrderResponse(true,
-						"Order placed and saved successfully!"));
+				client.sendToClient(new PlaceOrderResponse(true, "Order placed and saved successfully!"));
 			} catch (Exception e) {
 				if (tx != null) tx.rollback();
 				e.printStackTrace();
