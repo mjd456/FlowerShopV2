@@ -299,6 +299,9 @@ public class SecondaryController {
     @FXML
     private ComboBox<Branch> branchSelectorComboBox;
 
+    @FXML
+    private ComboBox<String> FeedBackBranch;
+
     // ====================================
 
     @FXML
@@ -1315,29 +1318,36 @@ public class SecondaryController {
         // Reset styles
         FeedBackTitle.setStyle("");
         FeedBackDetails.setStyle("");
+        FeedBackBranch.setStyle("");
 
         String title = FeedBackTitle.getText().trim();
         String details = FeedBackDetails.getText().trim();
+        String branch = FeedBackBranch.getValue(); // 👈 get selected branch
 
         // Validation
         if (title.isEmpty()) {
             FeedBackTitle.setStyle("-fx-border-color: red;");
             valid = false;
         }
-
         if (details.isEmpty()) {
             FeedBackDetails.setStyle("-fx-border-color: red;");
+            valid = false;
+        }
+        if (branch == null || branch.isEmpty()) {
+            FeedBackBranch.setStyle("-fx-border-color: red;");
             valid = false;
         }
 
         if (!valid) {
             FeedBackLabelText.setTextFill(Color.RED);
-            FeedBackLabelText.setText("Please fill all fields correctly.");
+            FeedBackLabelText.setText("Please fill all fields including branch.");
             FeedBackLabelText.setVisible(true);
             return;
         }
 
-        Feedback feedback = new Feedback(account, title, details);
+        // Assuming your Feedback entity has a constructor or setter for branch
+        Feedback feedback = new Feedback(account, title, details, branch);
+        feedback.setBranch(branch); // 👈 assign branch
 
         try {
             SimpleClient.getClient().sendToServer(feedback);
@@ -1345,13 +1355,16 @@ public class SecondaryController {
             e.printStackTrace();
         }
 
-        FeedBackLabelText.setVisible(false);
+        FeedBackLabelText.setTextFill(Color.GREEN);
+        FeedBackLabelText.setText("Feedback sent successfully!");
+        FeedBackLabelText.setVisible(true);
 
         // Clear inputs after sending
         FeedBackTitle.clear();
         FeedBackDetails.clear();
-
+        FeedBackBranch.getSelectionModel().clearSelection();
     }
+
 
     @FXML
     void CustomerServiceGatherInfo(Event event) {
@@ -2056,6 +2069,7 @@ public class SecondaryController {
         assert UnresolvedFeedbackVBOX != null : "fx:id=\"UnresolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
         assert UpdateNewCC != null : "fx:id=\"UpdateNewCC\" was not injected: check your FXML file 'secondary.fxml'.";
         assert UpgradingAccountError != null : "fx:id=\"UpgradingAccountError\" was not injected: check your FXML file 'secondary.fxml'.";
+        FeedBackBranch.setItems(FXCollections.observableArrayList("Haifa", "Tel Aviv", "Eilat"));
 
         instance = this;
 

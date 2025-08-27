@@ -639,8 +639,10 @@ public class SimpleServer extends AbstractServer {
 				feedbackEntity = new FeedBackSQL(
 						account,
 						feedbackMsg.getfeedbackTtitle(),
-						feedbackMsg.getfeedbackTdesc()
+						feedbackMsg.getfeedbackTdesc(),
+						feedbackMsg.getBranch()   //
 				);
+
 
 				session.save(feedbackEntity);
 

@@ -22,6 +22,10 @@ public class FeedBackSQL implements Serializable {
     @Column(name = "details", nullable = false, columnDefinition="TEXT")
     private String details;
 
+    // 🔹 New column for branch
+    @Column(name = "branch", nullable = false)
+    private String branch;
+
     @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
     private FeedbackStatus status;
@@ -40,15 +44,24 @@ public class FeedBackSQL implements Serializable {
 
     public FeedBackSQL() {}
 
-    public FeedBackSQL(Account account, String title, String details) {
+    public FeedBackSQL(Account account, String title, String details, String branch) {
         this.account = account;
         this.title = title;
         this.details = details;
+        this.branch = branch;  // 👈 include branch
         this.status = FeedbackStatus.Pending;
         this.submittedAt = LocalDateTime.now();
     }
 
     // Getters and setters
+    public String getBranch() {
+        return branch;
+    }
+    public void setBranch(String branch) {
+        this.branch = branch;
+    }
+
+    // ... keep existing getters/setters
 
     public int getFeedback_id() {
         return feedback_id;

@@ -68,13 +68,22 @@
             <content>
                <AnchorPane fx:id="FeedBackAnchor">
                   <children>
+                     <Label layoutX="20.0" layoutY="10.0" text="Branch :" />
+                     <ComboBox fx:id="FeedBackBranch" layoutX="80.0" layoutY="6.0" prefWidth="200.0" />
+
                      <Label layoutX="20.0" layoutY="36.0" text="Title :" />
                      <TextField fx:id="FeedBackTitle" layoutX="20.0" layoutY="53.0" prefHeight="25.0" prefWidth="560.0" />
+
                      <Label layoutX="21.0" layoutY="78.0" text="Details :" />
                      <TextArea fx:id="FeedBackDetails" layoutX="20.0" layoutY="96.0" prefHeight="180.0" prefWidth="560.0" wrapText="true" />
+
                      <Button fx:id="PushFeedBack" layoutX="486.0" layoutY="288.0" onAction="#SendFeedBack" text="Send feedback" />
-                     <Label fx:id="FeedBackLabelText" alignment="CENTER" contentDisplay="CENTER" layoutX="21.0" layoutY="285.0" prefHeight="57.0" prefWidth="455.0" text="[Message]" visible="false" />
+
+                     <Label fx:id="FeedBackLabelText" alignment="CENTER" contentDisplay="CENTER"
+                            layoutX="21.0" layoutY="285.0" prefHeight="57.0" prefWidth="455.0"
+                            text="[Message]" visible="false" />
                   </children>
+
                </AnchorPane>
             </content>
          </Tab>
