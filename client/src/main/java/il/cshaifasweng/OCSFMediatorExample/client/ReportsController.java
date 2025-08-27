@@ -48,20 +48,20 @@ public class ReportsController {
         LocalDate fromLd = dpFrom.getValue();
         LocalDate toLd   = dpTo.getValue();
         if (fromLd == null || toLd == null) {
-            showAlert("נא לבחור טווח תאריכים (מתאריך ועד תאריך).");
+            showAlert("Please select a date range (from and to).");
             return;
         }
-        // המרת LocalDate ל- java.util.Date
+
         Date from = Date.from(fromLd.atStartOfDay(ZoneId.systemDefault()).toInstant());
         Date to   = Date.from(toLd.atStartOfDay(ZoneId.systemDefault()).toInstant());
 
         try {
-            QuarterlyRevenueReportRequest req = new QuarterlyRevenueReportRequest(from, to);
+            QuarterlyRevenueReportRequest req = new QuarterlyRevenueReportRequest(from, to, 0);
 
             SimpleClient.getClient().sendToServer(req);
         } catch (Exception e) {
             e.printStackTrace();
-            showAlert("שגיאה בשליחת הבקשה לשרת.");
+            showAlert("Error sending request to the server.");
         }
     }
 
