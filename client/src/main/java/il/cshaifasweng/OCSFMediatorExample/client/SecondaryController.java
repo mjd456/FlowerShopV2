@@ -2624,7 +2624,7 @@ public class SecondaryController {
 // Normalize role string once
         String accountLevel = account.getAccountLevel()
                 .replaceAll("\\s+", "")  // remove spaces
-                .toLowerCase();          // case insensitive
+                .toLowerCase();
 
         if (accountLevel.equals("BranchManager")) {
             if (account.getBranch() != null) {
