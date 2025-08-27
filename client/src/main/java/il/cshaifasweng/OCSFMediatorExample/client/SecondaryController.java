@@ -3,6 +3,7 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
@@ -41,6 +42,7 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.Pair;
 import javafx.util.converter.DefaultStringConverter;
+import javafx.util.converter.NumberStringConverter;
 import javassist.Loader;
 import org.greenrobot.eventbus.EventBus;
 
@@ -335,7 +337,14 @@ public class SecondaryController {
     private TableColumn<Account, String> sub;
 
     @FXML
+    private TableColumn<Account, String> accountLevel;
+
+    @FXML
+    private TableColumn<Account, String> branchID;
+
+    @FXML
     private AnchorPane window;
+
 
     @FXML private TableView<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row> QuarterlyTable;
     @FXML private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colYear;
@@ -2233,6 +2242,17 @@ public class SecondaryController {
         this.sub.setCellValueFactory((cellData) ->{
             return new SimpleStringProperty(((Account)cellData.getValue()).getSubscribtion_level());
         });
+        this.accountLevel.setCellValueFactory((cellData) ->{
+            return new SimpleStringProperty(((Account)cellData.getValue()).getAccountLevel());
+        });
+        this.branchID.setCellValueFactory((cellData) ->{
+            Branch b = ((Account)cellData.getValue()).getBranch();
+            int id = 0;
+            if(b != null)
+                id = b.getId();
+
+            return new SimpleStringProperty("" + id);
+        });
 
         this.name.setCellFactory((col) -> {
             return new TextFieldTableCell(new DefaultStringConverter());
@@ -2361,6 +2381,43 @@ public class SecondaryController {
             String newCreditCard = (String)event.getNewValue();
             if (!newCreditCard.equals(account.getCreditCardNumber())){
                 account.setCreditCardNumber(newCreditCard);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        this.accountLevel.setCellFactory((col) -> {
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.accountLevel.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String accountLevel = (String)event.getNewValue();
+            if (!accountLevel.equals(account.getAccountLevel())){
+                account.setAccountLevel(accountLevel);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        this.branchID.setCellFactory((col) ->{
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.branchID.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            int branchID = Integer.parseInt((String) event.getNewValue());
+            Branch b = account.getBranch();
+            if(b == null){
+                b = new Branch();
+                b.setId(-1);
+                account.setBranch(b);
+            }
+            if (!(branchID == b.getId())){
+                b.setId(branchID);
                 try {
                     SimpleClient.getClient().sendToServer(account);
                 } catch (IOException e) {

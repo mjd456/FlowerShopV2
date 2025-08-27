@@ -18,7 +18,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox spacing="0" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.SecondaryController">
+<VBox spacing="0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.SecondaryController">
 
    <!-- Custom Title Bar -->
    <HBox fx:id="CustomTitleBar" prefHeight="36.0" spacing="10" style="-fx-background-color: #202228; -fx-padding: 6 12 6 12; -fx-alignment: CENTER_LEFT;">
@@ -379,13 +379,15 @@
                   <children>
                      <TableView fx:id="accountTable" prefHeight="374.0" prefWidth="600.0">
                        <columns>
-                         <TableColumn fx:id="name" prefWidth="75.0" text="Name" />
-                         <TableColumn fx:id="email" prefWidth="75.0" text="Email" />
+                         <TableColumn fx:id="name" text="Name" />
+                         <TableColumn fx:id="email" prefWidth="71.20001220703125" text="Email" />
                            <TableColumn fx:id="password" prefWidth="75.0" text="Password" />
-                           <TableColumn fx:id="id" prefWidth="75.0" text="ID" />
-                           <TableColumn fx:id="creditCard" prefWidth="75.0" text="Credit Card" />
-                           <TableColumn fx:id="phone" prefWidth="92.79998779296875" text="Phone" />
-                           <TableColumn fx:id="sub" prefWidth="130.39996337890625" text="Subscribtion" />
+                           <TableColumn fx:id="id" prefWidth="48.7999267578125" text="ID" />
+                           <TableColumn fx:id="creditCard" prefWidth="85.5999755859375" text="Credit Card" />
+                           <TableColumn fx:id="phone" prefWidth="84.79998779296875" text="Phone" />
+                           <TableColumn fx:id="sub" text="Subscribtion" />
+                           <TableColumn fx:id="accountLevel" prefWidth="74.39996337890625" text="AccountLevel" />
+                           <TableColumn fx:id="branchID" prefWidth="74.39996337890625" text="branchID" />
                        </columns>
                      </TableView>
                   </children>
