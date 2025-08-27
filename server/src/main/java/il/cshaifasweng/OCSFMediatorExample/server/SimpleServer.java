@@ -717,17 +717,26 @@ public class SimpleServer extends AbstractServer {
 			System.out.println("Received QuarterlyRevenueReportRequest for branch ID: " + req.getBranchId());
 
 			try (Session s = sessionFactory.openSession()) {
-				String hql = "SELECT YEAR(o.deliveryDate), QUARTER(o.deliveryDate), SUM(COALESCE(o.totalPrice, 0) - COALESCE(o.refundAmount, 0)) " +
+				String hql = "SELECT YEAR(o.deliveryDate), QUARTER(o.deliveryDate), " +
+						"SUM(COALESCE(o.totalPrice, 0) - COALESCE(o.refundAmount, 0)) " +
 						"FROM OrderSQL o " +
-						"WHERE o.deliveryDate BETWEEN :from AND :to ";
+						"WHERE o.status = 'delivered' " + // ✅ only delivered
+						"AND o.deliveryDate BETWEEN :from AND :to ";
 
-				if (req.getBranchId() > 0) { // If a specific branch is requested
-					// CORRECTED PATH: o.account.branch.id
-					hql += "AND o.account.branch.id = :branchId ";
+				if (req.getBranchId() > 0) {
+					hql += "AND o.pickupBranch = :branchId ";
 				}
 
-				hql += "GROUP BY YEAR(o.deliveryDate), QUARTER(o.deliveryDate) " +
-						"ORDER BY YEAR(o.deliveryDate), QUARTER(o.deliveryDate)";
+				if (req.getBranchId() > 0) {
+					hql += "AND o.pickupBranch = :branchId " +
+							"GROUP BY YEAR(o.deliveryDate), QUARTER(o.deliveryDate) " +
+							"ORDER BY YEAR(o.deliveryDate), QUARTER(o.deliveryDate)";
+				} else {
+					// Network (all branches) → group by year+quarter only
+					hql += "GROUP BY YEAR(o.deliveryDate), QUARTER(o.deliveryDate) " +
+							"ORDER BY YEAR(o.deliveryDate), QUARTER(o.deliveryDate)";
+				}
+
 
 				Query<Object[]> query = s.createQuery(hql, Object[].class)
 						.setParameter("from", req.getFrom())
@@ -743,7 +752,7 @@ public class SimpleServer extends AbstractServer {
 					int year    = ((Number) r[0]).intValue();
 					int quarter = ((Number) r[1]).intValue();
 					double rev  = r[2] != null ? ((Number) r[2]).doubleValue() : 0.0;
-					out.add(new QuarterlyRevenueReportResponse.Row(year, quarter, rev));
+					out.add(new QuarterlyRevenueReportResponse.Row(year, quarter, req.getBranchId(), rev));
 				}
 
 				client.sendToClient(new QuarterlyRevenueReportResponse(out));
@@ -751,6 +760,7 @@ public class SimpleServer extends AbstractServer {
 				e.printStackTrace();
 			}
 		}
+
 		else if (msg instanceof OrdersByProductTypeReportRequest req) {
 			System.out.println("Received OrdersByProductTypeReportRequest for branch ID: " + req.getBranchId());
 
@@ -1204,7 +1214,7 @@ public class SimpleServer extends AbstractServer {
 				String details = order.getDetails(); // e.g., "Rose x3, Lily x2"
 				Integer branchId = null; // null => delivery
 				if (order.getPickupBranch() != null && order.getPickupBranch() != null) {
-					branchId = order.getPickupBranch().getId(); // 1=Haifa, 2=Eilat, 3=TelAviv
+					branchId = order.getPickupBranch();  // Already an Integer
 				}
 
 				if (details != null && !details.isBlank()) {
@@ -1357,14 +1367,9 @@ public class SimpleServer extends AbstractServer {
 				}
 				if (details.length() > 2) details.setLength(details.length() - 2);
 
-				// NEW: resolve Branch from the request’s INT id (0 or null => delivery/no branch)
-				Branch pickup = null;
-				Integer branchId = request.getPickupBranchId();  // <<-- from your updated PlaceOrderRequest
-				if (branchId != null && branchId > 0) {
-					pickup = session.get(Branch.class, branchId); // null if not found
-				}
+				// NEW: resolve Branch from the request’s INT id (0 or null => delivery/no branch
+				Integer branchId = request.getPickupBranchId();  // already Integer (0 or null = delivery)
 
-				// Use the ctor that accepts Branch, or set via setter if you didn’t add that ctor
 				OrderSQL orderSQL = new OrderSQL(
 						managedAccount,
 						java.sql.Date.valueOf(request.getDate()),
@@ -1374,8 +1379,9 @@ public class SimpleServer extends AbstractServer {
 						request.getTotalPrice(),
 						request.getAddressOrPickup(),
 						request.getGreeting(),
-						pickup                    // <<-- persists to orders.pickup_branch
+						branchId                  // ✅ matches Integer
 				);
+
 				// If you don’t have that ctor, do:
 				// OrderSQL orderSQL = new OrderSQL(... without pickup ...);
 				// orderSQL.setPickupBranch(pickup);
