@@ -875,14 +875,17 @@ public class SecondaryController {
         ((Stage) CustomTitleBar.getScene().getWindow()).setIconified(true);
     }
 
-    private static final int BRANCH_HAIFA   = 1;
-    private static final int BRANCH_EILAT   = 2;
-    private static final int BRANCH_TEL_AVIV= 3;
+    // Branch IDs
+    private static final int BRANCH_HAIFA    = 1;
+    private static final int BRANCH_EILAT    = 2;
+    private static final int BRANCH_TEL_AVIV = 3;
 
     public void populateManagerCatalog(List<Flower> flowerList) {
         ManagerCatalogSelectorVbox.getChildren().clear();
         ManagerCatalogSelector.setFitToWidth(true);
 
+        final boolean isNetworkManager =
+                account != null && "Network Manager".equalsIgnoreCase(account.getAccountLevel());
         final boolean isBranchManager =
                 account != null && "Branch Manager".equalsIgnoreCase(account.getAccountLevel());
         final int branchId = resolveBranchId(account); // 1=Haifa, 2=Eilat, 3=TelAviv, 0=none
@@ -897,54 +900,59 @@ public class SecondaryController {
             Label priceLabel = new Label("Price: ₪" + flower.getPrice());
             Label colorLabel = new Label("Color: " + flower.getColor());
 
-            // Total (will refresh after edits)
-            Label totalLabel = new Label("Total Supply: " +
-                    (flower.getSupplyHaifa() + flower.getSupplyEilat() + flower.getSupplyTelAviv()));
-
             Label descLabel = new Label("Description: " + flower.getDescription());
             descLabel.setWrapText(true);
 
-            // ===== Supply rows: label + button (button shown only if allowed) =====
+            // total supply = all branches + storage
+            Label totalLabel = new Label("Total Supply: " +
+                    (flower.getSupplyHaifa() + flower.getSupplyEilat() + flower.getSupplyTelAviv() + flower.getStorage()));
+
+            // ===== Build rows =====
             HBox haifaRow = buildSupplyRow(
                     "Supply (Haifa): ", flower.getSupplyHaifa(),
-                    !isBranchManager || branchId == BRANCH_HAIFA,
+                    isNetworkManager || (isBranchManager && branchId == BRANCH_HAIFA),
                     "Haifa",
                     newVal -> {
                         flower.setSupplyHaifa(newVal);
-                        int total = newVal + flower.getSupplyEilat() + flower.getSupplyTelAviv();
-                        flower.setSupply(total);
-                        totalLabel.setText("Total Supply: " + total);
+                        updateTotal(flower, totalLabel);
                         pushUpdateAndRefresh(flower, flowerList);
                     }
             );
 
             HBox eilatRow = buildSupplyRow(
                     "Supply (Eilat): ", flower.getSupplyEilat(),
-                    !isBranchManager || branchId == BRANCH_EILAT,
+                    isNetworkManager || (isBranchManager && branchId == BRANCH_EILAT),
                     "Eilat",
                     newVal -> {
                         flower.setSupplyEilat(newVal);
-                        int total = flower.getSupplyHaifa() + newVal + flower.getSupplyTelAviv();
-                        flower.setSupply(total);
-                        totalLabel.setText("Total Supply: " + total);
+                        updateTotal(flower, totalLabel);
                         pushUpdateAndRefresh(flower, flowerList);
                     }
             );
 
             HBox taRow = buildSupplyRow(
                     "Supply (Tel Aviv): ", flower.getSupplyTelAviv(),
-                    !isBranchManager || branchId == BRANCH_TEL_AVIV,
+                    isNetworkManager || (isBranchManager && branchId == BRANCH_TEL_AVIV),
                     "Tel Aviv",
                     newVal -> {
                         flower.setSupplyTelAviv(newVal);
-                        int total = flower.getSupplyHaifa() + flower.getSupplyEilat() + newVal;
-                        flower.setSupply(total);
-                        totalLabel.setText("Total Supply: " + total);
+                        updateTotal(flower, totalLabel);
                         pushUpdateAndRefresh(flower, flowerList);
                     }
             );
 
-            // ===== Non-supply edit panel (name/price/color/desc) =====
+            HBox storageRow = buildSupplyRow(
+                    "Storage: ", flower.getStorage(),
+                    isNetworkManager, // only network manager can modify
+                    "Storage",
+                    newVal -> {
+                        flower.setStorage(newVal);
+                        updateTotal(flower, totalLabel);
+                        pushUpdateAndRefresh(flower, flowerList);
+                    }
+            );
+
+            // ===== Edit + Delete buttons (unchanged) =====
             Button editBtn = new Button("Edit");
             Button deleteBtn = new Button("Delete");
 
@@ -1007,7 +1015,6 @@ public class SecondaryController {
                     buttonBox
             );
 
-            // delete (unchanged)
             deleteBtn.setOnAction(e -> {
                 Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                 alert.setTitle("Delete Confirmation");
@@ -1025,7 +1032,7 @@ public class SecondaryController {
 
             flowerBox.getChildren().addAll(
                     nameLabel, priceLabel, colorLabel,
-                    haifaRow, eilatRow, taRow,   // <-- label + button rows
+                    haifaRow, eilatRow, taRow, storageRow,  // include storage row
                     totalLabel,
                     descLabel, actionsBox, editPane
             );
@@ -1034,6 +1041,13 @@ public class SecondaryController {
         }
         ManagerCatalogSelectorVbox.setFillWidth(true);
     }
+
+    private void updateTotal(Flower flower, Label totalLabel) {
+        int total = flower.getSupplyHaifa() + flower.getSupplyEilat() + flower.getSupplyTelAviv() + flower.getStorage();
+        flower.setSupply(total);
+        totalLabel.setText("Total Supply: " + total);
+    }
+
 
     // Build "Supply (X): N   [Change Supply]" row
     private HBox buildSupplyRow(String labelPrefix,
