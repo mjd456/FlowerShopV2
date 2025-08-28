@@ -5,7 +5,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 @Entity
-@Table(name = "Branches") // matches your MySQL table name exactly
+@Table(name = "Branches")
 public class Branch implements Serializable {
 
     @Id
@@ -13,10 +13,10 @@ public class Branch implements Serializable {
     private int id;
 
     @Column(nullable = false, unique = true, length = 64)
-    private String name;  // "Haifa", "Eilat", "TelAviv"
+    private String name;
 
     @Column(name = "total_flowers", nullable = false)
-    private int totalFlowers = 0; // sum from Flowers.Supply_* for this branch
+    private int totalFlowers = 0;
 
     // ===== Constructors =====
     public Branch() {}
