@@ -6,6 +6,7 @@ public class RecoveryMailFound {
     public RecoveryMailFound(String emailToCheck) {
         this.emailToCheck = emailToCheck;
     }
+
     public String getEmailToCheck() {
         return emailToCheck;
     }

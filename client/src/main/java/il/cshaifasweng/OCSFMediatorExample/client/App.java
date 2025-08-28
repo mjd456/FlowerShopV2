@@ -22,7 +22,7 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
-    	EventBus.getDefault().register(this);
+        EventBus.getDefault().register(this);
         scene = new Scene(loadFXML("ConnectServer"));
         scene.getStylesheets().add(getClass().getResource("dark-theme.css").toExternalForm());
         primaryStage = stage;
@@ -42,25 +42,25 @@ public class App extends Application {
     }
 
     @Override
-	public void stop() throws Exception {
-		// TODO Auto-generated method stub
-    	EventBus.getDefault().unregister(this);
+    public void stop() throws Exception {
+        // TODO Auto-generated method stub
+        EventBus.getDefault().unregister(this);
         client.sendToServer("remove client");
         client.closeConnection();
-		super.stop();
-	}
-    
+        super.stop();
+    }
+
     @Subscribe
     public void onWarningEvent(WarningEvent event) {
-    	Platform.runLater(() -> {
-    		Alert alert = new Alert(AlertType.WARNING,
-        			String.format("Message: %s\nTimestamp: %s\n",
-        					event.getWarning().getMessage(),
-        					event.getWarning().getTime().toString())
-        	);
-        	alert.show();
-    	});
-    	
+        Platform.runLater(() -> {
+            Alert alert = new Alert(AlertType.WARNING,
+                    String.format("Message: %s\nTimestamp: %s\n",
+                            event.getWarning().getMessage(),
+                            event.getWarning().getTime().toString())
+            );
+            alert.show();
+        });
+
     }
 
     public static void setOnSecondaryReady(Runnable r) {

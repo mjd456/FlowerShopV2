@@ -3,15 +3,14 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.fxml.FXML;
 import org.greenrobot.eventbus.EventBus;
+
 import java.sql.Date;
 
 import javafx.fxml.FXMLLoader;
@@ -23,7 +22,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.*;
-//<<<<<<< shada-updates
+
 import javafx.scene.text.Font;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -31,32 +30,24 @@ import javafx.util.Duration;
 
 import java.time.LocalDate;
 
-import javafx.event.ActionEvent;
-import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
-
-//>>>>>>> main
-
 import javafx.scene.image.ImageView;
 
 import java.io.IOException;
 import java.net.URL;
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
 
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-import javafx.util.Duration;
 import javafx.util.Pair;
 import javafx.util.StringConverter;
 import javafx.util.converter.DefaultStringConverter;
-import javafx.util.converter.NumberStringConverter;
-import javassist.Loader;
+
 import java.io.ByteArrayInputStream;
 import java.util.stream.Collectors;
 
@@ -64,28 +55,12 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import org.greenrobot.eventbus.Subscribe;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.sql.Date;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
-
-import javafx.application.Platform;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.paint.Color;
-import javafx.scene.layout.Pane;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
-
-import org.greenrobot.eventbus.Subscribe;
 
 public class SecondaryController {
 
@@ -2716,7 +2691,7 @@ public class SecondaryController {
 
 // Force network-wide reports for Branch Managers
         int branchId = 0; // 0 = Network aggregate
-        if (!( "BranchManager".equalsIgnoreCase(lvl) || "Branch Manager".equalsIgnoreCase(lvl) )) {
+        if (!("BranchManager".equalsIgnoreCase(lvl) || "Branch Manager".equalsIgnoreCase(lvl))) {
             String selected = BranchComboBox.getValue();     // e.g. "Haifa Branch (1)"
             branchId = branchNameToId(selected);             // -> 0/1/2/3
         } else {
@@ -2784,6 +2759,7 @@ public class SecondaryController {
         if (s.startsWith("tel aviv") || s.startsWith("telaviv")) return 3;
         return 0;
     }
+
     @org.greenrobot.eventbus.Subscribe
     public void onComplaintsReport(il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse resp) {
         javafx.application.Platform.runLater(() -> {
@@ -3044,10 +3020,20 @@ public class SecondaryController {
     }
 
     private void setCompareControlsVisible(boolean visible) {
-        if (reportDate1 != null) { reportDate1.setVisible(visible); reportDate1.setManaged(visible); }
-        if (reportDate2 != null) { reportDate2.setVisible(visible); reportDate2.setManaged(visible); }
-        if (compareReportsBtn != null) { compareReportsBtn.setVisible(visible); compareReportsBtn.setManaged(visible); }
+        if (reportDate1 != null) {
+            reportDate1.setVisible(visible);
+            reportDate1.setManaged(visible);
+        }
+        if (reportDate2 != null) {
+            reportDate2.setVisible(visible);
+            reportDate2.setManaged(visible);
+        }
+        if (compareReportsBtn != null) {
+            compareReportsBtn.setVisible(visible);
+            compareReportsBtn.setManaged(visible);
+        }
     }
+
     @org.greenrobot.eventbus.Subscribe
     public void onCompareReportsResponse(il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse resp) {
         javafx.application.Platform.runLater(() -> {
@@ -3080,12 +3066,13 @@ public class SecondaryController {
             dlg.showAndWait();
         });
     }
+
     private void requestComplaints(int branchId) {
         java.time.LocalDate toLD = java.time.LocalDate.now();
         java.time.LocalDate fromLD = toLD.minusMonths(3);
 
         java.sql.Date from = java.sql.Date.valueOf(fromLD);
-        java.sql.Date to   = java.sql.Date.valueOf(toLD);
+        java.sql.Date to = java.sql.Date.valueOf(toLD);
 
         try {
             SimpleClient.getClient().sendToServer(

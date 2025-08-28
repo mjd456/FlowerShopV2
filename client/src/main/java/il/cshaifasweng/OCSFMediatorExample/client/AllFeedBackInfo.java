@@ -1,7 +1,6 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.GetAllFeedbacksResponse;
-import java.io.Serializable;
 
 public class AllFeedBackInfo {
     private GetAllFeedbacksResponse response;

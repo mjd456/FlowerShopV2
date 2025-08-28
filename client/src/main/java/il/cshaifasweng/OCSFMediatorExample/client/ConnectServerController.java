@@ -1,13 +1,10 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
-import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.event.ActionEvent;
 import org.greenrobot.eventbus.EventBus;
-
-import java.io.IOException;
 
 public class ConnectServerController {
 
