@@ -10,10 +10,10 @@ public class OrdersByProductTypeReportResponse implements Serializable {
     public static class Row implements Serializable {
         private static final long serialVersionUID = 1L;
 
-        private String productType; // כרגע: שם הפרח/קטגוריה
-        private long orders;        // מספר הזמנות
-        private long quantity;      // כמות פריטים (אם זמין)
-        private double total;       // סך מחיר ההזמנות
+        private String productType;
+        private long orders;
+        private long quantity;
+        private double total;
 
         public Row() { }
 

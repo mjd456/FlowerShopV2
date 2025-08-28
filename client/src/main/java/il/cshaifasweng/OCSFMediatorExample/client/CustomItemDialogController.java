@@ -66,7 +66,7 @@ public class CustomItemDialogController {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle("Invalid Price");
             alert.setHeaderText(null);
-            alert.setContentText("Please enter a valid price or price range (e.g., 100-200).");
+            alert.setContentText("Please enter a valid price");
 
             DialogPane dialogPane = alert.getDialogPane();
             URL cssUrl = getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/dark-theme.css");
@@ -100,7 +100,4 @@ public class CustomItemDialogController {
         Stage stage = (Stage) ItemTypeField.getScene().getWindow();
         stage.close();
     }
-
-
-
 }

@@ -803,6 +803,7 @@ public class SecondaryController {
             Platform.runLater(() -> {
                 MainTabsFrame.getTabs().remove(CustomerServicePanel);
                 MainTabsFrame.getTabs().remove(detailsChange);
+                MainTabsFrame.getTabs().remove(CustomerServicePanel);
                 MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
                     if (newTab == ManagerPanel) {
 
