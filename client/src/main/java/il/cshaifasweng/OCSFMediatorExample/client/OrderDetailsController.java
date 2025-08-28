@@ -149,11 +149,23 @@ public class OrderDetailsController {
         TimeStar.setVisible(false);
         AddressStar.setVisible(false);
 
-        if (date == null) { DateStar.setVisible(true); valid = false; }
-        if (time == null || time.isEmpty()) { TimeStar.setVisible(true); valid = false; }
-        if (!PickupRadio.isSelected() && address.isEmpty()) { AddressStar.setVisible(true); valid = false; }
+        if (date == null) {
+            DateStar.setVisible(true);
+            valid = false;
+        }
+        if (time == null || time.isEmpty()) {
+            TimeStar.setVisible(true);
+            valid = false;
+        }
+        if (!PickupRadio.isSelected() && address.isEmpty()) {
+            AddressStar.setVisible(true);
+            valid = false;
+        }
 
-        if (!valid) { showWarning("Please fill in all required fields!"); return; }
+        if (!valid) {
+            showWarning("Please fill in all required fields!");
+            return;
+        }
 
         var today = java.time.LocalDate.now();
         var nowTime = java.time.LocalTime.now();
@@ -201,8 +213,6 @@ public class OrderDetailsController {
                 SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
             }
         } else {
-            // delivery: reduce across all branches (your existing strategy)
-
             for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
                 Flower flower = entry.getKey();
                 System.out.println("No pickup branch selected. = " + entry.getValue());
@@ -222,12 +232,10 @@ public class OrderDetailsController {
         }
         if (details.length() > 2) details.setLength(details.length() - 2);
 
-        // addressOrPickup label (unchanged)
         String addrOrPickup = PickupRadio.isSelected()
                 ? pickupBranchName + " Pickup"
                 : address;
 
-        // NOTE: last argument now uses the INT, not the name
         PlaceOrderRequest request = new PlaceOrderRequest(
                 cartMap,
                 customer,
@@ -238,7 +246,7 @@ public class OrderDetailsController {
                 totalPrice,
                 addrOrPickup,
                 greeting,
-                pickupBranchId   // <-- int ID (0 for delivery)
+                pickupBranchId
         );
 
         SimpleClient.getClient().sendToServer(request);
@@ -250,26 +258,28 @@ public class OrderDetailsController {
         stage.close();
     }
 
-    /** Map branch display name to DB id. Defaults to 0 if unknown. */
+    /**
+     * Map branch display name to DB id. Defaults to 0 if unknown.
+     */
     private static int mapBranchNameToId(String name) {
         if (name == null) return 0;
         switch (name.trim().toLowerCase()) {
-            case "haifa":   return 1;
-            case "eilat":   return 2;
+            case "haifa":
+                return 1;
+            case "eilat":
+                return 2;
             case "tel aviv":
             case "telaviv":
-            case "tel-aviv": return 3;
-            default:        return 0;
+            case "tel-aviv":
+                return 3;
+            default:
+                return 0;
         }
     }
-
-
-
 
     @Subscribe
     public void onPlaceOrderResponse(PlaceOrderResponse response) {
         Platform.runLater(() -> {
-            // Handle server response if needed
         });
     }
 

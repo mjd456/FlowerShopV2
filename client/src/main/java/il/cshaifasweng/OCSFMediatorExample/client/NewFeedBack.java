@@ -1,6 +1,7 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.NewFeedbackNotification;
+
 import java.io.Serializable;
 
 public class NewFeedBack implements Serializable {

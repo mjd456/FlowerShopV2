@@ -25,7 +25,7 @@ public class ConnectToServerEvent {
         return PortId;
     }
 
-    public SimpleClient getClientId(){
+    public SimpleClient getClientId() {
         return ClientId;
     }
 }

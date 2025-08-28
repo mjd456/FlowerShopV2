@@ -100,7 +100,4 @@ public class CustomItemDialogController {
         Stage stage = (Stage) ItemTypeField.getScene().getWindow();
         stage.close();
     }
-
-
-
 }

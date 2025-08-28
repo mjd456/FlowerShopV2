@@ -20,14 +20,22 @@ import java.util.List;
 
 public class ReportsController {
 
-    @FXML private ComboBox<String> reportTypeComboBox;
-    @FXML private DatePicker dpFrom;
-    @FXML private DatePicker dpTo;
-    @FXML private Button btnGenerate;
-    @FXML private TableView<RevenueRow> tblRevenue;
-    @FXML private TableColumn<RevenueRow, Integer> colYear;
-    @FXML private TableColumn<RevenueRow, Integer> colQuarter;
-    @FXML private TableColumn<RevenueRow, Double> colRevenue;
+    @FXML
+    private ComboBox<String> reportTypeComboBox;
+    @FXML
+    private DatePicker dpFrom;
+    @FXML
+    private DatePicker dpTo;
+    @FXML
+    private Button btnGenerate;
+    @FXML
+    private TableView<RevenueRow> tblRevenue;
+    @FXML
+    private TableColumn<RevenueRow, Integer> colYear;
+    @FXML
+    private TableColumn<RevenueRow, Integer> colQuarter;
+    @FXML
+    private TableColumn<RevenueRow, Double> colRevenue;
 
     private final ObservableList<RevenueRow> data = FXCollections.observableArrayList();
 
@@ -46,14 +54,14 @@ public class ReportsController {
     @FXML
     private void onGenerate() {
         LocalDate fromLd = dpFrom.getValue();
-        LocalDate toLd   = dpTo.getValue();
+        LocalDate toLd = dpTo.getValue();
         if (fromLd == null || toLd == null) {
             showAlert("Please select a date range (from and to).");
             return;
         }
 
         Date from = Date.from(fromLd.atStartOfDay(ZoneId.systemDefault()).toInstant());
-        Date to   = Date.from(toLd.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        Date to = Date.from(toLd.atStartOfDay(ZoneId.systemDefault()).toInstant());
 
         try {
             QuarterlyRevenueReportRequest req = new QuarterlyRevenueReportRequest(from, to, 0);
