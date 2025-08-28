@@ -1834,7 +1834,7 @@ public class SimpleServer extends AbstractServer {
 						.setParameter("today", java.sql.Date.valueOf(today))
 						.list();
 
-				DateTimeFormatter hhmm = DateTimeFormatter.ofPattern("HH:mm");
+				DateTimeFormatter hhmm = DateTimeFormatter.ofPattern("HH:mm[:ss]");
 
 				for (OrderSQL o : todays) {
 					String t = o.getDeliveryTime();

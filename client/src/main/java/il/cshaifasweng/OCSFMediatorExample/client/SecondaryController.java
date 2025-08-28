@@ -2713,10 +2713,12 @@ public class SecondaryController {
 
         // 2) Which branch?
         String lvl = (account != null) ? account.getAccountLevel() : null;
-        int branchId;
-        if ("BranchManager".equalsIgnoreCase(lvl) || "Branch Manager".equalsIgnoreCase(lvl)) {
-            Branch my = (account != null) ? account.getBranch() : null;
-            branchId = (my != null) ? my.getId() : 0;  // 0 = Network
+
+// Force network-wide reports for Branch Managers
+        int branchId = 0; // 0 = Network aggregate
+        if (!( "BranchManager".equalsIgnoreCase(lvl) || "Branch Manager".equalsIgnoreCase(lvl) )) {
+            String selected = BranchComboBox.getValue();     // e.g. "Haifa Branch (1)"
+            branchId = branchNameToId(selected);             // -> 0/1/2/3
         } else {
             String selected = BranchComboBox.getValue();     // e.g. "Haifa Branch (1)"
             branchId = branchNameToId(selected);             // -> 0/1/2/3
@@ -2728,7 +2730,7 @@ public class SecondaryController {
         switch (reportType) {
             case "Quarterly Revenue Report" -> requestQuarterlyRevenue(branchId);
             case "Orders by Type Report" -> requestOrdersByType(branchId);
-            case "Complaints Report" -> requestComplaints(branchId);
+            case "Complaints Report" -> requestComplaints(0);
             default -> System.err.println("Unknown report type: " + reportType);
         }
     }
@@ -2782,7 +2784,7 @@ public class SecondaryController {
         if (s.startsWith("tel aviv") || s.startsWith("telaviv")) return 3;
         return 0;
     }
-    @org.greenrobot.eventbus.Subscribe(sticky = true)
+    @org.greenrobot.eventbus.Subscribe
     public void onComplaintsReport(il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse resp) {
         javafx.application.Platform.runLater(() -> {
             var rows = (resp != null && resp.getRows() != null) ? resp.getRows() : java.util.List.<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row>of();
@@ -2985,23 +2987,6 @@ public class SecondaryController {
             });
         });
     }
-    private void requestComplaintsHistogram(int branchId) {
-        LocalDate toLD = LocalDate.now();
-        LocalDate fromLD = toLD.minusMonths(3);   // same default window as other reports
-
-        Date from = Date.valueOf(fromLD);
-        Date to = Date.valueOf(toLD);
-
-        try {
-            SimpleClient.getClient().sendToServer(
-                    new ComplaintsHistogramReportRequest(from, to, branchId)
-            );
-            System.out.println("[SEND] ComplaintsHistogramReportRequest(from=" + from + ", to=" + to + ", branchId=" + branchId + ")");
-        } catch (IOException ex) {
-            System.err.println("[ERROR] ComplaintsHistogramReportRequest failed: " + ex.getMessage());
-            new Alert(Alert.AlertType.ERROR, "Could not request Complaints Histogram:\n" + ex.getMessage()).showAndWait();
-        }
-    }
 
     private boolean isNetworkManager() {
         return account != null
@@ -3025,16 +3010,14 @@ public class SecondaryController {
         LocalDate from = d1.isBefore(d2) ? d1 : d2;
         LocalDate to = d1.isBefore(d2) ? d2 : d1;
 
-        // Branch (reuse your existing logic)
         int branchId;
         String lvl = (account != null) ? account.getAccountLevel() : null;
+
         if (lvl != null && (lvl.equalsIgnoreCase("Branch Manager") || lvl.equalsIgnoreCase("BranchManager"))) {
-            // Branch managers use their own branch (though they won’t see this button)
-            branchId = (account != null && account.getBranch() != null) ? account.getBranch().getId() : 0;
+            branchId = 0; // Force Network for Branch Managers
         } else {
-            // Network manager selects a branch (or 0 for whole network, if you support that)
             String selectedBranch = (BranchComboBox != null) ? BranchComboBox.getValue() : null;
-            branchId = branchNameToId(selectedBranch); // use your existing util to map name -> id
+            branchId = branchNameToId(selectedBranch);
         }
 
         String reportType = (reportTypeComboBox != null) ? reportTypeComboBox.getValue() : null;
@@ -3106,7 +3089,7 @@ public class SecondaryController {
 
         try {
             SimpleClient.getClient().sendToServer(
-                    new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest(from, to, branchId)
+                    new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest(from, to, 0)
             );
             System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=" + branchId + ")");
         } catch (IOException ex) {
