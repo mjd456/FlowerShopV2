@@ -1,7 +1,5 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
-import java.io.IOException;
-
 public class ErrorMessageSignUpEvent {
     private final String Message;
 

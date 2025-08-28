@@ -3,15 +3,14 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.fxml.FXML;
 import org.greenrobot.eventbus.EventBus;
+
 import java.sql.Date;
 
 import javafx.fxml.FXMLLoader;
@@ -23,7 +22,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.*;
-//<<<<<<< shada-updates
+
 import javafx.scene.text.Font;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -31,32 +30,24 @@ import javafx.util.Duration;
 
 import java.time.LocalDate;
 
-import javafx.event.ActionEvent;
-import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
-
-//>>>>>>> main
-
 import javafx.scene.image.ImageView;
 
 import java.io.IOException;
 import java.net.URL;
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
 
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-import javafx.util.Duration;
 import javafx.util.Pair;
 import javafx.util.StringConverter;
 import javafx.util.converter.DefaultStringConverter;
-import javafx.util.converter.NumberStringConverter;
-import javassist.Loader;
+
 import java.io.ByteArrayInputStream;
 import java.util.stream.Collectors;
 
@@ -64,28 +55,12 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import org.greenrobot.eventbus.Subscribe;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.sql.Date;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
-
-import javafx.application.Platform;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.paint.Color;
-import javafx.scene.layout.Pane;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
-
-import org.greenrobot.eventbus.Subscribe;
 
 public class SecondaryController {
 
@@ -2713,10 +2688,12 @@ public class SecondaryController {
 
         // 2) Which branch?
         String lvl = (account != null) ? account.getAccountLevel() : null;
-        int branchId;
-        if ("BranchManager".equalsIgnoreCase(lvl) || "Branch Manager".equalsIgnoreCase(lvl)) {
-            Branch my = (account != null) ? account.getBranch() : null;
-            branchId = (my != null) ? my.getId() : 0;  // 0 = Network
+
+// Force network-wide reports for Branch Managers
+        int branchId = 0; // 0 = Network aggregate
+        if (!("BranchManager".equalsIgnoreCase(lvl) || "Branch Manager".equalsIgnoreCase(lvl))) {
+            String selected = BranchComboBox.getValue();     // e.g. "Haifa Branch (1)"
+            branchId = branchNameToId(selected);             // -> 0/1/2/3
         } else {
             String selected = BranchComboBox.getValue();     // e.g. "Haifa Branch (1)"
             branchId = branchNameToId(selected);             // -> 0/1/2/3
@@ -2728,7 +2705,7 @@ public class SecondaryController {
         switch (reportType) {
             case "Quarterly Revenue Report" -> requestQuarterlyRevenue(branchId);
             case "Orders by Type Report" -> requestOrdersByType(branchId);
-            case "Complaints Report" -> requestComplaints(branchId);
+            case "Complaints Report" -> requestComplaints(0);
             default -> System.err.println("Unknown report type: " + reportType);
         }
     }
@@ -2782,32 +2759,52 @@ public class SecondaryController {
         if (s.startsWith("tel aviv") || s.startsWith("telaviv")) return 3;
         return 0;
     }
-    @org.greenrobot.eventbus.Subscribe(sticky = true)
+
+    @org.greenrobot.eventbus.Subscribe
     public void onComplaintsReport(il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse resp) {
         javafx.application.Platform.runLater(() -> {
-            javafx.stage.Stage stage = new javafx.stage.Stage();
-            stage.setTitle("Complaints Report");
+            var rows = (resp != null && resp.getRows() != null) ? resp.getRows() : java.util.List.<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row>of();
 
-            var tv = new javafx.scene.control.TableView<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row>();
+            StringBuilder sb = new StringBuilder(2048);
+            if (rows.isEmpty()) {
+                sb.append("No complaints found for the selected period.");
+            } else {
+                for (var row : rows) {
+                    sb.append("=== ").append(row.getDay()).append(" — Complaints: ").append(row.getCount()).append(" ===\n");
+                    var items = row.getDetails();
+                    if (items == null || items.isEmpty()) {
+                        sb.append("  (No items)\n\n");
+                        continue;
+                    }
+                    for (var it : items) {
+                        // Optionally truncate long bodies for readability
+                        String body = it.getDetails() == null ? "" : it.getDetails().trim();
+                        if (body.length() > 600) body = body.substring(0, 600) + "…";
 
-            var colDay = new javafx.scene.control.TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row, String>("Day");
-            colDay.setCellValueFactory(c ->
-                    new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getDay()))
-            );
+                        sb.append("• ").append(safe(it.getTitle())).append("  [")
+                                .append(it.getStatus()).append("]\n")
+                                .append("  From: ").append(safe(it.getEmail()))
+                                .append("  | Branch: ").append(safe(it.getBranch()))
+                                .append("  | Sent: ").append(String.valueOf(it.getSubmittedAt())).append("\n")
+                                .append("  ").append(body).append("\n\n");
+                    }
+                }
+            }
 
-            var colCount = new javafx.scene.control.TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row, Number>("Complaints");
-            colCount.setCellValueFactory(c ->
-                    new javafx.beans.property.SimpleLongProperty(c.getValue().getCount())
-            );
+            var ta = new javafx.scene.control.TextArea(sb.toString());
+            ta.setEditable(false);
+            ta.setWrapText(true);
+            ta.setFont(javafx.scene.text.Font.font("monospaced"));
+            ta.setPrefSize(900, 600);
 
-            tv.getColumns().addAll(colDay, colCount);
-            tv.getItems().addAll(resp.getRows());
-
-            stage.setScene(new javafx.scene.Scene(new javafx.scene.layout.BorderPane(tv), 420, 420));
-            stage.show();
+            var alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+            alert.setTitle("Complaints Report (with details)");
+            alert.setHeaderText("Report for the last 3 months");
+            alert.getDialogPane().setContent(ta);
+            alert.setResizable(true);
+            alert.showAndWait();
         });
     }
-
 
     @Subscribe
     public void onQuarterlyRevenueReport(QuarterlyRevenueReportResponse resp) {
@@ -2967,86 +2964,6 @@ public class SecondaryController {
         });
     }
 
-    @org.greenrobot.eventbus.Subscribe
-    public void onComplaintsHistogramReport(ComplaintsHistogramReportResponse response) {
-        System.out.println("[UI] onComplaintsHistogramReport fired. points=" +
-                (response.getCountsByDay()==null ? -1 : response.getCountsByDay().size()));
-        Platform.runLater(() -> {
-            Stage histogramStage = new Stage();
-            histogramStage.setTitle("Complaints Histogram");
-
-            Map<LocalDate, Long> data = response.getCountsByDay();
-            if (data == null || data.isEmpty()) {
-                new Alert(Alert.AlertType.INFORMATION, "No complaint data found for the selected period.").showAndWait();
-                return;
-            }
-
-            // Sort by date for a proper timeline
-            List<Map.Entry<LocalDate, Long>> points = new ArrayList<>(data.entrySet());
-            points.sort(Map.Entry.comparingByKey());
-
-            double canvasWidth = 800;
-            double canvasHeight = 420;
-            Canvas canvas = new Canvas(canvasWidth, canvasHeight);
-            GraphicsContext gc = canvas.getGraphicsContext2D();
-
-            long maxCount = points.stream().mapToLong(Map.Entry::getValue).max().orElse(1);
-            double padding = 50;
-            double chartWidth = canvasWidth - 2 * padding;
-            double chartHeight = canvasHeight - 2 * padding;
-
-            // bar + gap sizing
-            double slotWidth = chartWidth / points.size();
-            double barWidth = slotWidth * 0.7;
-            double gap = slotWidth * 0.3;
-
-            // axes
-            gc.setStroke(Color.GRAY);
-            gc.strokeLine(padding, padding, padding, canvasHeight - padding);                 // Y
-            gc.strokeLine(padding, canvasHeight - padding, canvasWidth - padding, canvasHeight - padding); // X
-
-            DateTimeFormatter df = DateTimeFormatter.ofPattern("dd/MM");
-
-            int i = 0;
-            for (Map.Entry<LocalDate, Long> entry : points) {
-                double barHeight = (entry.getValue() * 1.0 / maxCount) * chartHeight;
-                double x = padding + i * slotWidth + gap / 2.0;
-                double y = canvasHeight - padding - barHeight;
-
-                gc.setFill(Color.CORNFLOWERBLUE);
-                gc.fillRect(x, y, barWidth, barHeight);
-
-                // labels
-                gc.setFill(Color.BLACK);
-                gc.fillText(df.format(entry.getKey()), x, canvasHeight - padding + 14);
-                gc.fillText(String.valueOf(entry.getValue()), x + barWidth / 2 - 6, y - 4);
-
-                i++;
-            }
-
-            Pane root = new Pane(canvas);
-            histogramStage.setScene(new Scene(root));
-            histogramStage.show();
-        });
-    }
-    private void requestComplaintsHistogram(int branchId) {
-        LocalDate toLD = LocalDate.now();
-        LocalDate fromLD = toLD.minusMonths(3);   // same default window as other reports
-
-        Date from = Date.valueOf(fromLD);
-        Date to = Date.valueOf(toLD);
-
-        try {
-            SimpleClient.getClient().sendToServer(
-                    new ComplaintsHistogramReportRequest(from, to, branchId)
-            );
-            System.out.println("[SEND] ComplaintsHistogramReportRequest(from=" + from + ", to=" + to + ", branchId=" + branchId + ")");
-        } catch (IOException ex) {
-            System.err.println("[ERROR] ComplaintsHistogramReportRequest failed: " + ex.getMessage());
-            new Alert(Alert.AlertType.ERROR, "Could not request Complaints Histogram:\n" + ex.getMessage()).showAndWait();
-        }
-    }
-
     private boolean isNetworkManager() {
         return account != null
                 && account.getAccountLevel() != null
@@ -3069,16 +2986,14 @@ public class SecondaryController {
         LocalDate from = d1.isBefore(d2) ? d1 : d2;
         LocalDate to = d1.isBefore(d2) ? d2 : d1;
 
-        // Branch (reuse your existing logic)
         int branchId;
         String lvl = (account != null) ? account.getAccountLevel() : null;
+
         if (lvl != null && (lvl.equalsIgnoreCase("Branch Manager") || lvl.equalsIgnoreCase("BranchManager"))) {
-            // Branch managers use their own branch (though they won’t see this button)
-            branchId = (account != null && account.getBranch() != null) ? account.getBranch().getId() : 0;
+            branchId = 0; // Force Network for Branch Managers
         } else {
-            // Network manager selects a branch (or 0 for whole network, if you support that)
             String selectedBranch = (BranchComboBox != null) ? BranchComboBox.getValue() : null;
-            branchId = branchNameToId(selectedBranch); // use your existing util to map name -> id
+            branchId = branchNameToId(selectedBranch);
         }
 
         String reportType = (reportTypeComboBox != null) ? reportTypeComboBox.getValue() : null;
@@ -3105,10 +3020,20 @@ public class SecondaryController {
     }
 
     private void setCompareControlsVisible(boolean visible) {
-        if (reportDate1 != null) { reportDate1.setVisible(visible); reportDate1.setManaged(visible); }
-        if (reportDate2 != null) { reportDate2.setVisible(visible); reportDate2.setManaged(visible); }
-        if (compareReportsBtn != null) { compareReportsBtn.setVisible(visible); compareReportsBtn.setManaged(visible); }
+        if (reportDate1 != null) {
+            reportDate1.setVisible(visible);
+            reportDate1.setManaged(visible);
+        }
+        if (reportDate2 != null) {
+            reportDate2.setVisible(visible);
+            reportDate2.setManaged(visible);
+        }
+        if (compareReportsBtn != null) {
+            compareReportsBtn.setVisible(visible);
+            compareReportsBtn.setManaged(visible);
+        }
     }
+
     @org.greenrobot.eventbus.Subscribe
     public void onCompareReportsResponse(il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse resp) {
         javafx.application.Platform.runLater(() -> {
@@ -3141,16 +3066,17 @@ public class SecondaryController {
             dlg.showAndWait();
         });
     }
+
     private void requestComplaints(int branchId) {
         java.time.LocalDate toLD = java.time.LocalDate.now();
         java.time.LocalDate fromLD = toLD.minusMonths(3);
 
         java.sql.Date from = java.sql.Date.valueOf(fromLD);
-        java.sql.Date to   = java.sql.Date.valueOf(toLD);
+        java.sql.Date to = java.sql.Date.valueOf(toLD);
 
         try {
             SimpleClient.getClient().sendToServer(
-                    new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest(from, to, branchId)
+                    new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest(from, to, 0)
             );
             System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=" + branchId + ")");
         } catch (IOException ex) {

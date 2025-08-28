@@ -26,6 +26,8 @@ public class PrimaryController {
 	@FXML
 	private URL location;
 
+	/* ---------- FXML-injected fields ---------- */
+
 	@FXML
 	private Button BackBtn;
 
@@ -427,6 +429,7 @@ public class PrimaryController {
 
 	/* ---------- Button handlers wired in the FXML ---------- */
 
+	/** "Already have an account? Log In" */
 	@FXML
 	void GoToLogin(ActionEvent event) {
 		showLoginScreen(true);
