@@ -15,7 +15,6 @@ public class PlaceOrderRequest implements Serializable {
     private final String addressOrPickup;
     private final String greeting;
 
-    // NEW: branch to pick up from (nullable: null or 0 means delivery)
     private final Integer pickupBranchId;
 
     public PlaceOrderRequest(
@@ -28,7 +27,7 @@ public class PlaceOrderRequest implements Serializable {
             double totalPrice,
             String addressOrPickup,
             String greeting,
-            Integer pickupBranchId   // <--- NEW
+            Integer pickupBranchId
     ) {
         this.cartMap = cartMap;
         this.customer = customer;

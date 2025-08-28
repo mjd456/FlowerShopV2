@@ -54,7 +54,6 @@ public class FeedBackSQL implements Serializable {
         this.branch = branch;
     }
 
-    // ... keep existing getters/setters
 
     public int getFeedback_id() {
         return feedback_id;

@@ -7,10 +7,10 @@ import java.util.List;
 public class CompareReportsResponse implements Serializable {
 
     public static class Row implements Serializable {
-        private final String metric;  // e.g., "Revenue (₪)", "Total Orders", "Complaints"
-        private final Number valueA;  // value on dateA
-        private final Number valueB;  // value on dateB
-        private final Number delta;   // valueB - valueA
+        private final String metric;
+        private final Number valueA;
+        private final Number valueB;
+        private final Number delta;
 
         public Row(String metric, Number valueA, Number valueB) {
             this.metric = metric;

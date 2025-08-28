@@ -1335,7 +1335,6 @@ public class SimpleServer extends AbstractServer {
 							flower.setStorage(flower.getStorage() + qty);
 						}
 
-						// keep total supply consistent
 						int total = flower.getSupplyHaifa() + flower.getSupplyEilat() + flower.getSupplyTelAviv() + flower.getStorage();
 						flower.setSupply(total);
 
@@ -1390,7 +1389,6 @@ public class SimpleServer extends AbstractServer {
 			try {
 				tx = session.beginTransaction();
 
-				// 1) Supply checks (kept as-is; consider enforcing per-branch if Pickup)
 				for (Map.Entry<Flower, Integer> entry : request.getCartMap().entrySet()) {
 					Flower clientFlower = entry.getKey();
 					int qty = entry.getValue();
@@ -1412,7 +1410,6 @@ public class SimpleServer extends AbstractServer {
 					}
 				}
 
-				// 2) Update supply/popularity (kept as-is)
 				for (Map.Entry<Flower, Integer> entry : request.getCartMap().entrySet()) {
 					Flower clientFlower = entry.getKey();
 					int qty = entry.getValue();
@@ -1424,7 +1421,6 @@ public class SimpleServer extends AbstractServer {
 					session.update(flower);
 				}
 
-				// 3) Save order to DB
 				Account managedAccount = session.get(Account.class, request.getCustomer().getId());
 				if (managedAccount == null) {
 					tx.rollback();
@@ -1432,7 +1428,6 @@ public class SimpleServer extends AbstractServer {
 					return;
 				}
 
-				// Build details string
 				StringBuilder details = new StringBuilder();
 				for (Map.Entry<Flower, Integer> entry : request.getCartMap().entrySet()) {
 					details.append(entry.getKey().getName())
@@ -1442,8 +1437,7 @@ public class SimpleServer extends AbstractServer {
 				}
 				if (details.length() > 2) details.setLength(details.length() - 2);
 
-				// NEW: resolve Branch from the request’s INT id (0 or null => delivery/no branch
-				Integer branchId = request.getPickupBranchId();  // already Integer (0 or null = delivery)
+				Integer branchId = request.getPickupBranchId();
 
 				OrderSQL orderSQL = new OrderSQL(
 						managedAccount,
@@ -1454,12 +1448,8 @@ public class SimpleServer extends AbstractServer {
 						request.getTotalPrice(),
 						request.getAddressOrPickup(),
 						request.getGreeting(),
-						branchId                  // ✅ matches Integer
+						branchId
 				);
-
-				// If you don’t have that ctor, do:
-				// OrderSQL orderSQL = new OrderSQL(... without pickup ...);
-				// orderSQL.setPickupBranch(pickup);
 
 				orderSQL.setAccount(managedAccount);
 
@@ -1530,11 +1520,9 @@ public class SimpleServer extends AbstractServer {
 		}
 		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest req) {
 			try (Session s = sessionFactory.openSession()) {
-				// Date bounds as LocalDateTime
 				java.time.LocalDateTime fromDT = req.getFrom().toLocalDate().atStartOfDay();
 				java.time.LocalDateTime toDT   = req.getTo().toLocalDate().atTime(23, 59, 59);
 
-				// Pull all complaints in range; we’ll filter branch in Java to avoid join headaches
 				List<FeedBackSQL> all = s.createQuery(
 								"from FeedBackSQL f where f.submittedAt >= :from and f.submittedAt <= :to",
 								FeedBackSQL.class
@@ -1543,14 +1531,12 @@ public class SimpleServer extends AbstractServer {
 						.setParameter("to", toDT)
 						.list();
 
-				// Aggregate counts per day with optional branch filter
 				java.util.Map<java.time.LocalDate, Long> counts = new java.util.TreeMap<>();
 				int wanted = req.getBranchId(); // 0 = all
 
 				for (FeedBackSQL f : all) {
 					if (f.getSubmittedAt() == null) continue;
 
-					// Determine feedback's branch id (support either account.branch or the explicit branch on feedback)
 					int fbBranchId = 0;
 					if (f.getAccount() != null && f.getAccount().getBranch() != null) {
 						fbBranchId = f.getAccount().getBranch().getId();
@@ -1577,7 +1563,6 @@ public class SimpleServer extends AbstractServer {
 		}
 		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsRequest req) {
 
-			// 1) who is asking? (BM limited to own branch; NM can use requested branch)
 			il.cshaifasweng.OCSFMediatorExample.entities.Account acc =
 					(il.cshaifasweng.OCSFMediatorExample.entities.Account) client.getInfo("account");
 
@@ -1589,11 +1574,9 @@ public class SimpleServer extends AbstractServer {
 				effectiveBranchId = req.getBranchId(); // NM or unknown -> honor request
 			}
 
-			// 2) compute metrics for each date (TEMP dummy numbers)
 			ReportMetrics A = computeMetrics(req.getReportType(), effectiveBranchId, req.getDateA());
 			ReportMetrics B = computeMetrics(req.getReportType(), effectiveBranchId, req.getDateB());
 
-			// 3) build response
 			String branchName = branchNameFor(effectiveBranchId);
 			il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse resp =
 					new il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse(
@@ -1605,7 +1588,6 @@ public class SimpleServer extends AbstractServer {
 			resp.addRow("Avg Order Value (₪)", A.avgOrderValue,  B.avgOrderValue);
 			resp.addRow("Complaints",          A.complaints,     B.complaints);
 
-			// 4) send back to this client
 			try {
 				client.sendToClient(resp);
 			} catch (java.io.IOException e) {
@@ -1643,10 +1625,9 @@ public class SimpleServer extends AbstractServer {
 				if (candidateName.equals(oldName)) {
 					parts[i] = newName + " " + quantityPart;
 				} else {
-					parts[i] = candidateName + " " + quantityPart; // reconstruct for clean format
+					parts[i] = candidateName + " " + quantityPart;
 				}
 			} else {
-				// If there's no quantity, keep as is
 				parts[i] = entry;
 			}
 		}
@@ -1661,7 +1642,7 @@ public class SimpleServer extends AbstractServer {
 			Map<Flower, byte[]> flowerImageMap = new HashMap<>();
 
 			for (Flower flower : flowerList) {
-				String imageFileName = flower.getImageId(); // e.g., "rose_red.jpg"
+				String imageFileName = flower.getImageId();
 				try (InputStream is = getClass().getClassLoader().getResourceAsStream("FlowerPicture/" + imageFileName)) {
 					if (is == null) {
 						System.err.println("Image not found for: " + imageFileName);
@@ -1712,7 +1693,7 @@ public class SimpleServer extends AbstractServer {
 
 	private Date getExpiryTimestamp() {
 		Calendar cal = Calendar.getInstance();
-		cal.add(Calendar.MINUTE, 10); // Code expires in 10 minutes
+		cal.add(Calendar.MINUTE, 10);
 		return cal.getTime();
 	}
 
@@ -1800,7 +1781,7 @@ public class SimpleServer extends AbstractServer {
 	}
 
 	private void startOrderDeliverySweeper() {
-		// run immediately, then every 60 seconds
+
 		orderDeliverySweeper.scheduleAtFixedRate(this::checkAndMarkDelivered, 0, 60, TimeUnit.SECONDS);
 	}
 
@@ -1820,7 +1801,7 @@ public class SimpleServer extends AbstractServer {
 		LocalDate today = LocalDate.now(sweeperZone);
 		LocalTime nowTime = LocalTime.now(sweeperZone);
 
-		// ---- Step 1: bulk update all strictly past dates ----
+
 		try (Session s = sessionFactory.openSession()) {
 			Transaction tx = s.beginTransaction();
 			try {
@@ -1840,7 +1821,7 @@ public class SimpleServer extends AbstractServer {
 			}
 		}
 
-		// ---- Step 2: handle today's rows by time ----
+
 		try (Session s = sessionFactory.openSession()) {
 			Transaction tx = s.beginTransaction();
 			try {
@@ -1858,13 +1839,12 @@ public class SimpleServer extends AbstractServer {
 					LocalTime dueTime;
 
 					if (t == null || t.isBlank()) {
-						// treat missing as 00:00
+
 						dueTime = LocalTime.MIDNIGHT;
 					} else {
 						try {
 							dueTime = LocalTime.parse(t.trim(), hhmm);
 						} catch (DateTimeParseException dtpe) {
-							// bad format; skip but keep the server healthy
 							System.err.println("[Sweeper] Bad delivery_time for order " + o.getId() + ": " + t);
 							continue;
 						}
@@ -1888,8 +1868,6 @@ public class SimpleServer extends AbstractServer {
 		try {
 			sessionFactory = getSessionFactory();
 			System.out.println("Hibernate session factory initialized.");
-
-			// Reset all Account.logged to false at server startup
 			try (Session session = sessionFactory.openSession()) {
 				Transaction tx = session.beginTransaction();
 				int updated = session.createQuery("UPDATE Account SET logged = false").executeUpdate();
@@ -1925,7 +1903,7 @@ public class SimpleServer extends AbstractServer {
 		ReportMetrics m = new ReportMetrics();
 
 		try (Session s = sessionFactory.openSession()) {
-			// ----- Orders + Revenue for that single day -----
+
 			String hqlOrders =
 					"select count(o), sum( coalesce(o.totalPrice,0) - coalesce(o.refundAmount,0) ) " +
 							"from OrderSQL o " +
@@ -1945,8 +1923,8 @@ public class SimpleServer extends AbstractServer {
 			m.revenue = revenue;
 			m.avgOrderValue = orders == 0 ? 0.0 : Math.round((revenue / orders) * 100.0) / 100.0;
 
-			// ----- Complaints on that day -----
-			// FeedBackSQL.submittedAt is a LocalDateTime, so use [startOfDay, nextDay)
+
+
 			java.time.LocalDate d = date.toLocalDate();
 			java.time.LocalDateTime start = d.atStartOfDay();
 			java.time.LocalDateTime end = start.plusDays(1);
@@ -1967,14 +1945,14 @@ public class SimpleServer extends AbstractServer {
 
 		} catch (Exception e) {
 			e.printStackTrace();
-			// keep m as zeros if something fails
+
 		}
 		return m;
 	}
 	private static java.util.Date toUtilDate(Object t) {
 		if (t == null) return null;
 		if (t instanceof java.util.Date) {
-			return (java.util.Date) t;                       // java.util.Date or java.sql.Date is fine
+			return (java.util.Date) t;
 		}
 		if (t instanceof java.time.LocalDate) {
 			return java.sql.Date.valueOf((java.time.LocalDate) t);

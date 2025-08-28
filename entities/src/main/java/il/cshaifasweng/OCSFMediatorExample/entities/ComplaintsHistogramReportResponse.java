@@ -8,7 +8,6 @@ import java.util.Map;
 public class ComplaintsHistogramReportResponse implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    // key: A specific day (LocalDate), value: the number of complaints on that day
     private Map<LocalDate, Long> countsByDay = new LinkedHashMap<>();
 
     public ComplaintsHistogramReportResponse() { }

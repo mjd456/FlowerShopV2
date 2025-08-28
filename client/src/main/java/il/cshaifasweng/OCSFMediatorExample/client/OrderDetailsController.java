@@ -238,7 +238,7 @@ public class OrderDetailsController {
                 totalPrice,
                 addrOrPickup,
                 greeting,
-                pickupBranchId   // <-- int ID (0 for delivery)
+                pickupBranchId
         );
 
         SimpleClient.getClient().sendToServer(request);

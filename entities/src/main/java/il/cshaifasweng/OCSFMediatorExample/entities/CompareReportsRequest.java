@@ -4,10 +4,10 @@ import java.io.Serializable;
 import java.sql.Date;
 
 public class CompareReportsRequest implements Serializable {
-    private final int branchId;       // 0 = network, >0 = specific branch
-    private final String reportType;  // e.g., "Quarterly Revenue Report"
-    private final Date dateA;         // earlier (or first) date
-    private final Date dateB;         // later (or second) date
+    private final int branchId;
+    private final String reportType;
+    private final Date dateA;
+    private final Date dateB;
 
     public CompareReportsRequest(int branchId, String reportType, Date dateA, Date dateB) {
         this.branchId = branchId;
