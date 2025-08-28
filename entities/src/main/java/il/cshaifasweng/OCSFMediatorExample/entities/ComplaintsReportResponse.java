@@ -36,7 +36,6 @@ public class ComplaintsReportResponse implements Serializable {
         public LocalDateTime getSubmittedAt() { return submittedAt; }
         public FeedBackSQL.FeedbackStatus getStatus() { return status; }
     }
-
     public static class Row implements Serializable {
         private final LocalDate day;
         private final long count;
