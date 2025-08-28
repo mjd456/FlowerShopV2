@@ -14,9 +14,6 @@ import java.io.IOException;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
-/**
- * JavaFX App
- */
 public class App extends Application {
     private static Scene scene;
     private SimpleClient client;
