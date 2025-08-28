@@ -2785,29 +2785,48 @@ public class SecondaryController {
     @org.greenrobot.eventbus.Subscribe(sticky = true)
     public void onComplaintsReport(il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse resp) {
         javafx.application.Platform.runLater(() -> {
-            javafx.stage.Stage stage = new javafx.stage.Stage();
-            stage.setTitle("Complaints Report");
+            var rows = (resp != null && resp.getRows() != null) ? resp.getRows() : java.util.List.<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row>of();
 
-            var tv = new javafx.scene.control.TableView<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row>();
+            StringBuilder sb = new StringBuilder(2048);
+            if (rows.isEmpty()) {
+                sb.append("No complaints found for the selected period.");
+            } else {
+                for (var row : rows) {
+                    sb.append("=== ").append(row.getDay()).append(" — Complaints: ").append(row.getCount()).append(" ===\n");
+                    var items = row.getDetails();
+                    if (items == null || items.isEmpty()) {
+                        sb.append("  (No items)\n\n");
+                        continue;
+                    }
+                    for (var it : items) {
+                        // Optionally truncate long bodies for readability
+                        String body = it.getDetails() == null ? "" : it.getDetails().trim();
+                        if (body.length() > 600) body = body.substring(0, 600) + "…";
 
-            var colDay = new javafx.scene.control.TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row, String>("Day");
-            colDay.setCellValueFactory(c ->
-                    new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getDay()))
-            );
+                        sb.append("• ").append(safe(it.getTitle())).append("  [")
+                                .append(it.getStatus()).append("]\n")
+                                .append("  From: ").append(safe(it.getEmail()))
+                                .append("  | Branch: ").append(safe(it.getBranch()))
+                                .append("  | Sent: ").append(String.valueOf(it.getSubmittedAt())).append("\n")
+                                .append("  ").append(body).append("\n\n");
+                    }
+                }
+            }
 
-            var colCount = new javafx.scene.control.TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row, Number>("Complaints");
-            colCount.setCellValueFactory(c ->
-                    new javafx.beans.property.SimpleLongProperty(c.getValue().getCount())
-            );
+            var ta = new javafx.scene.control.TextArea(sb.toString());
+            ta.setEditable(false);
+            ta.setWrapText(true);
+            ta.setFont(javafx.scene.text.Font.font("monospaced"));
+            ta.setPrefSize(900, 600);
 
-            tv.getColumns().addAll(colDay, colCount);
-            tv.getItems().addAll(resp.getRows());
-
-            stage.setScene(new javafx.scene.Scene(new javafx.scene.layout.BorderPane(tv), 420, 420));
-            stage.show();
+            var alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+            alert.setTitle("Complaints Report (with details)");
+            alert.setHeaderText("Report for the last 3 months");
+            alert.getDialogPane().setContent(ta);
+            alert.setResizable(true);
+            alert.showAndWait();
         });
     }
-
 
     @Subscribe
     public void onQuarterlyRevenueReport(QuarterlyRevenueReportResponse resp) {
@@ -2964,69 +2983,6 @@ public class SecondaryController {
                     branchSelectorComboBox.getSelectionModel().selectFirst();
                 }
             });
-        });
-    }
-
-    @org.greenrobot.eventbus.Subscribe
-    public void onComplaintsHistogramReport(ComplaintsHistogramReportResponse response) {
-        System.out.println("[UI] onComplaintsHistogramReport fired. points=" +
-                (response.getCountsByDay()==null ? -1 : response.getCountsByDay().size()));
-        Platform.runLater(() -> {
-            Stage histogramStage = new Stage();
-            histogramStage.setTitle("Complaints Histogram");
-
-            Map<LocalDate, Long> data = response.getCountsByDay();
-            if (data == null || data.isEmpty()) {
-                new Alert(Alert.AlertType.INFORMATION, "No complaint data found for the selected period.").showAndWait();
-                return;
-            }
-
-            // Sort by date for a proper timeline
-            List<Map.Entry<LocalDate, Long>> points = new ArrayList<>(data.entrySet());
-            points.sort(Map.Entry.comparingByKey());
-
-            double canvasWidth = 800;
-            double canvasHeight = 420;
-            Canvas canvas = new Canvas(canvasWidth, canvasHeight);
-            GraphicsContext gc = canvas.getGraphicsContext2D();
-
-            long maxCount = points.stream().mapToLong(Map.Entry::getValue).max().orElse(1);
-            double padding = 50;
-            double chartWidth = canvasWidth - 2 * padding;
-            double chartHeight = canvasHeight - 2 * padding;
-
-            // bar + gap sizing
-            double slotWidth = chartWidth / points.size();
-            double barWidth = slotWidth * 0.7;
-            double gap = slotWidth * 0.3;
-
-            // axes
-            gc.setStroke(Color.GRAY);
-            gc.strokeLine(padding, padding, padding, canvasHeight - padding);                 // Y
-            gc.strokeLine(padding, canvasHeight - padding, canvasWidth - padding, canvasHeight - padding); // X
-
-            DateTimeFormatter df = DateTimeFormatter.ofPattern("dd/MM");
-
-            int i = 0;
-            for (Map.Entry<LocalDate, Long> entry : points) {
-                double barHeight = (entry.getValue() * 1.0 / maxCount) * chartHeight;
-                double x = padding + i * slotWidth + gap / 2.0;
-                double y = canvasHeight - padding - barHeight;
-
-                gc.setFill(Color.CORNFLOWERBLUE);
-                gc.fillRect(x, y, barWidth, barHeight);
-
-                // labels
-                gc.setFill(Color.BLACK);
-                gc.fillText(df.format(entry.getKey()), x, canvasHeight - padding + 14);
-                gc.fillText(String.valueOf(entry.getValue()), x + barWidth / 2 - 6, y - 4);
-
-                i++;
-            }
-
-            Pane root = new Pane(canvas);
-            histogramStage.setScene(new Scene(root));
-            histogramStage.show();
         });
     }
     private void requestComplaintsHistogram(int branchId) {
