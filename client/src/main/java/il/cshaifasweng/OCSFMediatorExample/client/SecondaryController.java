@@ -11,7 +11,9 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.fxml.FXML;
+
 import java.sql.Date;
+
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -26,6 +28,15 @@ import javafx.scene.text.Font;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
+
+import java.time.LocalDate;
+
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker;
 
 //>>>>>>> main
 
@@ -57,6 +68,7 @@ import javafx.scene.layout.VBox;
 import org.greenrobot.eventbus.Subscribe;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -350,11 +362,22 @@ public class SecondaryController {
     @FXML
     private ComboBox<String> BranchComboBox;
 
+    @FXML
+    private DatePicker reportDate1;
+    @FXML
+    private DatePicker reportDate2;
+    @FXML
+    private Button compareReportsBtn;
 
-    @FXML private TableView<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row> QuarterlyTable;
-    @FXML private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colYear;
-    @FXML private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colQuarter;
-    @FXML private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colRevenue;
+
+    @FXML
+    private TableView<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row> QuarterlyTable;
+    @FXML
+    private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colYear;
+    @FXML
+    private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colQuarter;
+    @FXML
+    private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colRevenue;
 
     //==================CustomHeader=====================//
 
@@ -379,6 +402,7 @@ public class SecondaryController {
     public Map<Flower, Integer> getCartMap() {
         return cartMap;
     }
+
     private void setupManagerUI() {
         if (account == null) {
             return;
@@ -397,8 +421,7 @@ public class SecondaryController {
             } else {
                 managerScopeLabel.setText("Error: No branch assigned!");
             }
-        }
-        else if ("Network Manager".equalsIgnoreCase(accountLevel)) {
+        } else if ("Network Manager".equalsIgnoreCase(accountLevel)) {
             branchSelectorBox.setVisible(true);
             managerScopeLabel.setVisible(false);
             managerScopeLabel.setManaged(false); // Ensures it doesn't take up space
@@ -410,8 +433,7 @@ public class SecondaryController {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        }
-        else {
+        } else {
             branchSelectorBox.setVisible(false);
         }
     }
@@ -449,8 +471,8 @@ public class SecondaryController {
 
                 // Basic info
                 Label detailsLabel = new Label("Details: " + order.getDetails());
-                Label priceLabel   = new Label("Price: ₪" + order.getTotalPrice());
-                Label statusLabel  = new Label("Status: " + order.getStatus());
+                Label priceLabel = new Label("Price: ₪" + order.getTotalPrice());
+                Label statusLabel = new Label("Status: " + order.getStatus());
 
                 // Date (date-only)
                 String dateOnly;
@@ -474,10 +496,18 @@ public class SecondaryController {
                         String bname = "Unknown";
                         if (bid != null) {
                             switch (bid) {
-                                case 1: bname = "Haifa"; break;
-                                case 2: bname = "Eilat"; break;
-                                case 3: bname = "Tel Aviv"; break;
-                                default: bname = "Network"; break;
+                                case 1:
+                                    bname = "Haifa";
+                                    break;
+                                case 2:
+                                    bname = "Eilat";
+                                    break;
+                                case 3:
+                                    bname = "Tel Aviv";
+                                    break;
+                                default:
+                                    bname = "Network";
+                                    break;
                             }
                         }
                         fulfillmentText = "Pickup: " + bname;
@@ -540,7 +570,9 @@ public class SecondaryController {
     }
 
 
-    /** Schedules regular checks for order status */
+    /**
+     * Schedules regular checks for order status
+     */
     private void setupOrderCard(OrderSQL order, Label statusLabel, Button cancelButton) {
         updateOrderStatus(order, statusLabel, cancelButton);
 
@@ -551,7 +583,9 @@ public class SecondaryController {
         timeline.play();
     }
 
-    /** Marks as delivered & hides cancel after delivery time */
+    /**
+     * Marks as delivered & hides cancel after delivery time
+     */
     private void updateOrderStatus(OrderSQL order, Label statusLabel, Button cancelButton) {
         try {
             LocalDate orderDate = (order.getDeliveryDate() instanceof java.sql.Date)
@@ -578,7 +612,6 @@ public class SecondaryController {
         for (Map.Entry<Flower, byte[]> entry : flowerImageMap.entrySet()) {
             Flower flower = entry.getKey();
             byte[] imageData = entry.getValue();
-
 
 
             HBox flowerBox = new HBox(10);
@@ -716,9 +749,9 @@ public class SecondaryController {
     }
 
     public void setUserRole() {
-        String role = account == null? "Guest":account.getAccountLevel();
+        String role = account == null ? "Guest" : account.getAccountLevel();
         System.out.println("role: " + role);
-        if ("Guest".equalsIgnoreCase(role)){
+        if ("Guest".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 List<Tab> toRemove = new ArrayList<>();
                 for (Tab tab : MainTabsFrame.getTabs()) {
@@ -745,16 +778,16 @@ public class SecondaryController {
                 SettingsPane.setPrefHeight(300);
 
             });
-        }
-        else if ("Customer".equalsIgnoreCase(role)) {
+        } else if ("Customer".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 for (Tab tab : ManagerTabs) {
                     MainTabsFrame.getTabs().remove(tab);
                 }
             });
-        }
-        else if ("Manager".equalsIgnoreCase(role) || "BranchManager".equalsIgnoreCase(role)) {
+
+        } else if ("Manager".equalsIgnoreCase(role) || "BranchManager".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
+                MainTabsFrame.getTabs().remove(CustomerServicePanel);
                 MainTabsFrame.getTabs().remove(detailsChange);
                 MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
                     if (newTab == ManagerPanel) {
@@ -771,17 +804,15 @@ public class SecondaryController {
                 BranchComboBox.setDisable(true);
                 BranchComboBox.setVisible(false);
             });
-        }
-        else if ("CustomerService".equalsIgnoreCase(role)) {
+        } else if ("CustomerService".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 for (Tab tab : ManagerTabs) {
-                    if(tab != CustomerServicePanel){
+                    if (tab != CustomerServicePanel) {
                         MainTabsFrame.getTabs().remove(tab);
                     }
                 }
             });
-        }
-        else if ("NetworkManager".equalsIgnoreCase(role)) {
+        } else if ("NetworkManager".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
                     if (newTab == ManagerPanel) {
@@ -795,8 +826,7 @@ public class SecondaryController {
                     }
                 });
             });
-        }
-        else  {
+        } else {
             System.out.println("Unknown role: " + role);
         }
     }
@@ -812,26 +842,26 @@ public class SecondaryController {
 
     @org.greenrobot.eventbus.Subscribe
     public void onSetAccountLevel(SetAccountLevel event) {
-        javafx.application.Platform.runLater(()-> {
+        javafx.application.Platform.runLater(() -> {
             account = event.getAccount();
             setupManagerUI();
             Guest = account == null;
-            if(!Guest) {
+            if (!Guest) {
                 System.out.println("Received sticky event for role: " + event.getAccount().getAccountLevel());
                 ProfileSayHelloLabel.setText("Hello " + account.getFirstName() + " " + account.getLastName());
                 System.out.println("Account Level: " + account.getAccountLevel() + ", user : " + account.getSubscribtion_level());
                 SubscribtionLevelLabel.setText(account.getSubscribtion_level() + " user");
-                if(account.getSubscribtion_level().equals("Free")){
+                if (account.getSubscribtion_level().equals("Free")) {
                     FreeUserLabel.setVisible(true);
                     CancelRenewButton.setVisible(false);
                     PlusUserLabel.setVisible(false);
-                }else{
+                } else {
                     FreeUserLabel.setVisible(false);
                     PlusUpgradeButton.setVisible(false);
-                    if(account.getAuto_renew_subscription().equals("Yes")){
+                    if (account.getAuto_renew_subscription().equals("Yes")) {
                         CancelRenewButton.setVisible(true);
                         PlusUserLabel.setText("Renew at " + account.getSubscription_expires_at());
-                    }else {
+                    } else {
                         CancelRenewButton.setVisible(false);
                         PlusUserLabel.setText("Expires at " + account.getSubscription_expires_at());
                     }
@@ -841,7 +871,7 @@ public class SecondaryController {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-            }else {
+            } else {
                 System.out.println("Received sticky event for role: guest");
                 ProfileSayHelloLabel.setText("Hello guest");
                 System.out.println("Account Level: guest , user : guest");
@@ -851,7 +881,6 @@ public class SecondaryController {
                 PlusUpgradeButton.setVisible(false);
             }
 
-
             setUserRole();
         });
     }
@@ -860,7 +889,7 @@ public class SecondaryController {
     public void LogOut(ActionEvent event) {
         try {
             StageManager.replaceScene("primary", "Authenticator");
-            if(!Guest) {
+            if (!Guest) {
                 SimpleClient.getClient().sendToServer(new LogoutRequest(account));
             }
             account = null;
@@ -872,7 +901,7 @@ public class SecondaryController {
     @FXML
     private void closeWindow() {
 
-        if(!Guest) {
+        if (!Guest) {
             try {
                 SimpleClient.getClient().sendToServer(new LogoutRequest(account));
             } catch (IOException e) {
@@ -889,9 +918,9 @@ public class SecondaryController {
     }
 
     // Branch ids you already use:
-    private static final int BRANCH_HAIFA     = 1;
-    private static final int BRANCH_EILAT     = 2;
-    private static final int BRANCH_TEL_AVIV  = 3;
+    private static final int BRANCH_HAIFA = 1;
+    private static final int BRANCH_EILAT = 2;
+    private static final int BRANCH_TEL_AVIV = 3;
 
     public void populateManagerCatalog(List<Flower> flowerList) {
         ManagerCatalogSelectorVbox.getChildren().clear();
@@ -903,9 +932,9 @@ public class SecondaryController {
                 : "";
 
         final boolean isNetworkManager = role.equals("networkmanager") || role.equals("managernetwork");
-        final boolean isBranchManager  = role.equals("branchmanager")  || role.equals("managerbranch");
-        final boolean isManagerAll     = isNetworkManager || role.equals("manager"); // "Manager" can edit all
-        final int branchId             = resolveBranchId(account); // 1=Haifa, 2=Eilat, 3=TelAviv, 0=none
+        final boolean isBranchManager = role.equals("branchmanager") || role.equals("managerbranch");
+        final boolean isManagerAll = isNetworkManager || role.equals("manager"); // "Manager" can edit all
+        final int branchId = resolveBranchId(account); // 1=Haifa, 2=Eilat, 3=TelAviv, 0=none
 
         for (Flower flower : flowerList) {
             VBox card = new VBox(8);
@@ -914,7 +943,7 @@ public class SecondaryController {
             card.prefWidthProperty().bind(ManagerCatalogSelectorVbox.widthProperty().subtract(24));
 
             // --- Header info
-            Label name  = new Label("Name: " + flower.getName());
+            Label name = new Label("Name: " + flower.getName());
             Label price = new Label("Price: ₪" + flower.getPrice());
             Label color = new Label("Color: " + flower.getColor());
 
@@ -976,36 +1005,39 @@ public class SecondaryController {
                 actions.getChildren().addAll(editBtn, deleteBtn);
 
                 // Fields inside the drawer
-                TextField nameField  = new TextField(flower.getName());
+                TextField nameField = new TextField(flower.getName());
                 TextField colorField = new TextField(flower.getColor());
                 TextField priceField = new TextField(String.valueOf(flower.getPrice()));
-                TextArea  descField  = new TextArea(flower.getDescription());
+                TextArea descField = new TextArea(flower.getDescription());
                 descField.setPrefHeight(80);
                 descField.setWrapText(true);
                 descField.setMaxWidth(Double.MAX_VALUE);
 
-                Button saveBtn   = new Button("Save");
+                Button saveBtn = new Button("Save");
                 Button cancelBtn = new Button("Cancel");
-                HBox buttonBox   = new HBox(8, saveBtn, cancelBtn);
+                HBox buttonBox = new HBox(8, saveBtn, cancelBtn);
 
                 // Save handler with simple validation
                 saveBtn.setOnAction(e -> {
-                    String newName  = nameField.getText().trim();
+                    String newName = nameField.getText().trim();
                     String newColor = colorField.getText().trim();
                     String priceTxt = priceField.getText().trim();
-                    String newDesc  = descField.getText().trim();
+                    String newDesc = descField.getText().trim();
 
                     boolean valid = true;
                     if (newName.isEmpty() || !newName.matches("^[A-Za-z\\s]+$")) {
-                        nameField.setStyle("-fx-border-color: red;"); valid = false;
+                        nameField.setStyle("-fx-border-color: red;");
+                        valid = false;
                     } else nameField.setStyle("");
 
                     if (newColor.isEmpty() || !newColor.matches("^[A-Za-z\\s]+$")) {
-                        colorField.setStyle("-fx-border-color: red;"); valid = false;
+                        colorField.setStyle("-fx-border-color: red;");
+                        valid = false;
                     } else colorField.setStyle("");
 
                     if (!priceTxt.matches("^\\d+(\\.\\d{1,2})?$")) {
-                        priceField.setStyle("-fx-border-color: red;"); valid = false;
+                        priceField.setStyle("-fx-border-color: red;");
+                        valid = false;
                     } else priceField.setStyle("");
 
                     if (!valid) return;
@@ -1144,7 +1176,9 @@ public class SecondaryController {
         return row;
     }
 
-    /** Recalculate total (Haifa + Eilat + TelAviv + Storage), write label, and keep model’s total in sync. */
+    /**
+     * Recalculate total (Haifa + Eilat + TelAviv + Storage), write label, and keep model’s total in sync.
+     */
     private void updateTotalAndModel(Flower f, Label totalLabel) {
         int total = (f.getSupplyHaifa() + f.getSupplyEilat() + f.getSupplyTelAviv() + f.getStorage());
         f.setSupply(total); // keep the 'supply' column as the grand total
@@ -1170,12 +1204,17 @@ public class SecondaryController {
     private static class Row {
         final HBox box;
         final Label label;
-        Row(HBox b, Label l) { this.box = b; this.label = l; }
+
+        Row(HBox b, Label l) {
+            this.box = b;
+            this.label = l;
+        }
     }
 
 
-
-    /** Prompts for a non-negative integer; returns Optional.empty() if invalid/canceled. */
+    /**
+     * Prompts for a non-negative integer; returns Optional.empty() if invalid/canceled.
+     */
     private Optional<Integer> promptForInt(String title, String content, int current) {
         TextInputDialog d = new TextInputDialog(String.valueOf(current));
         d.setHeaderText(null);
@@ -1193,7 +1232,9 @@ public class SecondaryController {
         }
     }
 
-    /** Sends update to server (fire-and-forget). Keep optimistic UI already updated. */
+    /**
+     * Sends update to server (fire-and-forget). Keep optimistic UI already updated.
+     */
     private void pushUpdate(Flower flower) {
         try {
             SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
@@ -1204,8 +1245,13 @@ public class SecondaryController {
     }
 
 
-    private static String safe(String s) { return s == null ? "" : s; }
-    private static int nz(Integer i)      { return i == null ? 0 : i; }
+    private static String safe(String s) {
+        return s == null ? "" : s;
+    }
+
+    private static int nz(Integer i) {
+        return i == null ? 0 : i;
+    }
 
 
     private void updateTotal(Flower flower, Label totalLabel) {
@@ -1337,13 +1383,13 @@ public class SecondaryController {
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
-        }else {
+        } else {
             System.err.println("Something went wrong. Please try again.");
             System.out.println("CC: " + account.getCreditCardNumber());
             System.out.println("CVV: " + account.getCvv());
             System.out.println("ValidUntil: " + account.getCreditCardValidUntil());
             System.out.println("isCardStillValid: " + isCardStillValid(account));
-            if(isCardStillValid(account) == false) {
+            if (isCardStillValid(account) == false) {
                 UpgradingAccountError.setText("Error: Card is not valid.");
                 UpgradingAccountError.setVisible(true);
             }
@@ -1425,7 +1471,7 @@ public class SecondaryController {
 
     @FXML
     void CancelAutoRenewSub(ActionEvent event) {
-        if(!account.getSubscribtion_level().equals("Free") && account.getAuto_renew_subscription().equals("Yes")){
+        if (!account.getSubscribtion_level().equals("Free") && account.getAuto_renew_subscription().equals("Yes")) {
             try {
                 SimpleClient.getClient().sendToServer(new CancelAutoRenewRequest(account));
             } catch (IOException e) {
@@ -1478,10 +1524,18 @@ public class SecondaryController {
                 if (branch != null) {
                     int branchId = branch.getId();  // safe, ID is available even if lazy
                     switch (branchId) {
-                        case BRANCH_HAIFA:    branchText = "Haifa"; break;
-                        case BRANCH_EILAT:    branchText = "Eilat"; break;
-                        case BRANCH_TEL_AVIV: branchText = "Tel Aviv"; break;
-                        default:              branchText = "Unknown"; break;
+                        case BRANCH_HAIFA:
+                            branchText = "Haifa";
+                            break;
+                        case BRANCH_EILAT:
+                            branchText = "Eilat";
+                            break;
+                        case BRANCH_TEL_AVIV:
+                            branchText = "Tel Aviv";
+                            break;
+                        default:
+                            branchText = "Unknown";
+                            break;
                     }
                 }
 
@@ -1624,7 +1678,7 @@ public class SecondaryController {
 
     @FXML
     void GetProfileInformation(Event event) {
-        if(!Guest){
+        if (!Guest) {
             try {
                 SimpleClient.getClient().sendToServer(new GetUserFeedbacksRequest(account.getId()));
                 SimpleClient.getClient().sendToServer(new GetUserOrdersRequest(account.getId()));
@@ -1637,7 +1691,7 @@ public class SecondaryController {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }else{
+        } else {
             AccInfoPhoneNum.setText("");
             AccInfoEmail.setText("");
             AccInfoPassword.setText("");
@@ -1823,7 +1877,7 @@ public class SecondaryController {
     public void onAccountUpgrade(AccountUpgrade event) {
         javafx.application.Platform.runLater(() -> {
             account = event.getAccount();
-            if(account.getSubscribtion_level().equals("Plus")){
+            if (account.getSubscribtion_level().equals("Plus")) {
                 CancelRenewButton.setVisible(true);
                 PlusUserLabel.setVisible(true);
                 PlusUserLabel.setText("Expires at " + account.getSubscription_expires_at());
@@ -1838,7 +1892,7 @@ public class SecondaryController {
     public void onAutoRenewResponse(AutoRenewResponse event) {
         javafx.application.Platform.runLater(() -> {
             account = event.getAccount();
-            if(account.getAuto_renew_subscription().equals("No")){
+            if (account.getAuto_renew_subscription().equals("No")) {
                 PlusUserLabel.setText("Expires at " + account.getSubscription_expires_at());
                 CancelRenewButton.setVisible(false);
             }
@@ -1874,14 +1928,14 @@ public class SecondaryController {
 
     public void UpdateAccountSubscriptionStatus() {
         SubscribtionLevelLabel.setText(account.getSubscribtion_level() + "user");
-        if(account.getSubscribtion_level().equals("Free")){
+        if (account.getSubscribtion_level().equals("Free")) {
             FreeUserLabel.setVisible(true);
             PlusUpgradeButton.setVisible(true);
             CancelRenewButton.setVisible(false);
             PlusUserLabel.setVisible(false);
-        }else{
+        } else {
             PlusUserLabel.setVisible(true);
-            PlusUserLabel.setText((account.getAuto_renew_subscription().equals("Yes")?"Renew at ":"Expires at") + account.getSubscription_expires_at());
+            PlusUserLabel.setText((account.getAuto_renew_subscription().equals("Yes") ? "Renew at " : "Expires at") + account.getSubscription_expires_at());
             CancelRenewButton.setVisible(true);
             FreeUserLabel.setVisible(false);
             PlusUpgradeButton.setVisible(false);
@@ -1977,7 +2031,6 @@ public class SecondaryController {
             NewHaifaFlowerSupply.setStyle("-fx-border-color: red;");
             valid = false;
         }
-
 
 
         if (desc.isEmpty()) {
@@ -2121,7 +2174,7 @@ public class SecondaryController {
     @Subscribe
     public void onUpdateCreditCardResponse(UpdateCreditCardResponse response) {
         Platform.runLater(() -> {
-            if (response.isSuccess()){
+            if (response.isSuccess()) {
                 account = response.getAccount();
                 AccInfoCCNum.setText("Credit card number : " + account.getCreditCardNumber().toString());
                 AccInfoCCV.setText("CCV : " + account.getCvv());
@@ -2254,7 +2307,7 @@ public class SecondaryController {
     }
 
     @FXML
-    void initialize() throws IOException{
+    void initialize() throws IOException {
         assert AccInfoCCNum != null : "fx:id=\"AccInfoCCNum\" was not injected: check your FXML file 'secondary.fxml'.";
         assert AccInfoCCV != null : "fx:id=\"AccInfoCCV\" was not injected: check your FXML file 'secondary.fxml'.";
         assert AccInfoCCValidUntil != null : "fx:id=\"AccInfoCCValidUntil\" was not injected: check your FXML file 'secondary.fxml'.";
@@ -2339,7 +2392,7 @@ public class SecondaryController {
             stage.setX(event.getScreenX() - xOffset);
             stage.setY(event.getScreenY() - yOffset);
         });
-        ManagerTabs = new Tab[] {
+        ManagerTabs = new Tab[]{
                 ManagerPanel,
                 CustomerServicePanel,
                 detailsChange
@@ -2371,8 +2424,7 @@ public class SecondaryController {
                                     .collect(Collectors.toList())
                     );
                 }
-            }
-            else if (oldTab == FlowersTab) {
+            } else if (oldTab == FlowersTab) {
                 System.out.println("Removing flowers");
                 FlowerPageVbox.getChildren().clear();
                 cachedFlowerNodes.clear();
@@ -2386,37 +2438,37 @@ public class SecondaryController {
         SimpleClient.getClient().sendToServer("GetAccounts");
         accountTable.setEditable(true);
         this.name.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account)cellData.getValue()).getFirstName()+ " " + ((Account)cellData.getValue()).getLastName());
+            return new SimpleStringProperty(((Account) cellData.getValue()).getFirstName() + " " + ((Account) cellData.getValue()).getLastName());
         });
 
         this.creditCard.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account)cellData.getValue()).getCreditCardNumber());
+            return new SimpleStringProperty(((Account) cellData.getValue()).getCreditCardNumber());
         });
 
         this.id.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account)cellData.getValue()).getIdentityNumber());
+            return new SimpleStringProperty(((Account) cellData.getValue()).getIdentityNumber());
         });
 
         this.email.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account)cellData.getValue()).getEmail());
+            return new SimpleStringProperty(((Account) cellData.getValue()).getEmail());
         });
 
         this.phone.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account)cellData.getValue()).getPhoneNumber());
+            return new SimpleStringProperty(((Account) cellData.getValue()).getPhoneNumber());
         });
         this.password.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account)cellData.getValue()).getPassword());
+            return new SimpleStringProperty(((Account) cellData.getValue()).getPassword());
         });
-        this.sub.setCellValueFactory((cellData) ->{
-            return new SimpleStringProperty(((Account)cellData.getValue()).getSubscribtion_level());
+        this.sub.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account) cellData.getValue()).getSubscribtion_level());
         });
-        this.accountLevel.setCellValueFactory((cellData) ->{
-            return new SimpleStringProperty(((Account)cellData.getValue()).getAccountLevel());
+        this.accountLevel.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account) cellData.getValue()).getAccountLevel());
         });
-        this.branchID.setCellValueFactory((cellData) ->{
-            Branch b = ((Account)cellData.getValue()).getBranch();
+        this.branchID.setCellValueFactory((cellData) -> {
+            Branch b = ((Account) cellData.getValue()).getBranch();
             int id = 0;
-            if(b != null)
+            if (b != null)
                 id = b.getId();
 
             return new SimpleStringProperty("" + id);
@@ -2428,8 +2480,8 @@ public class SecondaryController {
 
         this.name.setOnEditCommit((event) -> {
             Account account = (Account) event.getRowValue();
-            String newName =(String) event.getNewValue();
-            if (!newName.equals(account.getFirstName() + account.getLastName())){
+            String newName = (String) event.getNewValue();
+            if (!newName.equals(account.getFirstName() + account.getLastName())) {
                 String firstName = newName.split(" ")[0];
                 account.setFirstName(firstName);
 
@@ -2454,14 +2506,13 @@ public class SecondaryController {
         BranchComboBox.setValue("Network");
 
 
-
-        this.sub.setCellFactory((col) ->{
+        this.sub.setCellFactory((col) -> {
             return new TextFieldTableCell(new DefaultStringConverter());
         });
         this.sub.setOnEditCommit((event) -> {
             Account account = (Account) event.getRowValue();
-            String newSub = (String)event.getNewValue();
-            if (!newSub.equals(account.getSubscribtion_level())){
+            String newSub = (String) event.getNewValue();
+            if (!newSub.equals(account.getSubscribtion_level())) {
                 account.setSubscribtion_level(newSub);
                 try {
                     SimpleClient.getClient().sendToServer(account);
@@ -2472,13 +2523,13 @@ public class SecondaryController {
         });
 
         // the id is not changeable. delete
-        this.id.setCellFactory((col) ->{
+        this.id.setCellFactory((col) -> {
             return new TextFieldTableCell(new DefaultStringConverter());
         });
         this.id.setOnEditCommit((event) -> {
             Account account = (Account) event.getRowValue();
-            String newId = (String)event.getNewValue();
-            if (!newId.equals(account.getIdentityNumber())){
+            String newId = (String) event.getNewValue();
+            if (!newId.equals(account.getIdentityNumber())) {
                 account.setIdentityNumber(newId);
                 try {
                     SimpleClient.getClient().sendToServer(account);
@@ -2488,13 +2539,13 @@ public class SecondaryController {
             }
         });
 
-        this.phone.setCellFactory((col) ->{
+        this.phone.setCellFactory((col) -> {
             return new TextFieldTableCell(new DefaultStringConverter());
         });
         this.phone.setOnEditCommit((event) -> {
             Account account = (Account) event.getRowValue();
-            String newPhone = (String)event.getNewValue();
-            if (!newPhone.equals(account.getPhoneNumber())){
+            String newPhone = (String) event.getNewValue();
+            if (!newPhone.equals(account.getPhoneNumber())) {
                 account.setPhoneNumber(newPhone);
                 try {
                     SimpleClient.getClient().sendToServer(account);
@@ -2504,13 +2555,13 @@ public class SecondaryController {
             }
         });
 
-        this.email.setCellFactory((col) ->{
+        this.email.setCellFactory((col) -> {
             return new TextFieldTableCell(new DefaultStringConverter());
         });
         this.email.setOnEditCommit((event) -> {
             Account account = (Account) event.getRowValue();
-            String newEmail = (String)event.getNewValue();
-            if (!newEmail.equals(account.getEmail())){
+            String newEmail = (String) event.getNewValue();
+            if (!newEmail.equals(account.getEmail())) {
                 account.setEmail(newEmail);
                 try {
                     SimpleClient.getClient().sendToServer(account);
@@ -2520,13 +2571,13 @@ public class SecondaryController {
             }
         });
 
-        this.password.setCellFactory((col) ->{
+        this.password.setCellFactory((col) -> {
             return new TextFieldTableCell(new DefaultStringConverter());
         });
         this.password.setOnEditCommit((event) -> {
             Account account = (Account) event.getRowValue();
-            String newPassword = (String)event.getNewValue();
-            if (!newPassword.equals(account.getPassword())){
+            String newPassword = (String) event.getNewValue();
+            if (!newPassword.equals(account.getPassword())) {
                 account.setPassword(newPassword);
                 try {
                     SimpleClient.getClient().sendToServer(account);
@@ -2536,13 +2587,13 @@ public class SecondaryController {
             }
         });
 
-        this.password.setCellFactory((col) ->{
+        this.password.setCellFactory((col) -> {
             return new TextFieldTableCell(new DefaultStringConverter());
         });
         this.password.setOnEditCommit((event) -> {
             Account account = (Account) event.getRowValue();
-            String newPassword = (String)event.getNewValue();
-            if (!newPassword.equals(account.getPassword())){
+            String newPassword = (String) event.getNewValue();
+            if (!newPassword.equals(account.getPassword())) {
                 account.setPassword(newPassword);
                 try {
                     SimpleClient.getClient().sendToServer(account);
@@ -2552,13 +2603,13 @@ public class SecondaryController {
             }
         });
 
-        this.creditCard.setCellFactory((col) ->{
+        this.creditCard.setCellFactory((col) -> {
             return new TextFieldTableCell(new DefaultStringConverter());
         });
         this.creditCard.setOnEditCommit((event) -> {
             Account account = (Account) event.getRowValue();
-            String newCreditCard = (String)event.getNewValue();
-            if (!newCreditCard.equals(account.getCreditCardNumber())){
+            String newCreditCard = (String) event.getNewValue();
+            if (!newCreditCard.equals(account.getCreditCardNumber())) {
                 account.setCreditCardNumber(newCreditCard);
                 try {
                     SimpleClient.getClient().sendToServer(account);
@@ -2573,8 +2624,8 @@ public class SecondaryController {
         });
         this.accountLevel.setOnEditCommit((event) -> {
             Account account = (Account) event.getRowValue();
-            String accountLevel = (String)event.getNewValue();
-            if (!accountLevel.equals(account.getAccountLevel())){
+            String accountLevel = (String) event.getNewValue();
+            if (!accountLevel.equals(account.getAccountLevel())) {
                 account.setAccountLevel(accountLevel);
                 try {
                     SimpleClient.getClient().sendToServer(account);
@@ -2583,19 +2634,19 @@ public class SecondaryController {
                 }
             }
         });
-        this.branchID.setCellFactory((col) ->{
+        this.branchID.setCellFactory((col) -> {
             return new TextFieldTableCell(new DefaultStringConverter());
         });
         this.branchID.setOnEditCommit((event) -> {
             Account account = (Account) event.getRowValue();
             int branchID = Integer.parseInt((String) event.getNewValue());
             Branch b = account.getBranch();
-            if(b == null){
+            if (b == null) {
                 b = new Branch();
                 b.setId(-1);
                 account.setBranch(b);
             }
-            if (!(branchID == b.getId())){
+            if (!(branchID == b.getId())) {
                 b.setId(branchID);
                 try {
                     SimpleClient.getClient().sendToServer(account);
@@ -2609,13 +2660,34 @@ public class SecondaryController {
         ObservableList<String> reportTypes = FXCollections.observableArrayList(
                 "Quarterly Revenue Report",
                 "Orders by Type Report",
-                "Complaints Report"
+                "Complaints Report",
+                "Compare Reports (by Date)"  // ← now always present
         );
         reportTypeComboBox.setItems(reportTypes);
-        reportTypeComboBox.setValue("Quarterly Revenue Report"); // Set a default value
+        reportTypeComboBox.setValue("Quarterly Revenue Report");
+
+        // Hide compare controls initially
+        setCompareControlsVisible(false);
+
+        // Toggle UI when report type changes:
+        reportTypeComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+            boolean compareSelected = "Compare Reports (by Date)".equals(newVal);
+            setCompareControlsVisible(compareSelected);         // ← no role check here
+            if (generateReportBtn != null) {
+                generateReportBtn.setDisable(compareSelected);  // disable Generate while in compare mode
+            }
+        });
+
 
         App.notifySecondaryReady();
+        // 1) add type only for NM
+        if (isNetworkManager() && !reportTypeComboBox.getItems().contains("Compare Reports (by Date)")) {
+            reportTypeComboBox.getItems().add("Compare Reports (by Date)");
+        }
+
+        // 2) show the button (and hide for non-NM)
     }
+
     @FXML
     void onGenerateReport(ActionEvent e) {
         // 1) Which report?
@@ -2641,7 +2713,7 @@ public class SecondaryController {
         // 3) Dispatch request
         switch (reportType) {
             case "Quarterly Revenue Report" -> requestQuarterlyRevenue(branchId);
-            case "Orders by Type Report"    -> requestOrdersByType(branchId);
+            case "Orders by Type Report" -> requestOrdersByType(branchId);
             // case "Complaints Report" -> requestComplaints(...);   // later
             default -> System.err.println("Unknown report type: " + reportType);
         }
@@ -2649,11 +2721,11 @@ public class SecondaryController {
 
 
     private void requestQuarterlyRevenue(int branchId) {
-        LocalDate toLD   = LocalDate.now();
+        LocalDate toLD = LocalDate.now();
         LocalDate fromLD = toLD.minusMonths(3);
 
         Date from = Date.valueOf(fromLD);
-        Date to   = Date.valueOf(toLD);
+        Date to = Date.valueOf(toLD);
 
         try {
             SimpleClient.getClient().sendToServer(
@@ -2667,13 +2739,13 @@ public class SecondaryController {
     }
 
     private void requestOrdersByType(int branchId) {
-        LocalDate toLD   = LocalDate.now();
+        LocalDate toLD = LocalDate.now();
         LocalDate fromLD = toLD.minusMonths(3);
 
         Date from = Date.valueOf(fromLD);
-        Date to   = Date.valueOf(toLD);
+        Date to = Date.valueOf(toLD);
         try {
-            SimpleClient.getClient().sendToServer(new OrdersByProductTypeReportRequest(from,to,branchId));
+            SimpleClient.getClient().sendToServer(new OrdersByProductTypeReportRequest(from, to, branchId));
             System.out.println("[SEND] OrdersByProductTypeReportRequest(branchId=" + branchId + ")");
         } catch (IOException ex) {
             System.err.println("[ERROR] OrdersByProductTypeReportRequest failed: " + ex.getMessage());
@@ -2691,8 +2763,8 @@ public class SecondaryController {
         if (s == null) return 0;
         s = s.toLowerCase();
         if (s.startsWith("network")) return 0;
-        if (s.startsWith("haifa"))   return 1;
-        if (s.startsWith("eilat"))   return 2;
+        if (s.startsWith("haifa")) return 1;
+        if (s.startsWith("eilat")) return 2;
         if (s.startsWith("tel aviv") || s.startsWith("telaviv")) return 3;
         return 0;
     }
@@ -2752,16 +2824,16 @@ public class SecondaryController {
             sb.append("--------------------------------------------------------------------------\n");
 
             long totalOrders = 0;
-            long totalQty    = 0;
-            double totalSum  = 0.0;
+            long totalQty = 0;
+            double totalSum = 0.0;
 
             if (rows.isEmpty()) {
                 sb.append("No order data found for the selected period.");
             } else {
                 for (var row : rows) {
                     totalOrders += row.getOrders();
-                    totalQty    += row.getQuantity();
-                    totalSum    += row.getTotal();
+                    totalQty += row.getQuantity();
+                    totalSum += row.getTotal();
                     sb.append(String.format("%-24s | %12d | %14d | %14s%n",
                             row.getProductType(),
                             row.getOrders(),
@@ -2807,13 +2879,19 @@ public class SecondaryController {
 
             // Show: "Haifa Branch (1)" etc.
             branchSelectorComboBox.setConverter(new StringConverter<Branch>() {
-                @Override public String toString(Branch b) {
+                @Override
+                public String toString(Branch b) {
                     return (b == null) ? "" : (b.getId() == 0 ? b.getName() : b.getName() + " Branch (" + b.getId() + ")");
                 }
-                @Override public Branch fromString(String s) { return null; }
+
+                @Override
+                public Branch fromString(String s) {
+                    return null;
+                }
             });
             branchSelectorComboBox.setCellFactory(cb -> new ListCell<>() {
-                @Override protected void updateItem(Branch b, boolean empty) {
+                @Override
+                protected void updateItem(Branch b, boolean empty) {
                     super.updateItem(b, empty);
                     setText(empty || b == null ? "" : (b.getId() == 0 ? b.getName() : b.getName() + " Branch (" + b.getId() + ")"));
                 }
@@ -2915,5 +2993,101 @@ public class SecondaryController {
             histogramStage.show();
         });
     }
+
+    private boolean isNetworkManager() {
+        return account != null
+                && account.getAccountLevel() != null
+                && account.getAccountLevel().trim().equalsIgnoreCase("NetworkManager");
+    }
+
+    @FXML
+    private void onCompareReports(ActionEvent e) {
+        // Dates
+        LocalDate d1 = (reportDate1 != null) ? reportDate1.getValue() : null;
+        LocalDate d2 = (reportDate2 != null) ? reportDate2.getValue() : null;
+        if (d1 == null || d2 == null) {
+            new Alert(Alert.AlertType.WARNING, "Please pick both dates.").showAndWait();
+            return;
+        }
+        if (d1.equals(d2)) {
+            new Alert(Alert.AlertType.WARNING, "Dates must be different.").showAndWait();
+            return;
+        }
+        LocalDate from = d1.isBefore(d2) ? d1 : d2;
+        LocalDate to = d1.isBefore(d2) ? d2 : d1;
+
+        // Branch (reuse your existing logic)
+        int branchId;
+        String lvl = (account != null) ? account.getAccountLevel() : null;
+        if (lvl != null && (lvl.equalsIgnoreCase("Branch Manager") || lvl.equalsIgnoreCase("BranchManager"))) {
+            // Branch managers use their own branch (though they won’t see this button)
+            branchId = (account != null && account.getBranch() != null) ? account.getBranch().getId() : 0;
+        } else {
+            // Network manager selects a branch (or 0 for whole network, if you support that)
+            String selectedBranch = (BranchComboBox != null) ? BranchComboBox.getValue() : null;
+            branchId = branchNameToId(selectedBranch); // use your existing util to map name -> id
+        }
+
+        String reportType = (reportTypeComboBox != null) ? reportTypeComboBox.getValue() : null;
+        if (reportType == null || reportType.isBlank()) {
+            new Alert(Alert.AlertType.WARNING, "Please select a report type.").showAndWait();
+            return;
+        }
+
+        // Send to server (adapt to your messaging)
+        try {
+            SimpleClient.getClient().sendToServer(
+                    new CompareReportsRequest(
+                            branchId,
+                            reportType, // will be "Compare Reports (by Date)"
+                            java.sql.Date.valueOf(from),
+                            java.sql.Date.valueOf(to)
+                    )
+            );
+        } catch (Exception ex) {
+            new Alert(Alert.AlertType.ERROR, "Failed to send compare request:\n" + ex.getMessage()).showAndWait();
+            ex.printStackTrace();
+        }
+
+    }
+
+    private void setCompareControlsVisible(boolean visible) {
+        if (reportDate1 != null) { reportDate1.setVisible(visible); reportDate1.setManaged(visible); }
+        if (reportDate2 != null) { reportDate2.setVisible(visible); reportDate2.setManaged(visible); }
+        if (compareReportsBtn != null) { compareReportsBtn.setVisible(visible); compareReportsBtn.setManaged(visible); }
+    }
+    @org.greenrobot.eventbus.Subscribe
+    public void onCompareReportsResponse(il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse resp) {
+        javafx.application.Platform.runLater(() -> {
+            // Build a small table with metrics
+            javafx.scene.control.TableView<il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse.Row> tv =
+                    new javafx.scene.control.TableView<>();
+
+            javafx.scene.control.TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse.Row, String> cMetric =
+                    new javafx.scene.control.TableColumn<>("Metric");
+            javafx.scene.control.TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse.Row, Number> cA =
+                    new javafx.scene.control.TableColumn<>(resp.getDateA().toString());
+            javafx.scene.control.TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse.Row, Number> cB =
+                    new javafx.scene.control.TableColumn<>(resp.getDateB().toString());
+            javafx.scene.control.TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse.Row, Number> cDelta =
+                    new javafx.scene.control.TableColumn<>("Δ (B - A)");
+
+            cMetric.setCellValueFactory(cd -> new javafx.beans.property.SimpleStringProperty(cd.getValue().getMetric()));
+            cA.setCellValueFactory(cd -> new javafx.beans.property.SimpleObjectProperty<>(cd.getValue().getValueA()));
+            cB.setCellValueFactory(cd -> new javafx.beans.property.SimpleObjectProperty<>(cd.getValue().getValueB()));
+            cDelta.setCellValueFactory(cd -> new javafx.beans.property.SimpleObjectProperty<>(cd.getValue().getDelta()));
+
+            tv.getColumns().addAll(cMetric, cA, cB, cDelta);
+            tv.setItems(javafx.collections.FXCollections.observableArrayList(resp.getRows()));
+
+            javafx.scene.control.Dialog<Void> dlg = new javafx.scene.control.Dialog<>();
+            dlg.setTitle("Compare Reports");
+            dlg.setHeaderText("Branch: " + resp.getBranchName() + " | Type: " + resp.getReportType());
+            dlg.getDialogPane().setContent(tv);
+            dlg.getDialogPane().getButtonTypes().add(javafx.scene.control.ButtonType.CLOSE);
+            dlg.showAndWait();
+        });
+    }
+
 
 }
