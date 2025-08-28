@@ -477,10 +477,10 @@ public class SecondaryController {
                 Label timeLabel = new Label("Time: " + (order.getDeliveryTime() != null ? order.getDeliveryTime() : "—"));
 
                 // Fulfillment (Delivery vs Pickup)
-                String fulfillmentText = order.getPickupBranch() == null ? "Delivery" : "Pick-up";
+                String fulfillmentText = order.getPickupBranch() == 4 ? "Delivery" : "Pick-up";
 
                 try {
-                    if (order.getPickupBranch() != null) {
+                    if (order.getPickupBranch() != 4) {
                         Integer bid = order.getPickupBranch();
                         String bname = "Unknown";
                         if (bid != null) {
@@ -1899,18 +1899,27 @@ public class SecondaryController {
 
     @org.greenrobot.eventbus.Subscribe
     public void onUpdateDeletedFlower(UpdateDeletedFlower event) {
-        javafx.application.Platform.runLater(() -> {
+        Platform.runLater(() -> {
             int flowerID = event.getFlowerID();
 
-            // Remove from cachedFlowerNodes
-            cachedFlowerNodes.removeIf(pair -> pair.getKey().getId() == flowerID);
+            // Find the matching pair before you remove it from cachedFlowerNodes
+            Pair<Flower, HBox> toRemove = null;
+            for (Pair<Flower, HBox> pair : cachedFlowerNodes) {
+                if (pair.getKey().getId() == flowerID) {
+                    toRemove = pair;
+                    break;
+                }
+            }
 
-            // Remove from cartList
-            cartMap.entrySet().removeIf(entry -> entry.getKey().getId() == flowerID);
-            try {
-                SimpleClient.getClient().sendToServer("RequestFlowerCatalogForManager");
-            } catch (Exception e) {
-                e.printStackTrace();
+            if (toRemove != null) {
+                // Remove the node from the UI
+                FlowerPageVbox.getChildren().remove(toRemove.getValue());
+
+                // Remove from cachedFlowerNodes
+                cachedFlowerNodes.remove(toRemove);
+
+                // Also remove from cart
+                cartMap.entrySet().removeIf(entry -> entry.getKey().getId() == flowerID);
             }
         });
     }

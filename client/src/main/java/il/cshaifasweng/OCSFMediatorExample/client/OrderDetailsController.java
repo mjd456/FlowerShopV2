@@ -183,7 +183,7 @@ public class OrderDetailsController {
 
         // --- Branch validation & stock updates ---
         String pickupBranchName = null;
-        int pickupBranchId = 0; // default for delivery
+        int pickupBranchId = 4; // default for delivery
 
         if (PickupRadio.isSelected()) {
             pickupBranchName = BranchComboBox.getValue();

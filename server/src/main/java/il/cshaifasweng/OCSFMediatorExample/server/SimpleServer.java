@@ -748,7 +748,6 @@ public class SimpleServer extends AbstractServer {
 				e.printStackTrace();
 			}
 		}
-
 		else if (msg instanceof OrdersByProductTypeReportRequest req) {
 			System.out.println("Received OrdersByProductTypeReportRequest for branch ID: " + req.getBranchId());
 
@@ -891,33 +890,6 @@ public class SimpleServer extends AbstractServer {
 				client.sendToClient(new OrdersByProductTypeReportResponse(rows));
 			} catch (Exception e) {
 				e.printStackTrace();
-			}
-		}
-		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsHistogramReportRequest req) {
-			System.out.println("[SERVER] Got ComplaintsHistogramReportRequest: branchId="
-					+ req.getBranchId() + ", from=" + req.getFrom() + ", to=" + req.getTo());
-
-			try (Session s = sessionFactory.openSession()) {
-				String hql = "from FeedBackSQL f where f.submittedAt between :from and :to";
-				if (req.getBranchId() > 0) {
-					hql += " and f.account.branch.id = :branchId";
-				}
-
-				// ★ Convert to java.util.Date (works whether getters return Date/LocalDate/LocalDateTime)
-				java.util.Date fromDate = toUtilDate(req.getFrom());
-				java.util.Date toDate   = toUtilDate(req.getTo());
-
-				Query<FeedBackSQL> q = s.createQuery(hql, FeedBackSQL.class)
-						.setParameter("from", fromDate)
-						.setParameter("to",   toDate);
-
-				if (req.getBranchId() > 0) {
-					q.setParameter("branchId", req.getBranchId());
-				}
-
-				// ... (rest of your code unchanged)
-			} catch (Exception ex) {
-				ex.printStackTrace();
 			}
 		}
 		else if (msg instanceof UpdateFeedbackStatusRequest) {
@@ -1567,7 +1539,7 @@ public class SimpleServer extends AbstractServer {
 				java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row> rows =
 						new java.util.ArrayList<>(counts.size());
 				for (var e : counts.entrySet()) {
-					rows.add(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row(e.getKey(), e.getValue()));
+					rows.add(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row(e.getKey(), e.getValue(),e.get));
 				}
 
 				client.sendToClient(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse(rows));
@@ -1612,7 +1584,6 @@ public class SimpleServer extends AbstractServer {
 				e.printStackTrace();
 			}
 		}
-
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}
