@@ -778,6 +778,7 @@ public class SecondaryController {
             Platform.runLater(() -> {
                 MainTabsFrame.getTabs().remove(CustomerServicePanel);
                 MainTabsFrame.getTabs().remove(detailsChange);
+                MainTabsFrame.getTabs().remove(CustomerServicePanel);
                 MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
                     if (newTab == ManagerPanel) {
 
@@ -889,7 +890,7 @@ public class SecondaryController {
 
     @FXML
     private void closeWindow() {
-
+        ((Stage) CustomTitleBar.getScene().getWindow()).close();
         if (!Guest) {
             try {
                 SimpleClient.getClient().sendToServer(new LogoutRequest(account));
@@ -897,7 +898,6 @@ public class SecondaryController {
                 throw new RuntimeException(e);
             }
         }
-        ((Stage) CustomTitleBar.getScene().getWindow()).close();
         account = null;
     }
 
