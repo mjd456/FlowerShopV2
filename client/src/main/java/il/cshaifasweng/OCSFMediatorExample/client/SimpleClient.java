@@ -185,6 +185,9 @@ public class SimpleClient extends AbstractClient {
 		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.GetAllBranchesResponse resp) {
 			org.greenrobot.eventbus.EventBus.getDefault().post(resp);
 		}
+		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse) {
+			org.greenrobot.eventbus.EventBus.getDefault().post(msg);
+		}
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}

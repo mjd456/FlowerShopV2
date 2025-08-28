@@ -401,6 +401,7 @@ public class SimpleServer extends AbstractServer {
 								accountInDb.getFirstName(),
 								accountInDb
 						));
+						client.setInfo("account", fresh);
 
 						SubscribedClient sub = getSubscribedClientByConnection(client);
 						if (sub == null) {
@@ -1540,6 +1541,45 @@ public class SimpleServer extends AbstractServer {
 				e.printStackTrace();
 			}
 		}
+		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsRequest req) {
+
+			// 1) who is asking? (BM limited to own branch; NM can use requested branch)
+			il.cshaifasweng.OCSFMediatorExample.entities.Account acc =
+					(il.cshaifasweng.OCSFMediatorExample.entities.Account) client.getInfo("account");
+
+			int effectiveBranchId;
+			if (acc != null && acc.getAccountLevel() != null
+					&& acc.getAccountLevel().trim().equalsIgnoreCase("BranchManager")) {
+				effectiveBranchId = (acc.getBranch() != null) ? acc.getBranch().getId() : 0;
+			} else {
+				effectiveBranchId = req.getBranchId(); // NM or unknown -> honor request
+			}
+
+			// 2) compute metrics for each date (TEMP dummy numbers)
+			ReportMetrics A = computeMetrics(req.getReportType(), effectiveBranchId, req.getDateA());
+			ReportMetrics B = computeMetrics(req.getReportType(), effectiveBranchId, req.getDateB());
+
+			// 3) build response
+			String branchName = branchNameFor(effectiveBranchId);
+			il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse resp =
+					new il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse(
+							req.getDateA(), req.getDateB(), branchName, req.getReportType()
+					);
+
+			resp.addRow("Total Orders",        A.totalOrders,    B.totalOrders);
+			resp.addRow("Revenue (₪)",         A.revenue,        B.revenue);
+			resp.addRow("Avg Order Value (₪)", A.avgOrderValue,  B.avgOrderValue);
+			resp.addRow("Complaints",          A.complaints,     B.complaints);
+
+			// 4) send back to this client
+			try {
+				client.sendToClient(resp);
+			} catch (java.io.IOException e) {
+				e.printStackTrace();
+			}
+			return;
+		}
+
 		else {
 			System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
 		}
@@ -1831,5 +1871,71 @@ public class SimpleServer extends AbstractServer {
 			System.err.println("Failed to initialize Hibernate:");
 			exception.printStackTrace();
 		}
+	}
+	static class ReportMetrics {
+		int totalOrders;
+		double revenue;
+		double avgOrderValue;
+		int complaints;
+	}
+	private String branchNameFor(int id) {
+		switch (id) {
+			case 0: return "Network";
+			case 1: return "Haifa";
+			case 2: return "Eilat";
+			case 3: return "Tel Aviv";
+			default: return "Branch " + id;
+		}
+	}
+
+	private ReportMetrics computeMetrics(String reportType, int branchId, java.sql.Date date) {
+		ReportMetrics m = new ReportMetrics();
+
+		try (Session s = sessionFactory.openSession()) {
+			// ----- Orders + Revenue for that single day -----
+			String hqlOrders =
+					"select count(o), sum( coalesce(o.totalPrice,0) - coalesce(o.refundAmount,0) ) " +
+							"from OrderSQL o " +
+							"where lower(o.status) = 'delivered' " +
+							"  and o.deliveryDate = :day " +
+							(branchId > 0 ? "  and o.pickupBranch = :bid " : "");
+
+			Query<Object[]> q1 = s.createQuery(hqlOrders, Object[].class)
+					.setParameter("day", date);
+			if (branchId > 0) q1.setParameter("bid", branchId);
+
+			Object[] row = q1.uniqueResult();
+			long orders = (row == null || row[0] == null) ? 0L : ((Number) row[0]).longValue();
+			double revenue = (row == null || row[1] == null) ? 0.0 : ((Number) row[1]).doubleValue();
+
+			m.totalOrders = (int) orders;
+			m.revenue = revenue;
+			m.avgOrderValue = orders == 0 ? 0.0 : Math.round((revenue / orders) * 100.0) / 100.0;
+
+			// ----- Complaints on that day -----
+			// FeedBackSQL.submittedAt is a LocalDateTime, so use [startOfDay, nextDay)
+			java.time.LocalDate d = date.toLocalDate();
+			java.time.LocalDateTime start = d.atStartOfDay();
+			java.time.LocalDateTime end = start.plusDays(1);
+
+			String hqlComplaints =
+					"select count(f) " +
+							"from FeedBackSQL f " +
+							"where f.submittedAt >= :start and f.submittedAt < :end " +
+							(branchId > 0 ? "  and f.account.branch.id = :bid " : "");
+
+			Query<Long> q2 = s.createQuery(hqlComplaints, Long.class)
+					.setParameter("start", start)
+					.setParameter("end", end);
+			if (branchId > 0) q2.setParameter("bid", branchId);
+
+			Long complaints = q2.uniqueResult();
+			m.complaints = (complaints == null) ? 0 : complaints.intValue();
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			// keep m as zeros if something fails
+		}
+		return m;
 	}
 }
