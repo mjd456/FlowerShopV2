@@ -1,9 +1,7 @@
 package il.cshaifasweng.OCSFMediatorExample.server;
-
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.*;
@@ -14,8 +12,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-
-
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
 import jakarta.mail.MessagingException;
 import org.hibernate.HibernateException;
@@ -897,40 +893,31 @@ public class SimpleServer extends AbstractServer {
 				e.printStackTrace();
 			}
 		}
-
-
-		else if (msg instanceof ComplaintsHistogramReportRequest req) {
-			System.out.println("Received ComplaintsHistogramReportRequest for branch ID: " + req.getBranchId());
+		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsHistogramReportRequest req) {
+			System.out.println("[SERVER] Got ComplaintsHistogramReportRequest: branchId="
+					+ req.getBranchId() + ", from=" + req.getFrom() + ", to=" + req.getTo());
 
 			try (Session s = sessionFactory.openSession()) {
-				String hql = "FROM FeedBackSQL f WHERE f.submittedAt BETWEEN :from AND :to ";
+				String hql = "from FeedBackSQL f where f.submittedAt between :from and :to";
+				if (req.getBranchId() > 0) {
+					hql += " and f.account.branch.id = :branchId";
+				}
+
+				// ★ Convert to java.util.Date (works whether getters return Date/LocalDate/LocalDateTime)
+				java.util.Date fromDate = toUtilDate(req.getFrom());
+				java.util.Date toDate   = toUtilDate(req.getTo());
+
+				Query<FeedBackSQL> q = s.createQuery(hql, FeedBackSQL.class)
+						.setParameter("from", fromDate)
+						.setParameter("to",   toDate);
 
 				if (req.getBranchId() > 0) {
-					hql += "AND f.account.branch.id = :branchId";
+					q.setParameter("branchId", req.getBranchId());
 				}
 
-				Query<FeedBackSQL> query = s.createQuery(hql, FeedBackSQL.class)
-						.setParameter("from", req.getFrom())
-						.setParameter("to", req.getTo());
-
-				if (req.getBranchId() > 0) {
-					query.setParameter("branchId", req.getBranchId());
-				}
-
-				List<FeedBackSQL> complaints = query.list();
-				System.out.println("[SERVER] Found " + complaints.size() + " complaints in the database.");
-
-				Map<LocalDate, Long> countsByDay = new LinkedHashMap<>();
-				for (FeedBackSQL complaint : complaints) {
-					if (complaint.getSubmittedAt() != null) {
-						LocalDate day = complaint.getSubmittedAt().toLocalDate();
-						countsByDay.merge(day, 1L, Long::sum);
-					}
-				}
-
-				client.sendToClient(new ComplaintsHistogramReportResponse(countsByDay));
-			} catch (Exception e) {
-				e.printStackTrace();
+				// ... (rest of your code unchanged)
+			} catch (Exception ex) {
+				ex.printStackTrace();
 			}
 		}
 		else if (msg instanceof UpdateFeedbackStatusRequest) {
@@ -1541,6 +1528,53 @@ public class SimpleServer extends AbstractServer {
 				e.printStackTrace();
 			}
 		}
+		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest req) {
+			try (Session s = sessionFactory.openSession()) {
+				// Date bounds as LocalDateTime
+				java.time.LocalDateTime fromDT = req.getFrom().toLocalDate().atStartOfDay();
+				java.time.LocalDateTime toDT   = req.getTo().toLocalDate().atTime(23, 59, 59);
+
+				// Pull all complaints in range; we’ll filter branch in Java to avoid join headaches
+				List<FeedBackSQL> all = s.createQuery(
+								"from FeedBackSQL f where f.submittedAt >= :from and f.submittedAt <= :to",
+								FeedBackSQL.class
+						)
+						.setParameter("from", fromDT)
+						.setParameter("to", toDT)
+						.list();
+
+				// Aggregate counts per day with optional branch filter
+				java.util.Map<java.time.LocalDate, Long> counts = new java.util.TreeMap<>();
+				int wanted = req.getBranchId(); // 0 = all
+
+				for (FeedBackSQL f : all) {
+					if (f.getSubmittedAt() == null) continue;
+
+					// Determine feedback's branch id (support either account.branch or the explicit branch on feedback)
+					int fbBranchId = 0;
+					if (f.getAccount() != null && f.getAccount().getBranch() != null) {
+						fbBranchId = f.getAccount().getBranch().getId();
+					} else if (f.getBranch() != null) {
+						fbBranchId = f.getBranch().getId();
+					}
+
+					if (wanted > 0 && fbBranchId != wanted) continue;
+
+					java.time.LocalDate day = f.getSubmittedAt().toLocalDate();
+					counts.merge(day, 1L, Long::sum);
+				}
+
+				java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row> rows =
+						new java.util.ArrayList<>(counts.size());
+				for (var e : counts.entrySet()) {
+					rows.add(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row(e.getKey(), e.getValue()));
+				}
+
+				client.sendToClient(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse(rows));
+			} catch (Exception ex) {
+				ex.printStackTrace();
+			}
+		}
 		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsRequest req) {
 
 			// 1) who is asking? (BM limited to own branch; NM can use requested branch)
@@ -1577,7 +1611,6 @@ public class SimpleServer extends AbstractServer {
 			} catch (java.io.IOException e) {
 				e.printStackTrace();
 			}
-			return;
 		}
 
 		else {
@@ -1937,5 +1970,19 @@ public class SimpleServer extends AbstractServer {
 			// keep m as zeros if something fails
 		}
 		return m;
+	}
+	private static java.util.Date toUtilDate(Object t) {
+		if (t == null) return null;
+		if (t instanceof java.util.Date) {
+			return (java.util.Date) t;                       // java.util.Date or java.sql.Date is fine
+		}
+		if (t instanceof java.time.LocalDate) {
+			return java.sql.Date.valueOf((java.time.LocalDate) t);
+		}
+		if (t instanceof java.time.LocalDateTime) {
+			return java.util.Date.from(((java.time.LocalDateTime) t)
+					.atZone(java.time.ZoneId.systemDefault()).toInstant());
+		}
+		throw new IllegalArgumentException("Unsupported date type: " + t.getClass());
 	}
 }

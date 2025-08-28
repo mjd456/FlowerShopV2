@@ -33,13 +33,13 @@
 			<classifier>win</classifier>
 		</dependency>
 		<dependency>
-			<groupId>org.greenrobot</groupId>
-			<artifactId>eventbus</artifactId>
-			<version>3.2.0</version>
-		</dependency>
-		<dependency>
 			<groupId>${groupId}</groupId>
 			<artifactId>entities</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.greenrobot</groupId>
+			<artifactId>eventbus</artifactId>
+			<version>3.2.0</version> <!-- Use the latest version -->
 		</dependency>
 	</dependencies>
 	<build>

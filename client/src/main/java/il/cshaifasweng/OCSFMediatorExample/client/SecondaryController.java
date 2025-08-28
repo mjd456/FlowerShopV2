@@ -11,7 +11,7 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.fxml.FXML;
-
+import org.greenrobot.eventbus.EventBus;
 import java.sql.Date;
 
 import javafx.fxml.FXMLLoader;
@@ -57,8 +57,6 @@ import javafx.util.StringConverter;
 import javafx.util.converter.DefaultStringConverter;
 import javafx.util.converter.NumberStringConverter;
 import javassist.Loader;
-import org.greenrobot.eventbus.EventBus;
-
 import java.io.ByteArrayInputStream;
 import java.util.stream.Collectors;
 
@@ -72,6 +70,22 @@ import javafx.scene.canvas.GraphicsContext;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.sql.Date;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+
+import javafx.application.Platform;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.paint.Color;
+import javafx.scene.layout.Pane;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+
+import org.greenrobot.eventbus.Subscribe;
 
 public class SecondaryController {
 
@@ -2714,7 +2728,7 @@ public class SecondaryController {
         switch (reportType) {
             case "Quarterly Revenue Report" -> requestQuarterlyRevenue(branchId);
             case "Orders by Type Report" -> requestOrdersByType(branchId);
-            // case "Complaints Report" -> requestComplaints(...);   // later
+            case "Complaints Report" -> requestComplaints(branchId);
             default -> System.err.println("Unknown report type: " + reportType);
         }
     }
@@ -2768,6 +2782,32 @@ public class SecondaryController {
         if (s.startsWith("tel aviv") || s.startsWith("telaviv")) return 3;
         return 0;
     }
+    @org.greenrobot.eventbus.Subscribe(sticky = true)
+    public void onComplaintsReport(il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse resp) {
+        javafx.application.Platform.runLater(() -> {
+            javafx.stage.Stage stage = new javafx.stage.Stage();
+            stage.setTitle("Complaints Report");
+
+            var tv = new javafx.scene.control.TableView<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row>();
+
+            var colDay = new javafx.scene.control.TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row, String>("Day");
+            colDay.setCellValueFactory(c ->
+                    new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getDay()))
+            );
+
+            var colCount = new javafx.scene.control.TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row, Number>("Complaints");
+            colCount.setCellValueFactory(c ->
+                    new javafx.beans.property.SimpleLongProperty(c.getValue().getCount())
+            );
+
+            tv.getColumns().addAll(colDay, colCount);
+            tv.getItems().addAll(resp.getRows());
+
+            stage.setScene(new javafx.scene.Scene(new javafx.scene.layout.BorderPane(tv), 420, 420));
+            stage.show();
+        });
+    }
+
 
     @Subscribe
     public void onQuarterlyRevenueReport(QuarterlyRevenueReportResponse resp) {
@@ -2927,71 +2967,84 @@ public class SecondaryController {
         });
     }
 
-    @Subscribe
+    @org.greenrobot.eventbus.Subscribe
     public void onComplaintsHistogramReport(ComplaintsHistogramReportResponse response) {
+        System.out.println("[UI] onComplaintsHistogramReport fired. points=" +
+                (response.getCountsByDay()==null ? -1 : response.getCountsByDay().size()));
         Platform.runLater(() -> {
-            // Create a new window (Stage) for the histogram
             Stage histogramStage = new Stage();
             histogramStage.setTitle("Complaints Histogram");
 
             Map<LocalDate, Long> data = response.getCountsByDay();
-
             if (data == null || data.isEmpty()) {
-                Alert alert = new Alert(Alert.AlertType.INFORMATION, "No complaint data found for the selected period.");
-                alert.showAndWait();
+                new Alert(Alert.AlertType.INFORMATION, "No complaint data found for the selected period.").showAndWait();
                 return;
             }
 
-            // --- Drawing the Histogram on a Canvas ---
-            double canvasWidth = 600;
-            double canvasHeight = 400;
+            // Sort by date for a proper timeline
+            List<Map.Entry<LocalDate, Long>> points = new ArrayList<>(data.entrySet());
+            points.sort(Map.Entry.comparingByKey());
+
+            double canvasWidth = 800;
+            double canvasHeight = 420;
             Canvas canvas = new Canvas(canvasWidth, canvasHeight);
             GraphicsContext gc = canvas.getGraphicsContext2D();
 
-            // Find the maximum value to scale the bars
-            long maxCount = 0;
-            for (Long count : data.values()) {
-                if (count > maxCount) {
-                    maxCount = count;
-                }
-            }
-            if (maxCount == 0) maxCount = 1; // Avoid division by zero
-
-            // Drawing parameters
+            long maxCount = points.stream().mapToLong(Map.Entry::getValue).max().orElse(1);
             double padding = 50;
             double chartWidth = canvasWidth - 2 * padding;
             double chartHeight = canvasHeight - 2 * padding;
-            double barWidth = chartWidth / data.size() * 0.7; // 70% of available space for the bar
 
-            // Draw Y-axis line
-            gc.strokeLine(padding, padding, padding, canvasHeight - padding);
-            // Draw X-axis line
-            gc.strokeLine(padding, canvasHeight - padding, canvasWidth - padding, canvasHeight - padding);
+            // bar + gap sizing
+            double slotWidth = chartWidth / points.size();
+            double barWidth = slotWidth * 0.7;
+            double gap = slotWidth * 0.3;
 
-            // Draw bars
+            // axes
+            gc.setStroke(Color.GRAY);
+            gc.strokeLine(padding, padding, padding, canvasHeight - padding);                 // Y
+            gc.strokeLine(padding, canvasHeight - padding, canvasWidth - padding, canvasHeight - padding); // X
+
+            DateTimeFormatter df = DateTimeFormatter.ofPattern("dd/MM");
+
             int i = 0;
-            for (Map.Entry<LocalDate, Long> entry : data.entrySet()) {
-                double barHeight = (double) entry.getValue() / maxCount * chartHeight;
-                double x = padding + (i * (chartWidth / data.size())) + (chartWidth / data.size() * 0.15); // Center the bar
+            for (Map.Entry<LocalDate, Long> entry : points) {
+                double barHeight = (entry.getValue() * 1.0 / maxCount) * chartHeight;
+                double x = padding + i * slotWidth + gap / 2.0;
                 double y = canvasHeight - padding - barHeight;
 
                 gc.setFill(Color.CORNFLOWERBLUE);
                 gc.fillRect(x, y, barWidth, barHeight);
 
-                // Draw label for the bar (date and count)
+                // labels
                 gc.setFill(Color.BLACK);
-                gc.fillText(entry.getKey().toString(), x, canvasHeight - padding + 15);
-                gc.fillText(String.valueOf(entry.getValue()), x + barWidth / 2 - 5, y - 5);
+                gc.fillText(df.format(entry.getKey()), x, canvasHeight - padding + 14);
+                gc.fillText(String.valueOf(entry.getValue()), x + barWidth / 2 - 6, y - 4);
 
                 i++;
             }
 
-            // Put the canvas in a layout and show the window
             Pane root = new Pane(canvas);
-            Scene scene = new Scene(root);
-            histogramStage.setScene(scene);
+            histogramStage.setScene(new Scene(root));
             histogramStage.show();
         });
+    }
+    private void requestComplaintsHistogram(int branchId) {
+        LocalDate toLD = LocalDate.now();
+        LocalDate fromLD = toLD.minusMonths(3);   // same default window as other reports
+
+        Date from = Date.valueOf(fromLD);
+        Date to = Date.valueOf(toLD);
+
+        try {
+            SimpleClient.getClient().sendToServer(
+                    new ComplaintsHistogramReportRequest(from, to, branchId)
+            );
+            System.out.println("[SEND] ComplaintsHistogramReportRequest(from=" + from + ", to=" + to + ", branchId=" + branchId + ")");
+        } catch (IOException ex) {
+            System.err.println("[ERROR] ComplaintsHistogramReportRequest failed: " + ex.getMessage());
+            new Alert(Alert.AlertType.ERROR, "Could not request Complaints Histogram:\n" + ex.getMessage()).showAndWait();
+        }
     }
 
     private boolean isNetworkManager() {
@@ -3088,6 +3141,23 @@ public class SecondaryController {
             dlg.showAndWait();
         });
     }
+    private void requestComplaints(int branchId) {
+        java.time.LocalDate toLD = java.time.LocalDate.now();
+        java.time.LocalDate fromLD = toLD.minusMonths(3);
 
+        java.sql.Date from = java.sql.Date.valueOf(fromLD);
+        java.sql.Date to   = java.sql.Date.valueOf(toLD);
+
+        try {
+            SimpleClient.getClient().sendToServer(
+                    new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest(from, to, branchId)
+            );
+            System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=" + branchId + ")");
+        } catch (IOException ex) {
+            System.err.println("[ERROR] ComplaintsReportRequest failed: " + ex.getMessage());
+            new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR,
+                    "Could not request Complaints Report:\n" + ex.getMessage()).showAndWait();
+        }
+    }
 
 }
