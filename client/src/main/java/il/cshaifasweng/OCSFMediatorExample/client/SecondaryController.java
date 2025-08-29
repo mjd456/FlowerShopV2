@@ -71,12 +71,6 @@ public class SecondaryController {
     private Button generateReportBtn;
 
     @FXML
-    private ResourceBundle resources;
-
-    @FXML
-    private URL location;
-
-    @FXML
     private Label AccInfoCCNum;
 
     @FXML
@@ -2771,6 +2765,7 @@ public class SecondaryController {
 
     @org.greenrobot.eventbus.Subscribe
     public void onComplaintsReport(il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse resp) {
+
         javafx.application.Platform.runLater(() -> {
             var rows = (resp != null && resp.getRows() != null) ? resp.getRows() : java.util.List.<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row>of();
 
@@ -2807,8 +2802,8 @@ public class SecondaryController {
             ta.setPrefSize(900, 600);
 
             var alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-            alert.setTitle("Complaints Report (with details)");
-            alert.setHeaderText("Report for the last 3 months");
+            alert.setTitle("Complaints Report — Whole Network");
+            alert.setHeaderText("All branches • last 3 months");
             alert.getDialogPane().setContent(ta);
             alert.setResizable(true);
             alert.showAndWait();
@@ -3085,14 +3080,13 @@ public class SecondaryController {
 
         try {
             SimpleClient.getClient().sendToServer(
-                    new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest(from, to, 0)
+                    new ComplaintsReportRequest(from, to, 0) // always network
             );
-            System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=" + branchId + ")");
+            System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=0)");
         } catch (IOException ex) {
             System.err.println("[ERROR] ComplaintsReportRequest failed: " + ex.getMessage());
             new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR,
                     "Could not request Complaints Report:\n" + ex.getMessage()).showAndWait();
         }
     }
-
 }
