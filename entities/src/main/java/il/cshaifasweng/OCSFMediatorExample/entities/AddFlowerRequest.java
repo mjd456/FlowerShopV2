@@ -4,11 +4,20 @@ import java.io.Serializable;
 
 // AddFlowerRequest.java
 public class AddFlowerRequest implements Serializable {
-    private final Flower flower;
 
-    // NEW:
-    private final byte[] imageJpeg;           // may be null if picture optional
-    private final String suggestedFileName;   // e.g. "rose.jpg"
+    private Flower newFlower;
+    private byte[] newImageJpeg;
+    String suggestedFileName;
+
+    public AddFlowerRequest(Flower newFlower) {
+        this.newFlower = newFlower;
+    }
+    public AddFlowerRequest(Flower flower, byte[] imageJpeg, String suggestedFileName) {
+        this.newFlower = flower;
+        this.newImageJpeg = imageJpeg;
+        this.suggestedFileName = suggestedFileName;
+    }
+
 
     public AddFlowerRequest(Flower flower, byte[] imageJpeg, String suggestedFileName) {
         this.flower = flower;
@@ -16,8 +25,11 @@ public class AddFlowerRequest implements Serializable {
         this.suggestedFileName = suggestedFileName;
     }
 
-    public Flower getNewFlower() { return flower; }
-    public byte[] getImageJpeg() { return imageJpeg; }
-    public String getSuggestedFileName() { return suggestedFileName; }
+    public String getSuggestedFileName() {
+        return suggestedFileName;
+    }
+    public byte[] getImageJpeg() {
+        return newImageJpeg;
+    }
 
 }

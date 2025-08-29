@@ -12,6 +12,7 @@ import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.input.TransferMode;
+import javafx.stage.FileChooser;
 import org.greenrobot.eventbus.EventBus;
 
 import java.io.ByteArrayOutputStream;
@@ -32,7 +33,7 @@ import javafx.scene.text.Font;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
-
+import java.util.concurrent.atomic.AtomicReference;
 import java.time.LocalDate;
 
 import javafx.scene.control.Alert;
@@ -991,15 +992,14 @@ public class SecondaryController {
         ManagerCatalogSelectorVbox.getChildren().clear();
         ManagerCatalogSelector.setFitToWidth(true);
 
-        // Normalize account level once (accepts "BranchManager" or "Branch Manager")
         String role = (account != null && account.getAccountLevel() != null)
                 ? account.getAccountLevel().replaceAll("\\s+", "").toLowerCase()
                 : "";
 
         final boolean isNetworkManager = role.equals("networkmanager") || role.equals("managernetwork");
-        final boolean isBranchManager = role.equals("branchmanager") || role.equals("managerbranch");
-        final boolean isManagerAll = isNetworkManager || role.equals("manager"); // "Manager" can edit all
-        final int branchId = resolveBranchId(account); // 1=Haifa, 2=Eilat, 3=TelAviv, 0=none
+        final boolean isBranchManager  = role.equals("branchmanager")  || role.equals("managerbranch");
+        final boolean isManagerAll     = isNetworkManager || role.equals("manager");
+        final int branchId = resolveBranchId(account);
 
         for (Flower flower : flowerList) {
             VBox card = new VBox(8);
@@ -1007,56 +1007,32 @@ public class SecondaryController {
             card.setMaxWidth(470);
             card.prefWidthProperty().bind(ManagerCatalogSelectorVbox.widthProperty().subtract(24));
 
-            // --- Header info
-            Label name = new Label("Name: " + flower.getName());
+            Label name  = new Label("Name: " + flower.getName());
             Label price = new Label("Price: ₪" + flower.getPrice());
             Label color = new Label("Color: " + flower.getColor());
 
             Label total = new Label();
-            updateTotalAndModel(flower, total); // total = Haifa+Eilat+TA+Storage; also writes flower.setSupply(total)
+            updateTotalAndModel(flower, total);
 
             Label desc = new Label("Description: " + flower.getDescription());
             desc.setWrapText(true);
 
-            // --- Per-branch rows (buttons only if user can edit that branch)
-            HBox haifaRow = buildSupplyRow(
-                    "Supply (Haifa): ", flower.getSupplyHaifa(),
+            HBox haifaRow = buildSupplyRow("Supply (Haifa): ", flower.getSupplyHaifa(),
                     isManagerAll || (isBranchManager && branchId == BRANCH_HAIFA),
-                    newVal -> {
-                        flower.setSupplyHaifa(newVal);
-                        updateTotalAndModel(flower, total);
-                        pushUpdateAndRefresh(flower, flowerList);
-                    });
+                    newVal -> { flower.setSupplyHaifa(newVal); updateTotalAndModel(flower, total); pushUpdateAndRefresh(flower, flowerList); });
 
-            HBox eilatRow = buildSupplyRow(
-                    "Supply (Eilat): ", flower.getSupplyEilat(),
+            HBox eilatRow = buildSupplyRow("Supply (Eilat): ", flower.getSupplyEilat(),
                     isManagerAll || (isBranchManager && branchId == BRANCH_EILAT),
-                    newVal -> {
-                        flower.setSupplyEilat(newVal);
-                        updateTotalAndModel(flower, total);
-                        pushUpdateAndRefresh(flower, flowerList);
-                    });
+                    newVal -> { flower.setSupplyEilat(newVal); updateTotalAndModel(flower, total); pushUpdateAndRefresh(flower, flowerList); });
 
-            HBox telAvivRow = buildSupplyRow(
-                    "Supply (Tel Aviv): ", flower.getSupplyTelAviv(),
+            HBox telAvivRow = buildSupplyRow("Supply (Tel Aviv): ", flower.getSupplyTelAviv(),
                     isManagerAll || (isBranchManager && branchId == BRANCH_TEL_AVIV),
-                    newVal -> {
-                        flower.setSupplyTelAviv(newVal);
-                        updateTotalAndModel(flower, total);
-                        pushUpdateAndRefresh(flower, flowerList);
-                    });
+                    newVal -> { flower.setSupplyTelAviv(newVal); updateTotalAndModel(flower, total); pushUpdateAndRefresh(flower, flowerList); });
 
-            // “Storage” acts as delivery pool; only network manager / manager can edit
-            HBox storageRow = buildSupplyRow(
-                    "Supply (Delivery): ", flower.getStorage(),
+            HBox storageRow = buildSupplyRow("Supply (Delivery): ", flower.getStorage(),
                     isManagerAll,
-                    newVal -> {
-                        flower.setStorage(newVal);
-                        updateTotalAndModel(flower, total);
-                        pushUpdateAndRefresh(flower, flowerList);
-                    });
+                    newVal -> { flower.setStorage(newVal); updateTotalAndModel(flower, total); pushUpdateAndRefresh(flower, flowerList); });
 
-            // --- Edit & Delete (ONLY for Network Manager / Manager)
             HBox actions = new HBox(8);
             VBox editPane = new VBox(10);
             editPane.setStyle("-fx-background-color: #242b3b; -fx-padding: 12; -fx-background-radius: 0 0 8 8;");
@@ -1069,58 +1045,102 @@ public class SecondaryController {
                 Button deleteBtn = new Button("Delete");
                 actions.getChildren().addAll(editBtn, deleteBtn);
 
-                // Fields inside the drawer
-                TextField nameField = new TextField(flower.getName());
+                TextField nameField  = new TextField(flower.getName());
                 TextField colorField = new TextField(flower.getColor());
                 TextField priceField = new TextField(String.valueOf(flower.getPrice()));
-                TextArea descField = new TextArea(flower.getDescription());
+                TextArea  descField  = new TextArea(flower.getDescription());
                 descField.setPrefHeight(80);
                 descField.setWrapText(true);
                 descField.setMaxWidth(Double.MAX_VALUE);
 
-                Button saveBtn = new Button("Save");
+                Button saveBtn   = new Button("Save");
                 Button cancelBtn = new Button("Cancel");
-                HBox buttonBox = new HBox(8, saveBtn, cancelBtn);
+                HBox buttonBox   = new HBox(8, saveBtn, cancelBtn);
 
-                // Save handler with simple validation
+                // --- NetworkManager-only picture controls
+                final java.util.concurrent.atomic.AtomicReference<byte[]> pendingImageJpeg =
+                        new java.util.concurrent.atomic.AtomicReference<>(null);
+                final java.util.concurrent.atomic.AtomicBoolean deleteImageFlag =
+                        new java.util.concurrent.atomic.AtomicBoolean(false);
+
+                Button changePicBtn;
+                Button removePicBtn;
+
+                if (isNetworkManager) {
+                    changePicBtn = new Button("Change picture…");
+                    removePicBtn = new Button("Remove picture");
+
+                    Button finalChangePicBtn = changePicBtn;
+                    changePicBtn.setOnAction(ev -> {
+                        FileChooser fc = new FileChooser();
+                        fc.setTitle("Choose JPG");
+                        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("JPEG Images", "*.jpg", "*.jpeg"));
+                        File f = fc.showOpenDialog(ManagerCatalogSelector.getScene().getWindow());
+                        if (f != null) {
+                            try {
+                                pendingImageJpeg.set(prepareJpegPayload(f)); // must exist in your controller
+                                deleteImageFlag.set(false);
+                                finalChangePicBtn.setText("Picture selected ✓");
+                                if (removePicBtn != null) removePicBtn.setText("Remove picture");
+                            } catch (Exception ex) {
+                                new Alert(Alert.AlertType.ERROR, "Only JPG allowed.\n" + ex.getMessage()).showAndWait();
+                                pendingImageJpeg.set(null);
+                                finalChangePicBtn.setText("Change picture…");
+                            }
+                        }
+                    });
+
+                    Button finalRemovePicBtn = removePicBtn;
+                    removePicBtn.setOnAction(ev -> {
+                        // mark for deletion
+                        deleteImageFlag.set(true);
+                        pendingImageJpeg.set(null);
+                        if (finalRemovePicBtn != null) finalRemovePicBtn.setText("Will remove ✓");
+                        if (changePicBtn != null) changePicBtn.setText("Change picture…");
+                    });
+                } else {
+                    removePicBtn = null;
+                    changePicBtn = null;
+                }
+
+                // Save
+                Button finalChangePicBtn1 = changePicBtn;
+                Button finalRemovePicBtn1 = removePicBtn;
                 saveBtn.setOnAction(e -> {
-                    String newName = nameField.getText().trim();
+                    String newName  = nameField.getText().trim();
                     String newColor = colorField.getText().trim();
                     String priceTxt = priceField.getText().trim();
-                    String newDesc = descField.getText().trim();
+                    String newDesc  = descField.getText().trim();
 
                     boolean valid = true;
-                    if (newName.isEmpty() || !newName.matches("^[A-Za-z\\s]+$")) {
-                        nameField.setStyle("-fx-border-color: red;");
-                        valid = false;
-                    } else nameField.setStyle("");
-
-                    if (newColor.isEmpty() || !newColor.matches("^[A-Za-z\\s]+$")) {
-                        colorField.setStyle("-fx-border-color: red;");
-                        valid = false;
-                    } else colorField.setStyle("");
-
-                    if (!priceTxt.matches("^\\d+(\\.\\d{1,2})?$")) {
-                        priceField.setStyle("-fx-border-color: red;");
-                        valid = false;
-                    } else priceField.setStyle("");
-
+                    if (newName.isEmpty() || !newName.matches("^[A-Za-z\\s]+$")) { nameField.setStyle("-fx-border-color: red;"); valid = false; } else nameField.setStyle("");
+                    if (newColor.isEmpty() || !newColor.matches("^[A-Za-z\\s]+$")) { colorField.setStyle("-fx-border-color: red;"); valid = false; } else colorField.setStyle("");
+                    if (!priceTxt.matches("^\\d+(\\.\\d{1,2})?$")) { priceField.setStyle("-fx-border-color: red;"); valid = false; } else priceField.setStyle("");
                     if (!valid) return;
 
                     double newPrice = Double.parseDouble(priceTxt);
 
-                    // Apply and push
                     flower.setName(newName);
                     flower.setColor(newColor);
                     flower.setPrice(newPrice);
                     flower.setDescription(newDesc);
 
                     try {
-                        SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
+                        byte[] img = pendingImageJpeg.get(); // may be null
+                        boolean del = deleteImageFlag.get();
+                        String suggested = sanitizeBaseName(newName) + ".jpg";
+                        SimpleClient.getClient().sendToServer(
+                                new UpdateFlowerRequest(flower, img, suggested, del)
+                        );
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
-                    populateManagerCatalog(flowerList); // immediate visual refresh
+
+                    if (finalChangePicBtn1 != null) finalChangePicBtn1.setText("Change picture…");
+                    if (finalRemovePicBtn1 != null) finalRemovePicBtn1.setText("Remove picture");
+                    editPane.setVisible(false);
+                    editPane.setManaged(false);
+                    populateManagerCatalog(flowerList);
                 });
 
                 cancelBtn.setOnAction(e -> {
@@ -1128,14 +1148,13 @@ public class SecondaryController {
                     editPane.setManaged(false);
                 });
 
-                // Delete handler
+                // Delete flower
                 deleteBtn.setOnAction(e -> {
                     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                     alert.setTitle("Delete Confirmation");
                     alert.setHeaderText(null);
                     alert.setGraphic(null);
                     alert.setContentText("Are you sure you want to delete this flower?\n\nFlower name: " + flower.getName());
-
                     Optional<ButtonType> result = alert.showAndWait();
                     if (result.isPresent() && result.get() == ButtonType.OK) {
                         try {
@@ -1143,13 +1162,11 @@ public class SecondaryController {
                         } catch (Exception ex) {
                             ex.printStackTrace();
                         }
-                        // Remove locally and refresh
                         flowerList.remove(flower);
                         populateManagerCatalog(flowerList);
                     }
                 });
 
-                // Toggle drawer
                 editBtn.setOnAction(e -> {
                     boolean now = !editPane.isVisible();
                     editPane.setVisible(now);
@@ -1157,29 +1174,29 @@ public class SecondaryController {
                     if (now) nameField.requestFocus();
                 });
 
-                editPane.getChildren().setAll(
-                        new Label("Edit Name:"), nameField,
+                if (isNetworkManager) {
+                    HBox picButtons = new HBox(8, changePicBtn, removePicBtn);
+                    editPane.getChildren().add(picButtons);
+                }
+                editPane.getChildren().addAll(
+                        new Label("Edit Name:"),  nameField,
                         new Label("Edit Price:"), priceField,
                         new Label("Edit Color:"), colorField,
                         new Label("Edit Description:"), descField,
                         buttonBox
                 );
             } else {
-                // Not a network manager → keep actions area empty and the drawer hidden
                 actions.setManaged(false);
                 actions.setVisible(false);
             }
 
-            // --- Assemble card
             card.getChildren().addAll(
                     name, price, color,
                     haifaRow, eilatRow, telAvivRow, storageRow,
                     total,
                     desc
             );
-            if (isManagerAll) {
-                card.getChildren().addAll(actions, editPane);
-            }
+            if (isManagerAll) card.getChildren().addAll(actions, editPane);
 
             ManagerCatalogSelectorVbox.getChildren().add(card);
         }
@@ -1188,6 +1205,11 @@ public class SecondaryController {
     }
 
     // ===== HELPERS =====
+    private String sanitizeBaseName(String s) {
+        String base = s.toLowerCase().trim().replaceAll("\\s+", "-");
+        base = base.replaceAll("[^a-z0-9._-]", "_");
+        return base.isBlank() ? "image" : base;
+    }
 
     // Safe branch-id read (works even if Branch is a lazy proxy)
     private int resolveBranchId(Account acc) {
@@ -2043,12 +2065,14 @@ public class SecondaryController {
 
         boolean valid = true;
 
-        // Basic field validation (keep yours, fixed a small copy/paste slip)
-        if (name.isEmpty() || !name.matches("^[A-Za-z\\s]+$")) { NewFlowerName.setStyle("-fx-border-color: red;"); valid = false; }
-        else { NewFlowerName.setStyle(""); }
+        if (name.isEmpty() || !name.matches("^[A-Za-z\\s]+$")) {
+            NewFlowerName.setStyle("-fx-border-color: red;"); valid = false;
+        } else NewFlowerName.setStyle("");
 
-        if (color.isEmpty() || !color.matches("^[A-Za-z\\s]+$")) { NewFlowerColor.setStyle("-fx-border-color: red;"); valid = false; }
-        else { NewFlowerColor.setStyle(""); }
+        if (color.isEmpty() || !color.matches("^[A-Za-z\\s]+$")) {
+            NewFlowerColor.setStyle("-fx-border-color: red;"); valid = false;
+        } else NewFlowerColor.setStyle("");
+
 
         double price = -1;
         int supplyHaifa = -1, supplyEilat = -1, supplyTelAviv = -1, supplyStorage = -1;
@@ -2062,29 +2086,21 @@ public class SecondaryController {
         try { supplyTelAviv = Integer.parseInt(supplyTelAvivText); if (supplyTelAviv < 0) throw new NumberFormatException(); NewTelAvivFlowerSupply.setStyle(""); }
         catch (NumberFormatException e) { NewTelAvivFlowerSupply.setStyle("-fx-border-color: red;"); valid = false; }
 
+
         try { supplyEilat = Integer.parseInt(supplyEilatText); if (supplyEilat < 0) throw new NumberFormatException(); NewEilatFlowerSupply.setStyle(""); }
         catch (NumberFormatException e) { NewEilatFlowerSupply.setStyle("-fx-border-color: red;"); valid = false; }
 
+        // Fix: style the **Storage** field on error (previously styled TelAviv by mistake)
         try { supplyStorage = Integer.parseInt(supplyStorageText); if (supplyStorage < 0) throw new NumberFormatException(); NewStorageSupply.setStyle(""); }
         catch (NumberFormatException e) { NewStorageSupply.setStyle("-fx-border-color: red;"); valid = false; }
 
+
         if (desc.isEmpty()) { NewFlowerDesc.setStyle("-fx-border-color: red;"); valid = false; }
-        else { NewFlowerDesc.setStyle(""); }
+        else NewFlowerDesc.setStyle("");
 
-        // NEW: require image (or make it optional if you want)
-        if (flowerJpeg == null || flowerJpeg.length == 0) {
-            // visually flag the drop zone
-            imageDropZone.setEffect(new DropShadow(12.0, Color.DODGERBLUE));
-            new Alert(Alert.AlertType.WARNING, "Please drop a JPG picture for the flower.").showAndWait();
-            valid = false;
-        } else {
-            imageDropZone.setEffect(null);
-        }
+        if (!valid) { System.err.println("Validation failed."); return; }
 
-        if (!valid) {
-            System.err.println("Validation failed.");
-            return;
-        }
+        int totalSupply = supplyHaifa + supplyEilat + supplyTelAviv + supplyStorage;
 
         // Compute total supply
         int totalSupply = supplyHaifa + supplyEilat + supplyTelAviv + supplyStorage;
@@ -2094,35 +2110,36 @@ public class SecondaryController {
 
         // Build the flower (imageId will be set server-side after save)
         Flower newFlower = new Flower(
-                name,
-                color,
-                desc,
-                 "",    // server will fill this with the stored filename
-                price,
-                totalSupply,
-                supplyHaifa,
-                supplyEilat,
-                supplyTelAviv,
-                supplyStorage
+
+                name, color, desc, /*imageId*/ "",
+                price, totalSupply, supplyHaifa, supplyEilat, supplyTelAviv, supplyStorage
+
         );
 
+        String suggestedFile = sanitizeBaseName(name) + ".jpg";
+
         try {
-            // Send one request with entity + image bytes
+
+            // Use the extended constructor that carries the JPEG (may be null → server will ignore)
             SimpleClient.getClient().sendToServer(new AddFlowerRequest(newFlower, flowerJpeg, suggestedFile));
             System.out.println("Requested to add new flower: " + name);
 
-            // Reset fields
+            // Clear ALL fields
+
             NewFlowerName.setText("");
             NewFlowerColor.setText("");
             NewFlowerPrice.setText("");
             NewEilatFlowerSupply.setText("");
             NewTelAvivFlowerSupply.setText("");
             NewHaifaFlowerSupply.setText("");
-            NewStorageSupply.setText("");
+
+            NewStorageSupply.setText("");        // <-- storage cleared
             NewFlowerDesc.setText("");
 
-            // Reset image drop zone
-            clearFlowerImage();            // your existing helper clears preview + hint
+            // Reset image drop-zone
+            clearFlowerImage();  // should: flowerJpeg=null; flowerImageView.setImage(null); setHintVisible(true); clearImageBtn.setVisible(false);
+
+
         } catch (Exception e) {
             e.printStackTrace();
             new Alert(Alert.AlertType.ERROR, "Failed to send add-flower request.\n" + e.getMessage()).showAndWait();
