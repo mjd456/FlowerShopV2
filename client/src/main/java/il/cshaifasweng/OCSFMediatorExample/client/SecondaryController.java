@@ -1,5 +1,6 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import java.awt.image.BufferedImage;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -9,8 +10,12 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.fxml.FXML;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.input.TransferMode;
 import org.greenrobot.eventbus.EventBus;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.sql.Date;
 
 import javafx.fxml.FXMLLoader;
@@ -56,19 +61,45 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import org.greenrobot.eventbus.Subscribe;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+
 
 public class SecondaryController {
+
+    @FXML
+    public StackPane imageDropZone;
+
+    @FXML
+    public ImageView flowerImageView;
+
+    @FXML
+    public Label dropHint;
+
+    @FXML
+    public Button clearImageBtn;
 
     @FXML
     private ComboBox<String> reportTypeComboBox;
 
     @FXML
     private Button generateReportBtn;
+
+    @FXML
+    private ResourceBundle resources;
+
+    @FXML
+    private URL location;
 
     @FXML
     private Label AccInfoCCNum;
@@ -84,6 +115,9 @@ public class SecondaryController {
 
     @FXML
     private Label AccInfoPassword;
+
+    @FXML
+    private Label ManagerBranch;
 
     @FXML
     private Label AccInfoPhoneNum;
@@ -114,6 +148,9 @@ public class SecondaryController {
 
     @FXML
     private Tab CustomerServicePanel;
+
+    @FXML
+    private Pane PaneNewFlower;
 
     @FXML
     private AnchorPane FeedBackAnchor;
@@ -377,6 +414,8 @@ public class SecondaryController {
     private final Map<Flower, Integer> cartMap = new HashMap<>();
 
     private String Sorted = "Unsorted";
+
+    private byte[] flowerJpeg;
 
     private List<OrderSQL> purchaseHistoryList = new ArrayList<>();
 
@@ -731,6 +770,15 @@ public class SecondaryController {
         Platform.runLater(() -> FlowersScrollPane.setVvalue(0.0));
     }
 
+    public String resolveBranchName(int number) {
+        return switch (number) {
+            case 1 -> "Haifa";
+            case 2 -> "Eilat";
+            case 3 -> "Tel-Aviv";
+            default -> null;
+        };
+    }
+
     public void setUserRole() {
         String role = account == null ? "Guest" : account.getAccountLevel();
         System.out.println("role: " + role);
@@ -761,18 +809,23 @@ public class SecondaryController {
                 SettingsPane.setPrefHeight(300);
 
             });
-        } else if ("Customer".equalsIgnoreCase(role)) {
+        }
+        else if ("Customer".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 for (Tab tab : ManagerTabs) {
                     MainTabsFrame.getTabs().remove(tab);
                 }
             });
-
-        } else if ("Manager".equalsIgnoreCase(role) || "BranchManager".equalsIgnoreCase(role)) {
+        }
+        else if ("BranchManager".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 MainTabsFrame.getTabs().remove(CustomerServicePanel);
                 MainTabsFrame.getTabs().remove(detailsChange);
                 MainTabsFrame.getTabs().remove(CustomerServicePanel);
+                ManagerBranch.setText("Branch: " + resolveBranchName(resolveBranchId(account)));
+                if (PaneNewFlower != null && PaneNewFlower.getParent() instanceof VBox vbox) {
+                    vbox.getChildren().remove(PaneNewFlower);
+                }
                 MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
                     if (newTab == ManagerPanel) {
 
@@ -788,7 +841,8 @@ public class SecondaryController {
                 BranchComboBox.setDisable(true);
                 BranchComboBox.setVisible(false);
             });
-        } else if ("CustomerService".equalsIgnoreCase(role)) {
+        }
+        else if ("CustomerService".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 for (Tab tab : ManagerTabs) {
                     if (tab != CustomerServicePanel) {
@@ -796,7 +850,8 @@ public class SecondaryController {
                     }
                 }
             });
-        } else if ("NetworkManager".equalsIgnoreCase(role)) {
+        }
+        else if ("NetworkManager".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
                     if (newTab == ManagerPanel) {
@@ -810,7 +865,8 @@ public class SecondaryController {
                     }
                 });
             });
-        } else {
+        }
+        else {
             System.out.println("Unknown role: " + role);
         }
     }
@@ -884,16 +940,42 @@ public class SecondaryController {
 
     @FXML
     private void closeWindow() {
-        ((Stage) CustomTitleBar.getScene().getWindow()).close();
+        // 1) Optional: hide window immediately so the UI feels snappy
+        Stage stage = (Stage) CustomTitleBar.getScene().getWindow();
+        stage.hide();
+
+        // 2) Unregister from EventBus to stop callbacks into a dead controller
+        try {
+            org.greenrobot.eventbus.EventBus.getDefault().unregister(this);
+        } catch (Throwable ignore) { /* already unregistered */ }
+
+        // 3) Tell server we're out, then close the socket
         if (!Guest) {
             try {
                 SimpleClient.getClient().sendToServer(new LogoutRequest(account));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+            } catch (IOException ex) {
+                // log, don't rethrow
+                System.err.println("Logout send failed: " + ex.getMessage());
             }
         }
         account = null;
+
+        try {
+            // If your OCSF client exposes this — prevents lingering non-daemon threads
+            SimpleClient.getClient().closeConnection();
+        } catch (Exception ex) {
+            System.err.println("Close connection failed: " + ex.getMessage());
+        }
+
+        // 4) Shut down any app executors/timers you created
+        // e.g., scheduler.shutdownNow();
+
+        // 5) Exit JavaFX cleanly; normalize exit code for maven javafx:run
+        Platform.exit();
+        // If you still see the plugin reporting a weird Windows error code, uncomment:
+        // System.exit(0);
     }
+
 
     @FXML
     private void minimizeWindow() {
@@ -922,7 +1004,7 @@ public class SecondaryController {
         for (Flower flower : flowerList) {
             VBox card = new VBox(8);
             card.setStyle("-fx-border-color: #4D8DFF; -fx-padding: 14 16 14 16; -fx-background-radius: 8;");
-            card.setMaxWidth(430);
+            card.setMaxWidth(470);
             card.prefWidthProperty().bind(ManagerCatalogSelectorVbox.widthProperty().subtract(24));
 
             // --- Header info
@@ -2223,7 +2305,6 @@ public class SecondaryController {
         });
     }
 
-
     public void showCart() {
         CartVBox.getChildren().clear();
         double totalPrice = 0;
@@ -2298,386 +2379,44 @@ public class SecondaryController {
         });
     }
 
-    @FXML
-    void initialize() throws IOException {
-        assert AccInfoCCNum != null : "fx:id=\"AccInfoCCNum\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert AccInfoCCV != null : "fx:id=\"AccInfoCCV\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert AccInfoCCValidUntil != null : "fx:id=\"AccInfoCCValidUntil\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert AccInfoEmail != null : "fx:id=\"AccInfoEmail\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert AccInfoPassword != null : "fx:id=\"AccInfoPassword\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert AccInfoPhoneNum != null : "fx:id=\"AccInfoPhoneNum\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert AddNewFlower != null : "fx:id=\"AddNewFlower\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert CancelRenewButton != null : "fx:id=\"CancelRenewButton\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert CartAnchor != null : "fx:id=\"CartAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert CartMessage != null : "fx:id=\"CartMessage\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert CartPriceLabel != null : "fx:id=\"CartPriceLabel\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert CartTab != null : "fx:id=\"CartTab\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert CartVBox != null : "fx:id=\"CartVBox\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert CloseBtn != null : "fx:id=\"CloseBtn\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert ContinueToBuyButton != null : "fx:id=\"ContinueToBuyButton\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert CustomTitleBar != null : "fx:id=\"CustomTitleBar\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert CustomerServicePanel != null : "fx:id=\"CustomerServicePanel\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert DiscountLabel != null : "fx:id=\"DiscountLabel\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert FeedBackAnchor != null : "fx:id=\"FeedBackAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert FeedBackDetails != null : "fx:id=\"FeedBackDetails\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert FeedBackLabelText != null : "fx:id=\"FeedBackLabelText\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert FeedBackTab != null : "fx:id=\"FeedBackTab\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert FeedBackTitle != null : "fx:id=\"FeedBackTitle\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert FlowerPageVbox != null : "fx:id=\"FlowerPageVbox\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert FlowersAnchor != null : "fx:id=\"FlowersAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert FlowersScrollPane != null : "fx:id=\"FlowersScrollPane\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert FlowersTab != null : "fx:id=\"FlowersTab\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert FreeUserLabel != null : "fx:id=\"FreeUserLabel\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert LogOutButton != null : "fx:id=\"LogOutButton\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert MainTabsFrame != null : "fx:id=\"MainTabsFrame\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert ManagerCatalogSelector != null : "fx:id=\"ManagerCatalogSelector\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert ManagerCatalogSelectorVbox != null : "fx:id=\"ManagerCatalogSelectorVbox\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert ManagerPanel != null : "fx:id=\"ManagerPanel\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert ManagerPanelAnchor != null : "fx:id=\"ManagerPanelAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert ManagerPanelPane != null : "fx:id=\"ManagerPanelPane\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert ManagerPanelScroll != null : "fx:id=\"ManagerPanelScroll\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert MinimizeBtn != null : "fx:id=\"MinimizeBtn\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert MyFeedBackScrollFrane != null : "fx:id=\"MyFeedBackScrollFrane\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert MyFeedBacksText != null : "fx:id=\"MyFeedBacksText\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert MyFeedbacksVbox != null : "fx:id=\"MyFeedbacksVbox\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert NewCCError != null : "fx:id=\"NewCCError\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert NewCardCCV != null : "fx:id=\"NewCardCCV\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert NewCardDate != null : "fx:id=\"NewCardDate\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert NewCardNumber != null : "fx:id=\"NewCardNumber\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert NewFlowerColor != null : "fx:id=\"NewFlowerColor\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert NewFlowerDesc != null : "fx:id=\"NewFlowerDesc\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert NewFlowerName != null : "fx:id=\"NewFlowerName\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert NewFlowerPrice != null : "fx:id=\"NewFlowerPrice\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert NewPassError != null : "fx:id=\"NewPassError\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert PlusLabelPayment != null : "fx:id=\"PlusLabelPayment\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert PlusUpgradeButton != null : "fx:id=\"PlusUpgradeButton\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert PlusUserLabel != null : "fx:id=\"PlusUserLabel\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert ProfileSayHelloLabel != null : "fx:id=\"ProfileSayHelloLabel\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert ProfileTabConfirmPassText != null : "fx:id=\"ProfileTabConfirmPassText\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert ProfileTabNewConfirmPassText != null : "fx:id=\"ProfileTabNewConfirmPassText\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert ProfileTabNewPassText != null : "fx:id=\"ProfileTabNewPassText\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert PurchaseHistoryScrollFrame != null : "fx:id=\"PurchaseHistoryScrollFrame\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert PurchaseHistoryText != null : "fx:id=\"PurchaseHistoryText\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert PurchaseHistoryVbox != null : "fx:id=\"PurchaseHistoryVbox\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert PushFeedBack != null : "fx:id=\"PushFeedBack\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert ResetMyPasswordButton != null : "fx:id=\"ResetMyPasswordButton\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert ResolvedFeedbackVBOX != null : "fx:id=\"ResolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert SettingsAnchor != null : "fx:id=\"SettingsAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert SettingsPane != null : "fx:id=\"SettingsPane\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert SettingsTab != null : "fx:id=\"SettingsTab\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert SortCatalogBtn != null : "fx:id=\"SortCatalogBtn\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert SubscribtionLevelLabel != null : "fx:id=\"SubscribtionLevelLabel\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert UnresolvedFeedbackVBOX != null : "fx:id=\"UnresolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert UpdateNewCC != null : "fx:id=\"UpdateNewCC\" was not injected: check your FXML file 'secondary.fxml'.";
-        assert UpgradingAccountError != null : "fx:id=\"UpgradingAccountError\" was not injected: check your FXML file 'secondary.fxml'.";
-        FeedBackBranch.setItems(FXCollections.observableArrayList("Haifa", "Tel Aviv", "Eilat"));
+    private static boolean looksLikeJpg(File f) {
+        String n = f.getName().toLowerCase();
+        return n.endsWith(".jpg") || n.endsWith(".jpeg");
+    }
 
-        instance = this;
+    private static byte[] prepareJpegPayload(File f) throws IOException {
+        if (!looksLikeJpg(f)) throw new IOException("File must be .jpg/.jpeg");
+        BufferedImage img = ImageIO.read(f);
+        if (img == null) throw new IOException("Invalid image");
 
-        // Drag support for custom bar:
-        CustomTitleBar.setOnMousePressed(event -> {
-            xOffset = event.getSceneX();
-            yOffset = event.getSceneY();
-        });
-        CustomTitleBar.setOnMouseDragged(event -> {
-            Stage stage = (Stage) CustomTitleBar.getScene().getWindow();
-            stage.setX(event.getScreenX() - xOffset);
-            stage.setY(event.getScreenY() - yOffset);
-        });
-        ManagerTabs = new Tab[]{
-                ManagerPanel,
-                CustomerServicePanel,
-                detailsChange
-        };
-
-        EventBus.getDefault().register(this);
-        FlowersScrollPane.setFitToWidth(true);
-        FlowersScrollPane.setFitToHeight(false);
-        FlowersScrollPane.setContent(FlowerPageVbox);
-        FlowerPageVbox.setPrefHeight(Region.USE_COMPUTED_SIZE);
-        FlowerPageVbox.setMinHeight(Region.USE_COMPUTED_SIZE);
-        FlowerPageVbox.setMaxHeight(Region.USE_COMPUTED_SIZE);
-
-        MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
-            if (newTab == CartTab) {
-                showCart();
-            }
-            if (newTab == FlowersTab) {
-                if (cachedFlowerNodes.isEmpty()) {
-                    try {
-                        SimpleClient.getClient().sendToServer("RefreshList");
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                } else {
-                    FlowerPageVbox.getChildren().setAll(
-                            cachedFlowerNodes.stream()
-                                    .map(Pair::getValue) // get the HBox
-                                    .collect(Collectors.toList())
-                    );
-                }
-            } else if (oldTab == FlowersTab) {
-                System.out.println("Removing flowers");
-                FlowerPageVbox.getChildren().clear();
-                cachedFlowerNodes.clear();
-            }
-        });
-
-        System.out.println("[SecondaryController] Initialized");
-
-        // details change.
-
-        SimpleClient.getClient().sendToServer("GetAccounts");
-        accountTable.setEditable(true);
-        this.name.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account) cellData.getValue()).getFirstName() + " " + ((Account) cellData.getValue()).getLastName());
-        });
-
-        this.creditCard.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account) cellData.getValue()).getCreditCardNumber());
-        });
-
-        this.id.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account) cellData.getValue()).getIdentityNumber());
-        });
-
-        this.email.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account) cellData.getValue()).getEmail());
-        });
-
-        this.phone.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account) cellData.getValue()).getPhoneNumber());
-        });
-        this.password.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account) cellData.getValue()).getPassword());
-        });
-        this.sub.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account) cellData.getValue()).getSubscribtion_level());
-        });
-        this.accountLevel.setCellValueFactory((cellData) -> {
-            return new SimpleStringProperty(((Account) cellData.getValue()).getAccountLevel());
-        });
-        this.branchID.setCellValueFactory((cellData) -> {
-            Branch b = ((Account) cellData.getValue()).getBranch();
-            int id = 0;
-            if (b != null)
-                id = b.getId();
-
-            return new SimpleStringProperty("" + id);
-        });
-
-        this.name.setCellFactory((col) -> {
-            return new TextFieldTableCell(new DefaultStringConverter());
-        });
-
-        this.name.setOnEditCommit((event) -> {
-            Account account = (Account) event.getRowValue();
-            String newName = (String) event.getNewValue();
-            if (!newName.equals(account.getFirstName() + account.getLastName())) {
-                String firstName = newName.split(" ")[0];
-                account.setFirstName(firstName);
-
-                String lastName = newName.split(" ")[1];
-                account.setLastName(lastName);
-                try {
-                    SimpleClient.getClient().sendToServer(account);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                // we need to send to the server to update.
-            }
-        });
-
-        BranchComboBox.getItems().addAll(
-                "Network",
-                "Haifa Branch (1)",
-                "Eilat Branch (2)",
-                "Tel Aviv Branch (3)"
-        );
-
-        BranchComboBox.setValue("Network");
-
-
-        this.sub.setCellFactory((col) -> {
-            return new TextFieldTableCell(new DefaultStringConverter());
-        });
-        this.sub.setOnEditCommit((event) -> {
-            Account account = (Account) event.getRowValue();
-            String newSub = (String) event.getNewValue();
-            if (!newSub.equals(account.getSubscribtion_level())) {
-                account.setSubscribtion_level(newSub);
-                try {
-                    SimpleClient.getClient().sendToServer(account);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-
-        // the id is not changeable. delete
-        this.id.setCellFactory((col) -> {
-            return new TextFieldTableCell(new DefaultStringConverter());
-        });
-        this.id.setOnEditCommit((event) -> {
-            Account account = (Account) event.getRowValue();
-            String newId = (String) event.getNewValue();
-            if (!newId.equals(account.getIdentityNumber())) {
-                account.setIdentityNumber(newId);
-                try {
-                    SimpleClient.getClient().sendToServer(account);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-
-        this.phone.setCellFactory((col) -> {
-            return new TextFieldTableCell(new DefaultStringConverter());
-        });
-        this.phone.setOnEditCommit((event) -> {
-            Account account = (Account) event.getRowValue();
-            String newPhone = (String) event.getNewValue();
-            if (!newPhone.equals(account.getPhoneNumber())) {
-                account.setPhoneNumber(newPhone);
-                try {
-                    SimpleClient.getClient().sendToServer(account);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-
-        this.email.setCellFactory((col) -> {
-            return new TextFieldTableCell(new DefaultStringConverter());
-        });
-        this.email.setOnEditCommit((event) -> {
-            Account account = (Account) event.getRowValue();
-            String newEmail = (String) event.getNewValue();
-            if (!newEmail.equals(account.getEmail())) {
-                account.setEmail(newEmail);
-                try {
-                    SimpleClient.getClient().sendToServer(account);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-
-        this.password.setCellFactory((col) -> {
-            return new TextFieldTableCell(new DefaultStringConverter());
-        });
-        this.password.setOnEditCommit((event) -> {
-            Account account = (Account) event.getRowValue();
-            String newPassword = (String) event.getNewValue();
-            if (!newPassword.equals(account.getPassword())) {
-                account.setPassword(newPassword);
-                try {
-                    SimpleClient.getClient().sendToServer(account);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-
-        this.password.setCellFactory((col) -> {
-            return new TextFieldTableCell(new DefaultStringConverter());
-        });
-        this.password.setOnEditCommit((event) -> {
-            Account account = (Account) event.getRowValue();
-            String newPassword = (String) event.getNewValue();
-            if (!newPassword.equals(account.getPassword())) {
-                account.setPassword(newPassword);
-                try {
-                    SimpleClient.getClient().sendToServer(account);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-
-        this.creditCard.setCellFactory((col) -> {
-            return new TextFieldTableCell(new DefaultStringConverter());
-        });
-        this.creditCard.setOnEditCommit((event) -> {
-            Account account = (Account) event.getRowValue();
-            String newCreditCard = (String) event.getNewValue();
-            if (!newCreditCard.equals(account.getCreditCardNumber())) {
-                account.setCreditCardNumber(newCreditCard);
-                try {
-                    SimpleClient.getClient().sendToServer(account);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-
-        this.accountLevel.setCellFactory((col) -> {
-            return new TextFieldTableCell(new DefaultStringConverter());
-        });
-        this.accountLevel.setOnEditCommit((event) -> {
-            Account account = (Account) event.getRowValue();
-            String accountLevel = (String) event.getNewValue();
-            if (!accountLevel.equals(account.getAccountLevel())) {
-                account.setAccountLevel(accountLevel);
-                try {
-                    SimpleClient.getClient().sendToServer(account);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-        this.branchID.setCellFactory((col) -> {
-            return new TextFieldTableCell(new DefaultStringConverter());
-        });
-        this.branchID.setOnEditCommit((event) -> {
-            Account account = (Account) event.getRowValue();
-            int branchID = Integer.parseInt((String) event.getNewValue());
-            Branch b = account.getBranch();
-            if (b == null) {
-                b = new Branch();
-                b.setId(-1);
-                account.setBranch(b);
-            }
-            if (!(branchID == b.getId())) {
-                b.setId(branchID);
-                try {
-                    SimpleClient.getClient().sendToServer(account);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-
-        // Setup for the report generator
-        ObservableList<String> reportTypes = FXCollections.observableArrayList(
-                "Quarterly Revenue Report",
-                "Orders by Type Report",
-                "Complaints Report",
-                "Compare Reports (by Date)"  // ← now always present
-        );
-        reportTypeComboBox.setItems(reportTypes);
-        reportTypeComboBox.setValue("Quarterly Revenue Report");
-
-        // Hide compare controls initially
-        setCompareControlsVisible(false);
-
-        // Toggle UI when report type changes:
-        reportTypeComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
-            boolean compareSelected = "Compare Reports (by Date)".equals(newVal);
-            setCompareControlsVisible(compareSelected);         // ← no role check here
-            if (generateReportBtn != null) {
-                generateReportBtn.setDisable(compareSelected);  // disable Generate while in compare mode
-            }
-        });
-
-
-        App.notifySecondaryReady();
-        // 1) add type only for NM
-        if (isNetworkManager() && !reportTypeComboBox.getItems().contains("Compare Reports (by Date)")) {
-            reportTypeComboBox.getItems().add("Compare Reports (by Date)");
+        // (Optional) downscale
+        final int maxDim = 1600;
+        if (img.getWidth() > maxDim || img.getHeight() > maxDim) {
+            double s = Math.min((double)maxDim/img.getWidth(), (double)maxDim/img.getHeight());
+            int w = (int)Math.round(img.getWidth()*s), h = (int)Math.round(img.getHeight()*s);
+            BufferedImage scaled = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = scaled.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.drawImage(img, 0, 0, w, h, null);
+            g.dispose();
+            img = scaled;
         }
 
-        // 2) show the button (and hide for non-NM)
+        // Re-encode as JPEG for safety
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ImageOutputStream ios = ImageIO.createImageOutputStream(baos)) {
+            Iterator<ImageWriter> it = ImageIO.getImageWritersByFormatName("jpeg");
+            ImageWriter w = it.next();
+            w.setOutput(ios);
+            ImageWriteParam p = w.getDefaultWriteParam();
+            p.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+            p.setCompressionQuality(0.85f);
+            w.write(null, new IIOImage(img, null, null), p);
+            w.dispose();
+            byte[] data = baos.toByteArray();
+            if (data.length > 4_000_000) throw new IOException("Image too large (>4MB)");
+            return data;
+        }
     }
 
     @FXML
@@ -2713,6 +2452,10 @@ public class SecondaryController {
         }
     }
 
+    private void setClearVisible(boolean v) {
+        clearImageBtn.setVisible(v);
+        clearImageBtn.setManaged(v);
+    }
 
     private void requestQuarterlyRevenue(int branchId) {
         LocalDate toLD = LocalDate.now();
@@ -2765,7 +2508,6 @@ public class SecondaryController {
 
     @org.greenrobot.eventbus.Subscribe
     public void onComplaintsReport(il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse resp) {
-
         javafx.application.Platform.runLater(() -> {
             var rows = (resp != null && resp.getRows() != null) ? resp.getRows() : java.util.List.<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row>of();
 
@@ -2802,8 +2544,8 @@ public class SecondaryController {
             ta.setPrefSize(900, 600);
 
             var alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-            alert.setTitle("Complaints Report — Whole Network");
-            alert.setHeaderText("All branches • last 3 months");
+            alert.setTitle("Complaints Report (with details)");
+            alert.setHeaderText("Report for the last 3 months");
             alert.getDialogPane().setContent(ta);
             alert.setResizable(true);
             alert.showAndWait();
@@ -3080,13 +2822,447 @@ public class SecondaryController {
 
         try {
             SimpleClient.getClient().sendToServer(
-                    new ComplaintsReportRequest(from, to, 0) // always network
+                    new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest(from, to, 0)
             );
-            System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=0)");
+            System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=" + branchId + ")");
         } catch (IOException ex) {
             System.err.println("[ERROR] ComplaintsReportRequest failed: " + ex.getMessage());
             new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR,
                     "Could not request Complaints Report:\n" + ex.getMessage()).showAndWait();
         }
     }
+
+    // fields already present:
+// @FXML private Label dropHint;
+// @FXML private Button clearImageBtn;
+// @FXML private ImageView flowerImageView;
+// private byte[] flowerJpeg;
+
+    private void setHintVisible(boolean v) {
+        dropHint.setVisible(v);
+        dropHint.setManaged(v);
+        // mirror the clear button
+        clearImageBtn.setVisible(!v);
+        clearImageBtn.setManaged(!v); // keep layout clean when hidden
+    }
+
+    private void clearFlowerImage() {
+        flowerImageView.setImage(null);
+        flowerJpeg = null;
+        setHintVisible(true); // this hides the clear button too
+    }
+
+    @FXML
+    void initialize() throws IOException {
+        assert AccInfoCCNum != null : "fx:id=\"AccInfoCCNum\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert AccInfoCCV != null : "fx:id=\"AccInfoCCV\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert AccInfoCCValidUntil != null : "fx:id=\"AccInfoCCValidUntil\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert AccInfoEmail != null : "fx:id=\"AccInfoEmail\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert AccInfoPassword != null : "fx:id=\"AccInfoPassword\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert AccInfoPhoneNum != null : "fx:id=\"AccInfoPhoneNum\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert AddNewFlower != null : "fx:id=\"AddNewFlower\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CancelRenewButton != null : "fx:id=\"CancelRenewButton\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CartAnchor != null : "fx:id=\"CartAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CartMessage != null : "fx:id=\"CartMessage\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CartPriceLabel != null : "fx:id=\"CartPriceLabel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CartTab != null : "fx:id=\"CartTab\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CartVBox != null : "fx:id=\"CartVBox\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CloseBtn != null : "fx:id=\"CloseBtn\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ContinueToBuyButton != null : "fx:id=\"ContinueToBuyButton\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CustomTitleBar != null : "fx:id=\"CustomTitleBar\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert CustomerServicePanel != null : "fx:id=\"CustomerServicePanel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PaneNewFlower != null : "fx:id=\"PaneNewFlower\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert DiscountLabel != null : "fx:id=\"DiscountLabel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FeedBackAnchor != null : "fx:id=\"FeedBackAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FeedBackDetails != null : "fx:id=\"FeedBackDetails\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FeedBackLabelText != null : "fx:id=\"FeedBackLabelText\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FeedBackTab != null : "fx:id=\"FeedBackTab\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FeedBackTitle != null : "fx:id=\"FeedBackTitle\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FlowerPageVbox != null : "fx:id=\"FlowerPageVbox\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FlowersAnchor != null : "fx:id=\"FlowersAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FlowersScrollPane != null : "fx:id=\"FlowersScrollPane\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FlowersTab != null : "fx:id=\"FlowersTab\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert FreeUserLabel != null : "fx:id=\"FreeUserLabel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert LogOutButton != null : "fx:id=\"LogOutButton\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert MainTabsFrame != null : "fx:id=\"MainTabsFrame\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ManagerCatalogSelector != null : "fx:id=\"ManagerCatalogSelector\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ManagerCatalogSelectorVbox != null : "fx:id=\"ManagerCatalogSelectorVbox\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ManagerPanel != null : "fx:id=\"ManagerPanel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ManagerPanelAnchor != null : "fx:id=\"ManagerPanelAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ManagerPanelPane != null : "fx:id=\"ManagerPanelPane\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ManagerPanelScroll != null : "fx:id=\"ManagerPanelScroll\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert MinimizeBtn != null : "fx:id=\"MinimizeBtn\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert MyFeedBackScrollFrane != null : "fx:id=\"MyFeedBackScrollFrane\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert MyFeedBacksText != null : "fx:id=\"MyFeedBacksText\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert MyFeedbacksVbox != null : "fx:id=\"MyFeedbacksVbox\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewCCError != null : "fx:id=\"NewCCError\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewCardCCV != null : "fx:id=\"NewCardCCV\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewCardDate != null : "fx:id=\"NewCardDate\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewCardNumber != null : "fx:id=\"NewCardNumber\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewFlowerColor != null : "fx:id=\"NewFlowerColor\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewFlowerDesc != null : "fx:id=\"NewFlowerDesc\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewFlowerName != null : "fx:id=\"NewFlowerName\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewFlowerPrice != null : "fx:id=\"NewFlowerPrice\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert NewPassError != null : "fx:id=\"NewPassError\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PlusLabelPayment != null : "fx:id=\"PlusLabelPayment\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PlusUpgradeButton != null : "fx:id=\"PlusUpgradeButton\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PlusUserLabel != null : "fx:id=\"PlusUserLabel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ProfileSayHelloLabel != null : "fx:id=\"ProfileSayHelloLabel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ProfileTabConfirmPassText != null : "fx:id=\"ProfileTabConfirmPassText\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ProfileTabNewConfirmPassText != null : "fx:id=\"ProfileTabNewConfirmPassText\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ProfileTabNewPassText != null : "fx:id=\"ProfileTabNewPassText\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PurchaseHistoryScrollFrame != null : "fx:id=\"PurchaseHistoryScrollFrame\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PurchaseHistoryText != null : "fx:id=\"PurchaseHistoryText\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PurchaseHistoryVbox != null : "fx:id=\"PurchaseHistoryVbox\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert PushFeedBack != null : "fx:id=\"PushFeedBack\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ResetMyPasswordButton != null : "fx:id=\"ResetMyPasswordButton\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ResolvedFeedbackVBOX != null : "fx:id=\"ResolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert SettingsAnchor != null : "fx:id=\"SettingsAnchor\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert SettingsPane != null : "fx:id=\"SettingsPane\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert SettingsTab != null : "fx:id=\"SettingsTab\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert SortCatalogBtn != null : "fx:id=\"SortCatalogBtn\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert SubscribtionLevelLabel != null : "fx:id=\"SubscribtionLevelLabel\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert UnresolvedFeedbackVBOX != null : "fx:id=\"UnresolvedFeedbackVBOX\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert UpdateNewCC != null : "fx:id=\"UpdateNewCC\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert ManagerBranch != null : "fx:id=\"ManagerBranch\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert imageDropZone != null : "fx:id=\"imageDropZone\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert flowerImageView != null : "fx:id=\"flowerImageView\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert dropHint != null : "fx:id=\"dropHint\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert clearImageBtn != null : "fx:id=\"clearImageBtn\" was not injected: check your FXML file 'secondary.fxml'.";
+        assert UpgradingAccountError != null : "fx:id=\"UpgradingAccountError\" was not injected: check your FXML file 'secondary.fxml'.";
+        FeedBackBranch.setItems(FXCollections.observableArrayList("Haifa", "Tel Aviv", "Eilat"));
+
+        instance = this;
+
+        // Drag support for custom bar:
+        CustomTitleBar.setOnMousePressed(event -> {
+            xOffset = event.getSceneX();
+            yOffset = event.getSceneY();
+        });
+        CustomTitleBar.setOnMouseDragged(event -> {
+            Stage stage = (Stage) CustomTitleBar.getScene().getWindow();
+            stage.setX(event.getScreenX() - xOffset);
+            stage.setY(event.getScreenY() - yOffset);
+        });
+        ManagerTabs = new Tab[]{
+                ManagerPanel,
+                CustomerServicePanel,
+                detailsChange
+        };
+
+        EventBus.getDefault().register(this);
+        FlowersScrollPane.setFitToWidth(true);
+        FlowersScrollPane.setFitToHeight(false);
+        FlowersScrollPane.setContent(FlowerPageVbox);
+        FlowerPageVbox.setPrefHeight(Region.USE_COMPUTED_SIZE);
+        FlowerPageVbox.setMinHeight(Region.USE_COMPUTED_SIZE);
+        FlowerPageVbox.setMaxHeight(Region.USE_COMPUTED_SIZE);
+
+        MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab == CartTab) {
+                showCart();
+            }
+            if (newTab == FlowersTab) {
+                if (cachedFlowerNodes.isEmpty()) {
+                    try {
+                        SimpleClient.getClient().sendToServer("RefreshList");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    FlowerPageVbox.getChildren().setAll(
+                            cachedFlowerNodes.stream()
+                                    .map(Pair::getValue) // get the HBox
+                                    .collect(Collectors.toList())
+                    );
+                }
+            } else if (oldTab == FlowersTab) {
+                System.out.println("Removing flowers");
+                FlowerPageVbox.getChildren().clear();
+                cachedFlowerNodes.clear();
+            }
+        });
+
+        System.out.println("[SecondaryController] Initialized");
+
+        // details change.
+
+        SimpleClient.getClient().sendToServer("GetAccounts");
+        accountTable.setEditable(true);
+        this.name.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account) cellData.getValue()).getFirstName() + " " + ((Account) cellData.getValue()).getLastName());
+        });
+        this.creditCard.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account) cellData.getValue()).getCreditCardNumber());
+        });
+        this.id.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account) cellData.getValue()).getIdentityNumber());
+        });
+        this.email.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account) cellData.getValue()).getEmail());
+        });
+        this.phone.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account) cellData.getValue()).getPhoneNumber());
+        });
+        this.password.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account) cellData.getValue()).getPassword());
+        });
+        this.sub.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account) cellData.getValue()).getSubscribtion_level());
+        });
+        this.accountLevel.setCellValueFactory((cellData) -> {
+            return new SimpleStringProperty(((Account) cellData.getValue()).getAccountLevel());
+        });
+        this.branchID.setCellValueFactory((cellData) -> {
+            Branch b = ((Account) cellData.getValue()).getBranch();
+            int id = 0;
+            if (b != null)
+                id = b.getId();
+
+            return new SimpleStringProperty("" + id);
+        });
+        this.name.setCellFactory((col) -> {
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.name.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newName = (String) event.getNewValue();
+            if (!newName.equals(account.getFirstName() + account.getLastName())) {
+                String firstName = newName.split(" ")[0];
+                account.setFirstName(firstName);
+
+                String lastName = newName.split(" ")[1];
+                account.setLastName(lastName);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                // we need to send to the server to update.
+            }
+        });
+
+        BranchComboBox.getItems().addAll(
+                "Network",
+                "Haifa Branch (1)",
+                "Eilat Branch (2)",
+                "Tel Aviv Branch (3)"
+        );
+
+        BranchComboBox.setValue("Network");
+
+        this.sub.setCellFactory((col) -> {
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.sub.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newSub = (String) event.getNewValue();
+            if (!newSub.equals(account.getSubscribtion_level())) {
+                account.setSubscribtion_level(newSub);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        this.id.setCellFactory((col) -> {
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.id.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newId = (String) event.getNewValue();
+            if (!newId.equals(account.getIdentityNumber())) {
+                account.setIdentityNumber(newId);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        this.phone.setCellFactory((col) -> {
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.phone.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newPhone = (String) event.getNewValue();
+            if (!newPhone.equals(account.getPhoneNumber())) {
+                account.setPhoneNumber(newPhone);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        this.email.setCellFactory((col) -> {
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.email.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newEmail = (String) event.getNewValue();
+            if (!newEmail.equals(account.getEmail())) {
+                account.setEmail(newEmail);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        this.password.setCellFactory((col) -> {
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.password.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newPassword = (String) event.getNewValue();
+            if (!newPassword.equals(account.getPassword())) {
+                account.setPassword(newPassword);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        this.password.setCellFactory((col) -> {
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.password.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newPassword = (String) event.getNewValue();
+            if (!newPassword.equals(account.getPassword())) {
+                account.setPassword(newPassword);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        this.creditCard.setCellFactory((col) -> {
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.creditCard.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String newCreditCard = (String) event.getNewValue();
+            if (!newCreditCard.equals(account.getCreditCardNumber())) {
+                account.setCreditCardNumber(newCreditCard);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        this.accountLevel.setCellFactory((col) -> {
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.accountLevel.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            String accountLevel = (String) event.getNewValue();
+            if (!accountLevel.equals(account.getAccountLevel())) {
+                account.setAccountLevel(accountLevel);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        this.branchID.setCellFactory((col) -> {
+            return new TextFieldTableCell(new DefaultStringConverter());
+        });
+        this.branchID.setOnEditCommit((event) -> {
+            Account account = (Account) event.getRowValue();
+            int branchID = Integer.parseInt((String) event.getNewValue());
+            Branch b = account.getBranch();
+            if (b == null) {
+                b = new Branch();
+                b.setId(-1);
+                account.setBranch(b);
+            }
+            if (!(branchID == b.getId())) {
+                b.setId(branchID);
+                try {
+                    SimpleClient.getClient().sendToServer(account);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        // Setup for the report generator
+        ObservableList<String> reportTypes = FXCollections.observableArrayList(
+                "Quarterly Revenue Report",
+                "Orders by Type Report",
+                "Complaints Report",
+                "Compare Reports (by Date)"  // ← now always present
+        );
+        reportTypeComboBox.setItems(reportTypes);
+        reportTypeComboBox.setValue("Quarterly Revenue Report");
+
+        // Hide compare controls initially
+        setCompareControlsVisible(false);
+
+        // Toggle UI when report type changes:
+        reportTypeComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+            boolean compareSelected = "Compare Reports (by Date)".equals(newVal);
+            setCompareControlsVisible(compareSelected);         // ← no role check here
+            if (generateReportBtn != null) {
+                generateReportBtn.setDisable(compareSelected);  // disable Generate while in compare mode
+            }
+        });
+
+        clearImageBtn.setOnAction(e -> clearFlowerImage());
+
+        imageDropZone.setOnDragOver(e -> {
+            if (e.getGestureSource() != imageDropZone
+                    && e.getDragboard().hasFiles()
+                    && looksLikeJpg(e.getDragboard().getFiles().get(0))) {
+                e.acceptTransferModes(TransferMode.COPY);
+            }
+            e.consume();
+        });
+
+        imageDropZone.setOnDragEntered(e -> imageDropZone.setStyle("-fx-effect: dropshadow(gaussian, -fx-accent, 10, 0.3, 0, 0);"));
+        imageDropZone.setOnDragExited(e -> imageDropZone.setStyle(null));
+        imageDropZone.setOnDragDropped(e -> {
+            var db = e.getDragboard();
+            boolean ok = false;
+            if (db.hasFiles()) {
+                try {
+                    File f = db.getFiles().get(0);
+                    flowerJpeg = prepareJpegPayload(f);
+                    flowerImageView.setImage(new Image(new ByteArrayInputStream(flowerJpeg)));
+                    setHintVisible(false);   // ← shows the clear button
+                    ok = true;
+                } catch (Exception ex) {
+                    new Alert(Alert.AlertType.ERROR, "Only JPG allowed.\n" + ex.getMessage()).showAndWait();
+                    flowerJpeg = null;
+                    flowerImageView.setImage(null);
+                    setHintVisible(true);    // ← hides the clear button, shows hint
+                }
+            }
+            e.setDropCompleted(ok);
+            e.consume();
+        });
+        imageDropZone.setOnDragEntered(e ->
+                imageDropZone.setEffect(new DropShadow(10, Color.DODGERBLUE))
+        );
+
+        imageDropZone.setOnDragExited(e ->
+                imageDropZone.setEffect(null)
+        );
+
+        App.notifySecondaryReady();
+        // 1) add type only for NM
+        if (isNetworkManager() && !reportTypeComboBox.getItems().contains("Compare Reports (by Date)")) {
+            reportTypeComboBox.getItems().add("Compare Reports (by Date)");
+        }
+
+        // 2) show the button (and hide for non-NM)
+    }
+
 }
