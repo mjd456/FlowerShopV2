@@ -2,8 +2,16 @@ package il.cshaifasweng.OCSFMediatorExample.server;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
+
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -23,7 +31,7 @@ import org.hibernate.cfg.Configuration;
 import org.hibernate.query.Query;
 import org.hibernate.service.ServiceRegistry;
 
-import javax.persistence.LockModeType;
+import javax.imageio.ImageIO;
 
 
 public class SimpleServer extends AbstractServer {
@@ -1003,15 +1011,28 @@ public class SimpleServer extends AbstractServer {
 		}
 		else if (msg instanceof DeleteFlowerRequest delReq) {
 			int idToDelete = delReq.getFlowerId();
+
 			try (Session session = sessionFactory.openSession()) {
 				Transaction tx = session.beginTransaction();
+
 				Flower flower = session.get(Flower.class, idToDelete);
 				if (flower != null) {
+					// capture before entity is gone
+					String imageFile = flower.getImageId();
+
 					session.delete(flower);
 					tx.commit();
 					System.out.println("Flower deleted: " + flower.getName());
-					sendToAllClients(new FlowerDeleted(flower.getId()));
-						// Optionally send a refreshed list or a notification to all clients
+
+					// try to delete picture from disk (best-effort)
+					if (imageFile != null && !imageFile.isBlank()) {
+						boolean deleted = deleteFlowerImageFile(imageFile);
+						if (!deleted) {
+							System.err.println("[images] could not delete: " + imageFile);
+						}
+					}
+
+					sendToAllClients(new FlowerDeleted(idToDelete));
 				} else {
 					tx.rollback();
 					System.out.println("Flower to delete not found");
@@ -1019,29 +1040,34 @@ public class SimpleServer extends AbstractServer {
 			} catch (Exception ex) {
 				ex.printStackTrace();
 			}
-			// Optionally: send back a confirmation or updated catalog
 		}
 		else if (msg instanceof AddFlowerRequest addFlowerRequest) {
 			System.out.println("Received AddFlowerRequest from client.");
 
 			Flower newFlower = addFlowerRequest.getNewFlower();
+			byte[] jpeg = addFlowerRequest.getImageJpeg();          // NEW
+			String suggested = addFlowerRequest.getSuggestedFileName(); // NEW
 
 			Session session = null;
 			Transaction tx = null;
 
 			try {
+				// 1) If image provided, validate & save, then set image_id
+				if (jpeg != null && jpeg.length > 0) {
+					String savedName = saveFlowerJpeg(jpeg, suggested);
+					newFlower.setImageId(savedName); // <-- your Flower entity's field
+				}
+
 				session = sessionFactory.openSession();
 				tx = session.beginTransaction();
 
-				session.save(newFlower); // Save to DB, ID assigned
+				session.save(newFlower);
 
 				tx.commit();
 				System.out.println("New flower added to DB: " + newFlower.getName());
 
-				// Notify the requesting client
 				client.sendToClient("Flower added successfully");
 
-				// Notify all clients (including sender) about the new flower
 				NewFlowerNotification notification = new NewFlowerNotification(newFlower);
 				for (SubscribedClient sub : SubscribersList) {
 					try {
@@ -1053,9 +1079,8 @@ public class SimpleServer extends AbstractServer {
 			} catch (Exception e) {
 				if (tx != null) tx.rollback();
 				e.printStackTrace();
-				try {
-					client.sendToClient("Failed to add flower: " + e.getMessage());
-				} catch (Exception ex) { ex.printStackTrace(); }
+				try { client.sendToClient("Failed to add flower: " + e.getMessage()); }
+				catch (Exception ex) { ex.printStackTrace(); }
 			} finally {
 				if (session != null) session.close();
 			}
@@ -1646,39 +1671,73 @@ public class SimpleServer extends AbstractServer {
 		return String.join(", ", parts);
 	}
 
-	public void sendToClientRefreshedList(ConnectionToClient client) {
+	private byte[] readFlowerImage(String fileName) throws IOException {
+		// 1) external (prod)
+		Path ext = Paths.get("data", "FlowerPicture", fileName);
+		if (Files.exists(ext)) return Files.readAllBytes(ext);
+
+		// 2) dev resources (running from module in IDE)
+		Path dev = Paths.get("src", "main", "resources", "FlowerPicture", fileName);
+		if (Files.exists(dev)) return Files.readAllBytes(dev);
+
+		// 3) packaged resource on classpath
+		try (InputStream is = getClass().getClassLoader().getResourceAsStream("FlowerPicture/" + fileName)) {
+			if (is != null) return is.readAllBytes();
+		}
+
+		throw new FileNotFoundException("FlowerPicture/" + fileName + " not found in any location");
+	}
+
+	private boolean deleteFlowerImageFile(String fileName) {
+		boolean ok = false;
+
+		// 1) external/prod folder: ./data/FlowerPicture/<file>
 		try {
-			session = sessionFactory.openSession();
+			java.nio.file.Path p = java.nio.file.Paths.get("data","FlowerPicture", fileName);
+			if (java.nio.file.Files.deleteIfExists(p)) {
+				System.out.println("[images] deleted (external): " + p.toAbsolutePath());
+				ok = true;
+			}
+		} catch (Exception ignore) { }
+
+		// 2) dev resources folder: server/src/main/resources/FlowerPicture/<file>
+		try {
+			java.nio.file.Path p = java.nio.file.Paths.get("src","main","resources","FlowerPicture", fileName);
+			if (java.nio.file.Files.deleteIfExists(p)) {
+				System.out.println("[images] deleted (dev): " + p.toAbsolutePath());
+				ok = true;
+			}
+		} catch (Exception ignore) { }
+
+		// Note: files packaged inside a JAR (classpath) cannot be deleted at runtime.
+
+		return ok;
+	}
+
+	public void sendToClientRefreshedList(ConnectionToClient client) {
+		try (Session session = sessionFactory.openSession()) {
 			session.beginTransaction();
-			List<Flower> flowerList = session.createQuery("FROM Flower", Flower.class).getResultList();
+
+			List<Flower> flowerList = session.createQuery("from Flower", Flower.class).getResultList();
 			Map<Flower, byte[]> flowerImageMap = new HashMap<>();
 
 			for (Flower flower : flowerList) {
-				String imageFileName = flower.getImageId(); // e.g., "rose_red.jpg"
-				try (InputStream is = getClass().getClassLoader().getResourceAsStream("FlowerPicture/" + imageFileName)) {
-					if (is == null) {
-						System.err.println("Image not found for: " + imageFileName);
-						continue;
-					}
-
-					byte[] imageBytes = is.readAllBytes();
-					flowerImageMap.put(flower, imageBytes);
-
-				} catch (IOException e) {
-					System.err.println("Error reading image for flower: " + flower.getName());
-					e.printStackTrace();
+				String imageFileName = flower.getImageId(); // e.g. "test.jpg"
+				if (imageFileName == null || imageFileName.isBlank()) {
+					continue; // or attach a placeholder
+				}
+				try {
+					byte[] bytes = readFlowerImage(imageFileName);
+					flowerImageMap.put(flower, bytes);
+				} catch (IOException notFound) {
+					System.err.println("Image not found for: " + imageFileName);
 				}
 			}
 
 			client.sendToClient(flowerImageMap);
-
 		} catch (Exception e) {
 			System.err.println("Failed to send refreshed flower list");
 			e.printStackTrace();
-		}finally {
-			if (session != null) {
-				session.close();
-			}
 		}
 	}
 
@@ -1898,12 +1957,14 @@ public class SimpleServer extends AbstractServer {
 			exception.printStackTrace();
 		}
 	}
+
 	static class ReportMetrics {
 		int totalOrders;
 		double revenue;
 		double avgOrderValue;
 		int complaints;
 	}
+
 	private String branchNameFor(int id) {
 		switch (id) {
 			case 0: return "Network";
@@ -1912,6 +1973,84 @@ public class SimpleServer extends AbstractServer {
 			case 3: return "Tel Aviv";
 			default: return "Branch " + id;
 		}
+	}
+
+	private String saveFlowerJpeg(byte[] data, String suggestedFileName) throws IOException {
+		// 1) Validate image (make sure it's actually a JPEG)
+		try (ByteArrayInputStream bais = new ByteArrayInputStream(data)) {
+			BufferedImage img = ImageIO.read(bais);
+			if (img == null) {
+				throw new IOException("Invalid image data (not a readable image)");
+			}
+		}
+
+		// 2) Resolve target directory
+		Path dir = resolveFlowerDir();   // see helper below
+
+		// 3) Clean up and normalize filename
+		String base = (suggestedFileName == null || suggestedFileName.isBlank())
+				? "image.jpg"
+				: sanitizeBaseName(suggestedFileName);
+
+		if (base.toLowerCase().endsWith(".jpeg")) {
+			base = base.substring(0, base.length() - 5) + ".jpg";
+		}
+		if (!base.toLowerCase().endsWith(".jpg")) {
+			base = base + ".jpg";
+		}
+
+		// 4) Ensure unique name (add -1, -2, etc if needed)
+		String unique = uniqueName(dir, base);
+
+		// 5) Save the file
+		Path out = dir.resolve(unique);
+		Files.write(out, data, StandardOpenOption.CREATE_NEW);
+
+		System.out.println("[images] saved: " + out.toAbsolutePath());
+
+		return unique;  // return just the filename (to store in flower.image_id)
+	}
+
+	private String sanitizeBaseName(String name) {
+		String base = name.replace("\\","/");                // drop any path
+		base = base.substring(base.lastIndexOf('/') + 1);
+		base = base.replaceAll("[^A-Za-z0-9._-]", "_");      // safe chars only
+		if (base.isBlank()) base = "image.jpg";
+		return base;
+	}
+
+	private String uniqueName(java.nio.file.Path dir, String fileName) throws IOException {
+		String lower = fileName.toLowerCase();
+		int dot = lower.lastIndexOf('.');
+		String stem = (dot >= 0 ? fileName.substring(0, dot) : fileName);
+		String ext  = (dot >= 0 ? fileName.substring(dot)   : "");
+		java.nio.file.Path candidate = dir.resolve(fileName);
+		int i = 1;
+		while (java.nio.file.Files.exists(candidate)) {
+			candidate = dir.resolve(stem + "-" + i + ext);
+			i++;
+		}
+		return candidate.getFileName().toString();
+	}
+
+	private Path resolveFlowerDir() throws IOException {
+		// 1) preferred dev path (when running from the server module in IDE)
+		Path devResources = Paths.get("src", "main", "resources", "FlowerPicture");
+
+		// 2) external, always-writable folder next to the server executable (good for prod)
+		Path external = Paths.get("data", "FlowerPicture"); // e.g. ./data/FlowerPicture
+
+		// Try dev path first if it looks like a sources checkout
+		if (Files.exists(Paths.get("src")) && Files.isDirectory(Paths.get("src"))) {
+			Files.createDirectories(devResources);
+			System.out.println("[images] using resources dir: " + devResources.toAbsolutePath());
+			return devResources;
+		}
+
+		// Fallback to external
+		Files.createDirectories(external);
+		System.out.println("[images] using external dir:   " + external.toAbsolutePath());
+		return external;
 	}
 
 	private ReportMetrics computeMetrics(String reportType, int branchId, java.sql.Date date) {
@@ -1964,6 +2103,7 @@ public class SimpleServer extends AbstractServer {
 		}
 		return m;
 	}
+
 	private static java.util.Date toUtilDate(Object t) {
 		if (t == null) return null;
 		if (t instanceof java.util.Date) {

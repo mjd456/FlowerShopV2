@@ -2040,78 +2040,45 @@ public class SecondaryController {
         String supplyEilatText = NewEilatFlowerSupply.getText().trim();
         String supplyStorageText = NewStorageSupply.getText().trim();
         String desc = NewFlowerDesc.getText().trim();
-        String imageId = "";
 
         boolean valid = true;
 
-        if (name.isEmpty() || !name.matches("^[A-Za-z\\s]+$")) {
-            NewFlowerName.setStyle("-fx-border-color: red;");
-            valid = false;
-        } else {
-            NewFlowerName.setStyle("");
-        }
+        // Basic field validation (keep yours, fixed a small copy/paste slip)
+        if (name.isEmpty() || !name.matches("^[A-Za-z\\s]+$")) { NewFlowerName.setStyle("-fx-border-color: red;"); valid = false; }
+        else { NewFlowerName.setStyle(""); }
 
-        if (color.isEmpty() || !color.matches("^[A-Za-z\\s]+$")) {
-            NewFlowerColor.setStyle("-fx-border-color: red;");
-            valid = false;
-        } else {
-            NewFlowerColor.setStyle("");
-        }
+        if (color.isEmpty() || !color.matches("^[A-Za-z\\s]+$")) { NewFlowerColor.setStyle("-fx-border-color: red;"); valid = false; }
+        else { NewFlowerColor.setStyle(""); }
 
         double price = -1;
-        int supplyHaifa = -1;
-        int supplyEilat = -1;
-        int supplyTelAviv = -1;
-        int supplyStorage = -1;
-        try {
-            supplyStorage = Integer.parseInt(supplyStorageText);
-            if (supplyStorage < 0) throw new NumberFormatException();
-            NewStorageSupply.setStyle("");
+        int supplyHaifa = -1, supplyEilat = -1, supplyTelAviv = -1, supplyStorage = -1;
 
-        } catch (NumberFormatException e) {
-            NewTelAvivFlowerSupply.setStyle("-fx-border-color: red;");
-            valid = false;
-        }
-        try {
-            price = Double.parseDouble(priceText);
-            NewFlowerPrice.setStyle("");
-        } catch (NumberFormatException e) {
-            NewFlowerPrice.setStyle("-fx-border-color: red;");
-            valid = false;
-        }
-        try {
-            supplyTelAviv = Integer.parseInt(supplyTelAvivText);
-            if (supplyTelAviv < 0) throw new NumberFormatException();
-            NewTelAvivFlowerSupply.setStyle("");
+        try { price = Double.parseDouble(priceText); NewFlowerPrice.setStyle(""); }
+        catch (NumberFormatException e) { NewFlowerPrice.setStyle("-fx-border-color: red;"); valid = false; }
 
-        } catch (NumberFormatException e) {
-            NewTelAvivFlowerSupply.setStyle("-fx-border-color: red;");
-            valid = false;
-        }
-        try {
-            supplyEilat = Integer.parseInt(supplyEilatText);
-            if (supplyEilat < 0) throw new NumberFormatException();
+        try { supplyHaifa = Integer.parseInt(supplyHaifaText); if (supplyHaifa < 0) throw new NumberFormatException(); NewHaifaFlowerSupply.setStyle(""); }
+        catch (NumberFormatException e) { NewHaifaFlowerSupply.setStyle("-fx-border-color: red;"); valid = false; }
 
-            NewEilatFlowerSupply.setStyle("");
-        } catch (NumberFormatException e) {
-            NewEilatFlowerSupply.setStyle("-fx-border-color: red;");
-            valid = false;
-        }
-        try {
-            supplyHaifa = Integer.parseInt(supplyHaifaText);
-            if (supplyHaifa < 0) throw new NumberFormatException();
-            NewHaifaFlowerSupply.setStyle("");
-        } catch (NumberFormatException e) {
-            NewHaifaFlowerSupply.setStyle("-fx-border-color: red;");
-            valid = false;
-        }
+        try { supplyTelAviv = Integer.parseInt(supplyTelAvivText); if (supplyTelAviv < 0) throw new NumberFormatException(); NewTelAvivFlowerSupply.setStyle(""); }
+        catch (NumberFormatException e) { NewTelAvivFlowerSupply.setStyle("-fx-border-color: red;"); valid = false; }
 
+        try { supplyEilat = Integer.parseInt(supplyEilatText); if (supplyEilat < 0) throw new NumberFormatException(); NewEilatFlowerSupply.setStyle(""); }
+        catch (NumberFormatException e) { NewEilatFlowerSupply.setStyle("-fx-border-color: red;"); valid = false; }
 
-        if (desc.isEmpty()) {
-            NewFlowerDesc.setStyle("-fx-border-color: red;");
+        try { supplyStorage = Integer.parseInt(supplyStorageText); if (supplyStorage < 0) throw new NumberFormatException(); NewStorageSupply.setStyle(""); }
+        catch (NumberFormatException e) { NewStorageSupply.setStyle("-fx-border-color: red;"); valid = false; }
+
+        if (desc.isEmpty()) { NewFlowerDesc.setStyle("-fx-border-color: red;"); valid = false; }
+        else { NewFlowerDesc.setStyle(""); }
+
+        // NEW: require image (or make it optional if you want)
+        if (flowerJpeg == null || flowerJpeg.length == 0) {
+            // visually flag the drop zone
+            imageDropZone.setEffect(new DropShadow(12.0, Color.DODGERBLUE));
+            new Alert(Alert.AlertType.WARNING, "Please drop a JPG picture for the flower.").showAndWait();
             valid = false;
         } else {
-            NewFlowerDesc.setStyle("");
+            imageDropZone.setEffect(null);
         }
 
         if (!valid) {
@@ -2119,13 +2086,20 @@ public class SecondaryController {
             return;
         }
 
+        // Compute total supply
+        int totalSupply = supplyHaifa + supplyEilat + supplyTelAviv + supplyStorage;
+
+        // Suggested filename based on the flower name
+        String suggestedFile = sanitizeBaseName(name) + ".jpg";
+
+        // Build the flower (imageId will be set server-side after save)
         Flower newFlower = new Flower(
                 name,
                 color,
                 desc,
-                imageId,
+                 "",    // server will fill this with the stored filename
                 price,
-                supplyHaifa + supplyEilat + supplyTelAviv + supplyStorage,
+                totalSupply,
                 supplyHaifa,
                 supplyEilat,
                 supplyTelAviv,
@@ -2133,21 +2107,36 @@ public class SecondaryController {
         );
 
         try {
-            SimpleClient.getClient().sendToServer(new AddFlowerRequest(newFlower));
+            // Send one request with entity + image bytes
+            SimpleClient.getClient().sendToServer(new AddFlowerRequest(newFlower, flowerJpeg, suggestedFile));
             System.out.println("Requested to add new flower: " + name);
 
+            // Reset fields
             NewFlowerName.setText("");
             NewFlowerColor.setText("");
             NewFlowerPrice.setText("");
             NewEilatFlowerSupply.setText("");
             NewTelAvivFlowerSupply.setText("");
             NewHaifaFlowerSupply.setText("");
+            NewStorageSupply.setText("");
             NewFlowerDesc.setText("");
-            //Cleared the fields after sending request
+
+            // Reset image drop zone
+            clearFlowerImage();            // your existing helper clears preview + hint
         } catch (Exception e) {
             e.printStackTrace();
+            new Alert(Alert.AlertType.ERROR, "Failed to send add-flower request.\n" + e.getMessage()).showAndWait();
         }
     }
+
+    // helper — keep filenames clean
+    private String sanitizeBaseName(String s) {
+        String base = s.toLowerCase().trim().replaceAll("\\s+", "-");
+        base = base.replaceAll("[^a-z0-9._-]", "_");
+        if (base.isBlank()) base = "image";
+        return base;
+    }
+
 
     @Subscribe
     public void onNewFlowerNotification(NewFlowerNotification notif) {
