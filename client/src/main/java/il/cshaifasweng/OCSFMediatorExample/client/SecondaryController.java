@@ -2544,8 +2544,8 @@ public class SecondaryController {
             ta.setPrefSize(900, 600);
 
             var alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-            alert.setTitle("Complaints Report (with details)");
-            alert.setHeaderText("Report for the last 3 months");
+            alert.setTitle("Complaints Report — Whole Network");
+            alert.setHeaderText("All branches • last 3 months");
             alert.getDialogPane().setContent(ta);
             alert.setResizable(true);
             alert.showAndWait();
@@ -2822,9 +2822,9 @@ public class SecondaryController {
 
         try {
             SimpleClient.getClient().sendToServer(
-                    new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest(from, to, 0)
+                    new ComplaintsReportRequest(from, to, 0) // always network
             );
-            System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=" + branchId + ")");
+            System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=0)");
         } catch (IOException ex) {
             System.err.println("[ERROR] ComplaintsReportRequest failed: " + ex.getMessage());
             new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR,
