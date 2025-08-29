@@ -1502,12 +1502,12 @@ public class SimpleServer extends AbstractServer {
 		}
 		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest req) {
 			try (Session s = sessionFactory.openSession()) {
-				// 1) Bounds
+				// Date bounds as LocalDateTime
 				java.time.LocalDateTime fromDT = req.getFrom().toLocalDate().atStartOfDay();
 				java.time.LocalDateTime toDT   = req.getTo().toLocalDate().atTime(23, 59, 59);
 
-				// 2) Pull all in range (one query, filter branch in Java)
-				java.util.List<FeedBackSQL> all = s.createQuery(
+				// Pull all complaints in range; we’ll filter branch in Java to avoid join headaches
+				List<FeedBackSQL> all = s.createQuery(
 								"from FeedBackSQL f where f.submittedAt >= :from and f.submittedAt <= :to",
 								FeedBackSQL.class
 						)
@@ -1515,53 +1515,31 @@ public class SimpleServer extends AbstractServer {
 						.setParameter("to", toDT)
 						.list();
 
-				// 3) Group details per day (TreeMap -> sorted by day)
-				java.util.Map<java.time.LocalDate, java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Detail>>
-						detailsByDay = new java.util.TreeMap<>();
-
-				int wantedBranchId = req.getBranchId(); // 0 = all (network)
+				// Aggregate counts per day with optional branch filter
+				java.util.Map<java.time.LocalDate, Long> counts = new java.util.TreeMap<>();
+				int wanted = req.getBranchId(); // 0 = all
 
 				for (FeedBackSQL f : all) {
 					if (f.getSubmittedAt() == null) continue;
 
-					// figure feedback branch id (supports either f.branch or account.branch)
+					// Determine feedback's branch id (support either account.branch or the explicit branch on feedback)
 					int fbBranchId = 0;
-					String branchName = "Network";
-					if (f.getBranch() != null) {
-						fbBranchId = f.getBranch().getId();
-						if (f.getBranch().getName() != null) branchName = f.getBranch().getName();
-					} else if (f.getAccount() != null && f.getAccount().getBranch() != null) {
+					if (f.getAccount() != null && f.getAccount().getBranch() != null) {
 						fbBranchId = f.getAccount().getBranch().getId();
-						if (f.getAccount().getBranch().getName() != null) branchName = f.getAccount().getBranch().getName();
+					} else if (f.getBranch() != null) {
+						fbBranchId = f.getBranch().getId();
 					}
 
-					if (wantedBranchId > 0 && fbBranchId != wantedBranchId) continue;
+					if (wanted > 0 && fbBranchId != wanted) continue;
 
 					java.time.LocalDate day = f.getSubmittedAt().toLocalDate();
-					String email = (f.getAccount() != null) ? f.getAccount().getEmail() : "-";
-
-					var detail = new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Detail(
-							f.getFeedback_id(),
-							f.getTitle(),
-							f.getDetails(),
-							email,
-							branchName,
-							f.getSubmittedAt(),
-							f.getStatus()
-					);
-
-					detailsByDay.computeIfAbsent(day, k -> new java.util.ArrayList<>()).add(detail);
+					counts.merge(day, 1L, Long::sum);
 				}
 
-				// 4) Build rows (day, count, details)
-				java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row> rows = new java.util.ArrayList<>();
-				for (var e : detailsByDay.entrySet()) {
-					java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Detail> det = e.getValue();
-					rows.add(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row(
-							e.getKey(),
-							det.size(),
-							det
-					));
+				java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row> rows =
+						new java.util.ArrayList<>(counts.size());
+				for (var e : counts.entrySet()) {
+					rows.add(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row(e.getKey(), e.getValue(),e.get));
 				}
 
 				client.sendToClient(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse(rows));
