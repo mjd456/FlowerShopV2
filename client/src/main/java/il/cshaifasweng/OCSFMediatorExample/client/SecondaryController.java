@@ -96,12 +96,6 @@ public class SecondaryController {
     private Button generateReportBtn;
 
     @FXML
-    private ResourceBundle resources;
-
-    @FXML
-    private URL location;
-
-    @FXML
     private Label AccInfoCCNum;
 
     @FXML
@@ -2565,6 +2559,186 @@ public class SecondaryController {
         });
     }
 
+
+        App.notifySecondaryReady();
+        // 1) add type only for NM
+        if (isNetworkManager() && !reportTypeComboBox.getItems().contains("Compare Reports (by Date)")) {
+            reportTypeComboBox.getItems().add("Compare Reports (by Date)");
+        }
+
+        // 2) show the button (and hide for non-NM)
+    }
+
+    @FXML
+    void onGenerateReport(ActionEvent e) {
+        // 1) Which report?
+        String reportType = reportTypeComboBox.getValue();
+        if (reportType == null || reportType.isBlank()) {
+            System.err.println("Pick a report type.");
+            return;
+        }
+
+        // 2) Which branch?
+        String lvl = (account != null) ? account.getAccountLevel() : null;
+
+// Force network-wide reports for Branch Managers
+        int branchId = 0; // 0 = Network aggregate
+        if (!("BranchManager".equalsIgnoreCase(lvl) || "Branch Manager".equalsIgnoreCase(lvl))) {
+            String selected = BranchComboBox.getValue();     // e.g. "Haifa Branch (1)"
+            branchId = branchNameToId(selected);             // -> 0/1/2/3
+        } else {
+            String selected = BranchComboBox.getValue();     // e.g. "Haifa Branch (1)"
+            branchId = branchNameToId(selected);             // -> 0/1/2/3
+        }
+
+        System.out.println("Using branchId = " + branchId + " | report = " + reportType);
+
+        // 3) Dispatch request
+        switch (reportType) {
+            case "Quarterly Revenue Report" -> requestQuarterlyRevenue(branchId);
+            case "Orders by Type Report" -> requestOrdersByType(branchId);
+            case "Complaints Report" -> requestComplaints(0);
+            default -> System.err.println("Unknown report type: " + reportType);
+        }
+    }
+
+
+    private void requestQuarterlyRevenue(int branchId) {
+        LocalDate toLD = LocalDate.now();
+        LocalDate fromLD = toLD.minusMonths(3);
+
+        Date from = Date.valueOf(fromLD);
+        Date to = Date.valueOf(toLD);
+
+        try {
+            SimpleClient.getClient().sendToServer(
+                    new QuarterlyRevenueReportRequest(from, to, branchId)
+            );
+            System.out.println("[SEND] QuarterlyRevenueReportRequest(from=" + from + ", to=" + to + ", branchId=" + branchId + ")");
+        } catch (IOException ex) {
+            System.err.println("[ERROR] QuarterlyRevenueReportRequest failed: " + ex.getMessage());
+            new Alert(Alert.AlertType.ERROR, "Could not request Quarterly Revenue Report:\n" + ex.getMessage()).showAndWait();
+        }
+    }
+
+    private void requestOrdersByType(int branchId) {
+        LocalDate toLD = LocalDate.now();
+        LocalDate fromLD = toLD.minusMonths(3);
+
+        Date from = Date.valueOf(fromLD);
+        Date to = Date.valueOf(toLD);
+        try {
+            SimpleClient.getClient().sendToServer(new OrdersByProductTypeReportRequest(from, to, branchId));
+            System.out.println("[SEND] OrdersByProductTypeReportRequest(branchId=" + branchId + ")");
+        } catch (IOException ex) {
+            System.err.println("[ERROR] OrdersByProductTypeReportRequest failed: " + ex.getMessage());
+            new Alert(Alert.AlertType.ERROR, "Could not request Orders by Type Report:\n" + ex.getMessage()).showAndWait();
+        }
+    }
+
+    private static String formatCurrency(double value) {
+        // Simple IL shekel formatting without locale headaches
+        return "₪" + String.format("%,.2f", value);
+    }
+
+    // Your existing mapping is fine; keeping here for completeness
+    private int branchNameToId(String s) {
+        if (s == null) return 0;
+        s = s.toLowerCase();
+        if (s.startsWith("network")) return 0;
+        if (s.startsWith("haifa")) return 1;
+        if (s.startsWith("eilat")) return 2;
+        if (s.startsWith("tel aviv") || s.startsWith("telaviv")) return 3;
+        return 0;
+    }
+
+    @org.greenrobot.eventbus.Subscribe
+    public void onComplaintsReport(il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse resp) {
+
+        javafx.application.Platform.runLater(() -> {
+            var rows = (resp != null && resp.getRows() != null) ? resp.getRows() : java.util.List.<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row>of();
+
+            StringBuilder sb = new StringBuilder(2048);
+            if (rows.isEmpty()) {
+                sb.append("No complaints found for the selected period.");
+            } else {
+                for (var row : rows) {
+                    sb.append("=== ").append(row.getDay()).append(" — Complaints: ").append(row.getCount()).append(" ===\n");
+                    var items = row.getDetails();
+                    if (items == null || items.isEmpty()) {
+                        sb.append("  (No items)\n\n");
+                        continue;
+                    }
+                    for (var it : items) {
+                        // Optionally truncate long bodies for readability
+                        String body = it.getDetails() == null ? "" : it.getDetails().trim();
+                        if (body.length() > 600) body = body.substring(0, 600) + "…";
+
+                        sb.append("• ").append(safe(it.getTitle())).append("  [")
+                                .append(it.getStatus()).append("]\n")
+                                .append("  From: ").append(safe(it.getEmail()))
+                                .append("  | Branch: ").append(safe(it.getBranch()))
+                                .append("  | Sent: ").append(String.valueOf(it.getSubmittedAt())).append("\n")
+                                .append("  ").append(body).append("\n\n");
+                    }
+                }
+            }
+
+            var ta = new javafx.scene.control.TextArea(sb.toString());
+            ta.setEditable(false);
+            ta.setWrapText(true);
+            ta.setFont(javafx.scene.text.Font.font("monospaced"));
+            ta.setPrefSize(900, 600);
+
+            var alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+            alert.setTitle("Complaints Report — Whole Network");
+            alert.setHeaderText("All branches • last 3 months");
+            alert.getDialogPane().setContent(ta);
+            alert.setResizable(true);
+            alert.showAndWait();
+        });
+    }
+
+    @Subscribe
+    public void onQuarterlyRevenueReport(QuarterlyRevenueReportResponse resp) {
+        Platform.runLater(() -> {
+            var rows = (resp != null && resp.getRows() != null) ? resp.getRows() : List.<QuarterlyRevenueReportResponse.Row>of();
+
+            // Optional: sort by Year, Quarter
+            rows.sort(java.util.Comparator
+                    .comparingInt(QuarterlyRevenueReportResponse.Row::getYear)
+                    .thenComparingInt(QuarterlyRevenueReportResponse.Row::getQuarter));
+
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.format("%-8s | %-8s | %s%n", "Year", "Quarter", "Revenue (₪)"));
+            sb.append("------------------------------------------\n");
+
+            double total = 0.0;
+            for (var row : rows) {
+                total += row.getRevenue();
+                sb.append(String.format("%-8d | %-8d | %s%n",
+                        row.getYear(),
+                        row.getQuarter(),
+                        formatCurrency(row.getRevenue())));
+            }
+            sb.append("------------------------------------------\n");
+            sb.append(String.format("%-19s %s%n", "Total:", formatCurrency(total)));
+
+            var textArea = new TextArea(sb.toString());
+            textArea.setEditable(false);
+            textArea.setWrapText(false);
+            textArea.setFont(Font.font("monospaced"));
+
+            Alert a = new Alert(Alert.AlertType.INFORMATION);
+            a.setTitle("Quarterly Revenue Report");
+            a.setHeaderText(rows.isEmpty() ? "No data in range" : "Last 12 months (by quarter)");
+            a.getDialogPane().setContent(textArea);
+            a.setResizable(true);
+            a.showAndWait();
+        });
+    }
+
+
     @Subscribe
     public void onOrdersByProductTypeReport(OrdersByProductTypeReportResponse response) {
         Platform.runLater(() -> {
@@ -2796,16 +2970,15 @@ public class SecondaryController {
 
         try {
             SimpleClient.getClient().sendToServer(
-                    new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest(from, to, 0)
+                    new ComplaintsReportRequest(from, to, 0) // always network
             );
-            System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=" + branchId + ")");
+            System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=0)");
         } catch (IOException ex) {
             System.err.println("[ERROR] ComplaintsReportRequest failed: " + ex.getMessage());
             new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR,
                     "Could not request Complaints Report:\n" + ex.getMessage()).showAndWait();
         }
     }
-
     // fields already present:
 // @FXML private Label dropHint;
 // @FXML private Button clearImageBtn;
