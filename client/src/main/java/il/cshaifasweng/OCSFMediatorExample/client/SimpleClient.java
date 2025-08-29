@@ -11,7 +11,7 @@ import java.util.Map;
 
 
 public class SimpleClient extends AbstractClient {
-	
+
 	private static SimpleClient client = null;
 	static Account account = null;
 

@@ -2,8 +2,16 @@ package il.cshaifasweng.OCSFMediatorExample.server;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
+
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -23,7 +31,7 @@ import org.hibernate.cfg.Configuration;
 import org.hibernate.query.Query;
 import org.hibernate.service.ServiceRegistry;
 
-import javax.persistence.LockModeType;
+import javax.imageio.ImageIO;
 
 
 public class SimpleServer extends AbstractServer {
@@ -1031,14 +1039,21 @@ public class SimpleServer extends AbstractServer {
 		}
 		else if (msg instanceof DeleteFlowerRequest delReq) {
 			int idToDelete = delReq.getFlowerId();
+
 			try (Session session = sessionFactory.openSession()) {
 				Transaction tx = session.beginTransaction();
+
 				Flower flower = session.get(Flower.class, idToDelete);
 				if (flower != null) {
+					// capture before entity is gone
+					String imageFile = flower.getImageId();
+
 					session.delete(flower);
 					tx.commit();
 					System.out.println("Flower deleted: " + flower.getName());
+
 					sendToAllClients(new FlowerDeleted(flower.getId()));
+
 				} else {
 					tx.rollback();
 					System.out.println("Flower to delete not found");
@@ -1051,6 +1066,7 @@ public class SimpleServer extends AbstractServer {
 			System.out.println("Received AddFlowerRequest from client.");
 
 			Flower newFlower = addFlowerRequest.getNewFlower();
+
 			byte[] jpeg = addFlowerRequest.getImageJpeg();            // may be null
 			String suggested = addFlowerRequest.getSuggestedFileName(); // may be null
 
@@ -1058,10 +1074,12 @@ public class SimpleServer extends AbstractServer {
 			// Account acc = (Account) client.getInfo("account");
 			// if (acc == null) { client.sendToClient("Not authorized"); return; }
 
+
 			Session session = null;
 			Transaction tx = null;
 
 			try {
+
 				// 1) If a picture was provided, validate & save -> set imageId on entity
 				if (jpeg != null && jpeg.length > 0) {
 					String savedName = saveFlowerJpeg(jpeg, suggested); // uses your helper
@@ -1083,12 +1101,13 @@ public class SimpleServer extends AbstractServer {
 
 				session.save(newFlower); // DB ID assigned
 
+
 				tx.commit();
 				System.out.println("New flower added to DB: " + newFlower.getName());
 
 				client.sendToClient("Flower added successfully");
 
-				// notify subscribers
+
 				NewFlowerNotification notification = new NewFlowerNotification(newFlower);
 				for (SubscribedClient sub : SubscribersList) {
 					try { sub.getClient().sendToClient(notification); }
@@ -1469,7 +1488,7 @@ public class SimpleServer extends AbstractServer {
 						request.getTotalPrice(),
 						request.getAddressOrPickup(),
 						request.getGreeting(),
-						branchId                  // ✅ matches Integer
+						branchId                  
 				);
 
 				// If you don’t have that ctor, do:
@@ -1541,6 +1560,75 @@ public class SimpleServer extends AbstractServer {
 				System.out.println("Sent list of all branches to client.");
 			} catch (Exception e) {
 				e.printStackTrace();
+			}
+		}
+		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest req) {
+			try (Session s = sessionFactory.openSession()) {
+				// 1) Bounds
+				java.time.LocalDateTime fromDT = req.getFrom().toLocalDate().atStartOfDay();
+				java.time.LocalDateTime toDT   = req.getTo().toLocalDate().atTime(23, 59, 59);
+
+				// 2) Pull all in range (one query, filter branch in Java)
+				java.util.List<FeedBackSQL> all = s.createQuery(
+								"from FeedBackSQL f where f.submittedAt >= :from and f.submittedAt <= :to",
+								FeedBackSQL.class
+						)
+						.setParameter("from", fromDT)
+						.setParameter("to", toDT)
+						.list();
+
+				// 3) Group details per day (TreeMap -> sorted by day)
+				java.util.Map<java.time.LocalDate, java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Detail>>
+						detailsByDay = new java.util.TreeMap<>();
+
+				int wantedBranchId = req.getBranchId(); // 0 = all (network)
+
+				for (FeedBackSQL f : all) {
+					if (f.getSubmittedAt() == null) continue;
+
+					// figure feedback branch id (supports either f.branch or account.branch)
+					int fbBranchId = 0;
+					String branchName = "Network";
+					if (f.getBranch() != null) {
+						fbBranchId = f.getBranch().getId();
+						if (f.getBranch().getName() != null) branchName = f.getBranch().getName();
+					} else if (f.getAccount() != null && f.getAccount().getBranch() != null) {
+						fbBranchId = f.getAccount().getBranch().getId();
+						if (f.getAccount().getBranch().getName() != null) branchName = f.getAccount().getBranch().getName();
+					}
+
+					if (wantedBranchId > 0 && fbBranchId != wantedBranchId) continue;
+
+					java.time.LocalDate day = f.getSubmittedAt().toLocalDate();
+					String email = (f.getAccount() != null) ? f.getAccount().getEmail() : "-";
+
+					var detail = new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Detail(
+							f.getFeedback_id(),
+							f.getTitle(),
+							f.getDetails(),
+							email,
+							branchName,
+							f.getSubmittedAt(),
+							f.getStatus()
+					);
+
+					detailsByDay.computeIfAbsent(day, k -> new java.util.ArrayList<>()).add(detail);
+				}
+
+				// 4) Build rows (day, count, details)
+				java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row> rows = new java.util.ArrayList<>();
+				for (var e : detailsByDay.entrySet()) {
+					java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Detail> det = e.getValue();
+					rows.add(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row(
+							e.getKey(),
+							det.size(),
+							det
+					));
+				}
+
+				client.sendToClient(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse(rows));
+			} catch (Exception ex) {
+				ex.printStackTrace();
 			}
 		}
 		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsRequest req) {
@@ -1620,9 +1708,11 @@ public class SimpleServer extends AbstractServer {
 		return String.join(", ", parts);
 	}
 
+
 	public void sendToClientRefreshedList(ConnectionToClient client) {
 		try (Session session = sessionFactory.openSession()) {
 			session.beginTransaction();
+
 
 			List<Flower> flowerList = session.createQuery("FROM Flower", Flower.class).getResultList();
 			Map<Flower, byte[]> flowerImageMap = new HashMap<>();
@@ -1638,6 +1728,7 @@ public class SimpleServer extends AbstractServer {
 						System.err.println("Image not found for: " + imageFileName);
 						// leave imageBytes = null
 					}
+
 				}
 
 				// Always put the flower, even if imageBytes == null
@@ -1885,6 +1976,7 @@ public class SimpleServer extends AbstractServer {
 		}
 	}
 
+
 	private byte[] readFlowerImage(String fileName) throws IOException {
 		// external/prod folder
 		java.nio.file.Path ext = java.nio.file.Paths.get("data", "FlowerPicture", fileName);
@@ -1901,6 +1993,7 @@ public class SimpleServer extends AbstractServer {
 		}
 
 		throw new java.io.FileNotFoundException(fileName);
+
 	}
 
 	private ReportMetrics computeMetrics(String reportType, int branchId, java.sql.Date date) {
@@ -2031,6 +2124,7 @@ public class SimpleServer extends AbstractServer {
 		}
 		return candidate.getFileName().toString();
 	}
+
 
 	private static java.util.Date toUtilDate(Object t) {
 		if (t == null) return null;

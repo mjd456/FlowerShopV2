@@ -2073,6 +2073,7 @@ public class SecondaryController {
             NewFlowerColor.setStyle("-fx-border-color: red;"); valid = false;
         } else NewFlowerColor.setStyle("");
 
+
         double price = -1;
         int supplyHaifa = -1, supplyEilat = -1, supplyTelAviv = -1, supplyStorage = -1;
 
@@ -2085,12 +2086,14 @@ public class SecondaryController {
         try { supplyTelAviv = Integer.parseInt(supplyTelAvivText); if (supplyTelAviv < 0) throw new NumberFormatException(); NewTelAvivFlowerSupply.setStyle(""); }
         catch (NumberFormatException e) { NewTelAvivFlowerSupply.setStyle("-fx-border-color: red;"); valid = false; }
 
+
         try { supplyEilat = Integer.parseInt(supplyEilatText); if (supplyEilat < 0) throw new NumberFormatException(); NewEilatFlowerSupply.setStyle(""); }
         catch (NumberFormatException e) { NewEilatFlowerSupply.setStyle("-fx-border-color: red;"); valid = false; }
 
         // Fix: style the **Storage** field on error (previously styled TelAviv by mistake)
         try { supplyStorage = Integer.parseInt(supplyStorageText); if (supplyStorage < 0) throw new NumberFormatException(); NewStorageSupply.setStyle(""); }
         catch (NumberFormatException e) { NewStorageSupply.setStyle("-fx-border-color: red;"); valid = false; }
+
 
         if (desc.isEmpty()) { NewFlowerDesc.setStyle("-fx-border-color: red;"); valid = false; }
         else NewFlowerDesc.setStyle("");
@@ -2099,36 +2102,58 @@ public class SecondaryController {
 
         int totalSupply = supplyHaifa + supplyEilat + supplyTelAviv + supplyStorage;
 
+        // Compute total supply
+        int totalSupply = supplyHaifa + supplyEilat + supplyTelAviv + supplyStorage;
+
+        // Suggested filename based on the flower name
+        String suggestedFile = sanitizeBaseName(name) + ".jpg";
+
+        // Build the flower (imageId will be set server-side after save)
         Flower newFlower = new Flower(
+
                 name, color, desc, /*imageId*/ "",
                 price, totalSupply, supplyHaifa, supplyEilat, supplyTelAviv, supplyStorage
+
         );
 
         String suggestedFile = sanitizeBaseName(name) + ".jpg";
 
         try {
+
             // Use the extended constructor that carries the JPEG (may be null → server will ignore)
             SimpleClient.getClient().sendToServer(new AddFlowerRequest(newFlower, flowerJpeg, suggestedFile));
             System.out.println("Requested to add new flower: " + name);
 
             // Clear ALL fields
+
             NewFlowerName.setText("");
             NewFlowerColor.setText("");
             NewFlowerPrice.setText("");
             NewEilatFlowerSupply.setText("");
             NewTelAvivFlowerSupply.setText("");
             NewHaifaFlowerSupply.setText("");
+
             NewStorageSupply.setText("");        // <-- storage cleared
             NewFlowerDesc.setText("");
 
             // Reset image drop-zone
             clearFlowerImage();  // should: flowerJpeg=null; flowerImageView.setImage(null); setHintVisible(true); clearImageBtn.setVisible(false);
 
+
         } catch (Exception e) {
             e.printStackTrace();
             new Alert(Alert.AlertType.ERROR, "Failed to send add-flower request.\n" + e.getMessage()).showAndWait();
         }
     }
+
+    // helper — keep filenames clean
+    private String sanitizeBaseName(String s) {
+        String base = s.toLowerCase().trim().replaceAll("\\s+", "-");
+        base = base.replaceAll("[^a-z0-9._-]", "_");
+        if (base.isBlank()) base = "image";
+        return base;
+    }
+
 
     @Subscribe
     public void onNewFlowerNotification(NewFlowerNotification notif) {
@@ -2525,8 +2550,8 @@ public class SecondaryController {
             ta.setPrefSize(900, 600);
 
             var alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-            alert.setTitle("Complaints Report (with details)");
-            alert.setHeaderText("Report for the last 3 months");
+            alert.setTitle("Complaints Report — Whole Network");
+            alert.setHeaderText("All branches • last 3 months");
             alert.getDialogPane().setContent(ta);
             alert.setResizable(true);
             alert.showAndWait();
@@ -2803,9 +2828,9 @@ public class SecondaryController {
 
         try {
             SimpleClient.getClient().sendToServer(
-                    new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest(from, to, 0)
+                    new ComplaintsReportRequest(from, to, 0) // always network
             );
-            System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=" + branchId + ")");
+            System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=0)");
         } catch (IOException ex) {
             System.err.println("[ERROR] ComplaintsReportRequest failed: " + ex.getMessage());
             new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR,
