@@ -1052,8 +1052,15 @@ public class SimpleServer extends AbstractServer {
 					tx.commit();
 					System.out.println("Flower deleted: " + flower.getName());
 
-					sendToAllClients(new FlowerDeleted(flower.getId()));
+					// Try to delete the picture from disk (best-effort; DB delete already committed)
+					if (imageFile != null && !imageFile.isBlank()) {
+						boolean deleted = deleteFlowerImageFile(imageFile);
+						if (!deleted) {
+							System.err.println("[images] could not delete: " + imageFile);
+						}
+					}
 
+					sendToAllClients(new FlowerDeleted(idToDelete));
 				} else {
 					tx.rollback();
 					System.out.println("Flower to delete not found");
@@ -1062,10 +1069,11 @@ public class SimpleServer extends AbstractServer {
 				ex.printStackTrace();
 			}
 		}
+
 		else if (msg instanceof AddFlowerRequest addFlowerRequest) {
 			System.out.println("Received AddFlowerRequest from client.");
 
-			Flower newFlower = addFlowerRequest.getNewFlower();
+			Flower newFlower = addFlowerRequest.getFlower();
 
 			byte[] jpeg = addFlowerRequest.getImageJpeg();            // may be null
 			String suggested = addFlowerRequest.getSuggestedFileName(); // may be null
@@ -1073,7 +1081,6 @@ public class SimpleServer extends AbstractServer {
 			// (optional) authorize who can add, if you need:
 			// Account acc = (Account) client.getInfo("account");
 			// if (acc == null) { client.sendToClient("Not authorized"); return; }
-
 
 			Session session = null;
 			Transaction tx = null;

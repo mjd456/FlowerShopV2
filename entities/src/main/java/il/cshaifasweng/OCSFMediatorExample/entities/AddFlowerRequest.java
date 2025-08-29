@@ -5,17 +5,12 @@ import java.io.Serializable;
 // AddFlowerRequest.java
 public class AddFlowerRequest implements Serializable {
 
-    private Flower newFlower;
-    private byte[] newImageJpeg;
+    private Flower flower;
+    private byte[] imageJpeg;
     String suggestedFileName;
 
     public AddFlowerRequest(Flower newFlower) {
-        this.newFlower = newFlower;
-    }
-    public AddFlowerRequest(Flower flower, byte[] imageJpeg, String suggestedFileName) {
-        this.newFlower = flower;
-        this.newImageJpeg = imageJpeg;
-        this.suggestedFileName = suggestedFileName;
+        this.flower = newFlower;
     }
 
 
@@ -25,11 +20,15 @@ public class AddFlowerRequest implements Serializable {
         this.suggestedFileName = suggestedFileName;
     }
 
+    public Flower getFlower() {
+        return flower;
+    }
+
     public String getSuggestedFileName() {
         return suggestedFileName;
     }
     public byte[] getImageJpeg() {
-        return newImageJpeg;
+        return imageJpeg;
     }
 
 }
