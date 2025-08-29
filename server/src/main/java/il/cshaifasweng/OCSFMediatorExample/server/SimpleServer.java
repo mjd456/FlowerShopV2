@@ -1500,54 +1500,7 @@ public class SimpleServer extends AbstractServer {
 				e.printStackTrace();
 			}
 		}
-		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest req) {
-			try (Session s = sessionFactory.openSession()) {
-				// Date bounds as LocalDateTime
-				java.time.LocalDateTime fromDT = req.getFrom().toLocalDate().atStartOfDay();
-				java.time.LocalDateTime toDT   = req.getTo().toLocalDate().atTime(23, 59, 59);
-
-				// Pull all complaints in range; we’ll filter branch in Java to avoid join headaches
-				List<FeedBackSQL> all = s.createQuery(
-								"from FeedBackSQL f where f.submittedAt >= :from and f.submittedAt <= :to",
-								FeedBackSQL.class
-						)
-						.setParameter("from", fromDT)
-						.setParameter("to", toDT)
-						.list();
-
-				// Aggregate counts per day with optional branch filter
-				java.util.Map<java.time.LocalDate, Long> counts = new java.util.TreeMap<>();
-				int wanted = req.getBranchId(); // 0 = all
-
-				for (FeedBackSQL f : all) {
-					if (f.getSubmittedAt() == null) continue;
-
-					// Determine feedback's branch id (support either account.branch or the explicit branch on feedback)
-					int fbBranchId = 0;
-					if (f.getAccount() != null && f.getAccount().getBranch() != null) {
-						fbBranchId = f.getAccount().getBranch().getId();
-					} else if (f.getBranch() != null) {
-						fbBranchId = f.getBranch().getId();
-					}
-
-					if (wanted > 0 && fbBranchId != wanted) continue;
-
-					java.time.LocalDate day = f.getSubmittedAt().toLocalDate();
-					counts.merge(day, 1L, Long::sum);
-				}
-
-				java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row> rows =
-						new java.util.ArrayList<>(counts.size());
-				for (var e : counts.entrySet()) {
-					rows.add(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row(e.getKey(), e.getValue(),e.get));
-				}
-
-				client.sendToClient(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse(rows));
-			} catch (Exception ex) {
-				ex.printStackTrace();
-			}
-		}
-		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsRequest req) {
+		else if (msg instanceof CompareReportsRequest req) {
 
 			// 1) who is asking? (BM limited to own branch; NM can use requested branch)
 			il.cshaifasweng.OCSFMediatorExample.entities.Account acc =
