@@ -1500,7 +1500,6 @@ public class SimpleServer extends AbstractServer {
 				e.printStackTrace();
 			}
 		}
-
 		else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportRequest req) {
 			try (Session s = sessionFactory.openSession()) {
 				// 1) Bounds
