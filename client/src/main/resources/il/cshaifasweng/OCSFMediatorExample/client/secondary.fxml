@@ -12,15 +12,16 @@
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
-<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
+<?import javafx.collections.FXCollections?>
+<?import javafx.collections.ObservableList?>
 
-<VBox spacing="0" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.SecondaryController">
+
+<VBox spacing="0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.SecondaryController">
 
    <!-- Custom Title Bar -->
    <HBox fx:id="CustomTitleBar" prefHeight="36.0" spacing="10" style="-fx-background-color: #202228; -fx-padding: 6 12 6 12; -fx-alignment: CENTER_LEFT;">
@@ -310,84 +311,66 @@
                         <content>
                            <Pane fx:id="ManagerPanelPane" prefHeight="1050.0" prefWidth="585.0">
                               <children>
-                                 <VBox alignment="TOP_CENTER" prefHeight="373.0" prefWidth="590.0" spacing="350.0">
+                                 <ScrollPane fx:id="ManagerCatalogSelector" fitToWidth="true" layoutX="77.0" layoutY="46.0" prefHeight="291.0" prefWidth="430.0">
+                                    <content>
+                                       <VBox fx:id="ManagerCatalogSelectorVbox" />
+                                    </content>
+                                 </ScrollPane>
+                                 <Label layoutX="252.0" layoutY="21.0" text="Modify catalog" underline="true" />
+                                 <Label layoutX="217.0" layoutY="358.0" text="Add new flower to catalog" underline="true">
+                                    <font>
+                                       <Font name="System Bold" size="12.0" />
+                                    </font>
+                                 </Label>
+                                 <Label alignment="CENTER_RIGHT" layoutX="129.0" layoutY="375.0" prefHeight="32.0" prefWidth="100.0" text="Flower name :" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="129.0" layoutY="407.0" prefHeight="32.0" prefWidth="100.0" text="Color :" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="128.0" layoutY="437.0" prefHeight="32.0" prefWidth="100.0" text="Price :" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="22.0" layoutY="467.0" prefHeight="32.0" prefWidth="100.0" text="Haifa Supply :" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="32.0" layoutY="533.0" prefHeight="32.0" prefWidth="100.0" text="Description :" />
+                                 <TextField fx:id="NewFlowerName" layoutX="229.0" layoutY="378.0" promptText="Name" />
+                                 <TextField fx:id="NewFlowerColor" layoutX="229.0" layoutY="410.0" promptText="Color" />
+                                 <TextField fx:id="NewFlowerPrice" layoutX="229.0" layoutY="442.0" promptText="Price" />
+                                 <TextField fx:id="NewHaifaFlowerSupply" layoutX="124.0" layoutY="472.0" promptText="Amount in Haifa storage" />
+                                 <Label layoutX="115.0" layoutY="646.0" text="Note : To add a picture for the flower you need to access database." />
+                                 <TextArea fx:id="NewFlowerDesc" layoutX="135.0" layoutY="541.0" prefHeight="105.0" prefWidth="342.0" promptText="Ex. Flower looks in weddings..." />
+                                 <Button fx:id="AddNewFlower" layoutX="490.0" layoutY="621.0" mnemonicParsing="false" onAction="#RequestToAddNewFlower" prefHeight="25.0" prefWidth="84.0" text="Add" />
+                                 <VBox alignment="CENTER" layoutY="700.0" prefWidth="585.0" spacing="15.0">
                                     <children>
-                                       <Pane prefHeight="353.0" prefWidth="590.0">
+                                       <Label text="Reports" underline="true">
+                                          <font>
+                                             <Font name="System Bold" size="14.0" />
+                                          </font>
+                                       </Label>
+                                       <HBox fx:id="branchSelectorBox" alignment="CENTER" spacing="10.0" visible="false">
                                           <children>
-                                             <Label layoutX="255.0" layoutY="14.0" text="Modify catalog" underline="true" />
-                                             <ScrollPane fx:id="ManagerCatalogSelector" fitToWidth="true" layoutX="60.0" layoutY="40.0" prefHeight="294.0" prefWidth="470.0">
-                                                <content>
-                                                   <VBox fx:id="ManagerCatalogSelectorVbox" />
-                                                </content>
-                                             </ScrollPane>
+                                             <Label fx:id="managerScopeLabel" style="-fx-font-weight: bold;" text="Reports for: [Branch Name]" />
+                                             <ComboBox fx:id="branchSelectorComboBox" prefWidth="200.0" promptText="Select Branch" />
                                           </children>
-                                       </Pane>
-                                       <Pane fx:id="PaneNewFlower" prefHeight="336.0" prefWidth="600.0">
+                                       </HBox>
+                                       <Label text="Branch:" style="-fx-text-fill: white;"/>
+                                       <ComboBox fx:id="BranchComboBox" prefWidth="200.0" />
+                                       <HBox alignment="CENTER" spacing="10.0">
                                           <children>
-                                             <Label layoutX="221.0" layoutY="14.0" text="Add new flower to catalog" underline="true">
-                                                <font>
-                                                   <Font name="System Bold" size="12.0" />
-                                                </font>
-                                             </Label>
-                                             <Label alignment="CENTER_RIGHT" layoutX="142.0" layoutY="38.0" prefHeight="32.0" prefWidth="100.0" text="Flower name :" />
-                                             <Label alignment="CENTER_RIGHT" layoutX="142.0" layoutY="70.0" prefHeight="32.0" prefWidth="100.0" text="Color :" />
-                                             <Label alignment="CENTER_RIGHT" layoutX="141.0" layoutY="100.0" prefHeight="32.0" prefWidth="100.0" text="Price :" />
-                                             <Label alignment="CENTER_RIGHT" layoutX="35.0" layoutY="130.0" prefHeight="32.0" prefWidth="100.0" text="Haifa Supply :" />
-                                             <Label alignment="CENTER_RIGHT" layoutX="35.0" layoutY="201.0" prefHeight="32.0" prefWidth="100.0" text="Description :" />
-                                             <TextField fx:id="NewFlowerName" layoutX="242.0" layoutY="41.0" promptText="Name" />
-                                             <TextField fx:id="NewFlowerColor" layoutX="242.0" layoutY="73.0" promptText="Color" />
-                                             <TextField fx:id="NewFlowerPrice" layoutX="242.0" layoutY="105.0" promptText="Price" />
-                                             <TextField fx:id="NewHaifaFlowerSupply" layoutX="137.0" layoutY="135.0" promptText="Amount in Haifa storage" />
-                                             <TextArea fx:id="NewFlowerDesc" layoutX="139.0" layoutY="201.0" prefHeight="105.0" prefWidth="342.0" promptText="Ex. Flower looks in weddings..." />
-                                             <Label alignment="CENTER_RIGHT" layoutX="35.0" layoutY="162.0" prefHeight="32.0" prefWidth="100.0" text="Eilat Supply :" />
-                                             <TextField fx:id="NewEilatFlowerSupply" layoutX="137.0" layoutY="167.0" promptText="Amount in Eilat storage" />
-                                             <TextField fx:id="NewTelAvivFlowerSupply" layoutX="387.0" layoutY="134.0" promptText="Amount in TelAviv storage" />
-                                             <TextField fx:id="NewStorageSupply" layoutX="387.0" layoutY="166.0" promptText="Amount in storage" />
-                                             <Label alignment="CENTER_RIGHT" layoutX="287.0" layoutY="132.0" prefHeight="32.0" prefWidth="95.0" text="TelAviv Supply :" />
-                                             <Label alignment="CENTER_RIGHT" layoutX="287.0" layoutY="163.0" prefHeight="32.0" prefWidth="95.0" text="Storage Supply :" />
-                                             <Button fx:id="AddNewFlower" layoutX="494.0" layoutY="281.0" mnemonicParsing="false" onAction="#RequestToAddNewFlower" prefHeight="25.0" prefWidth="84.0" text="Add" />
-                                             <!-- Drop zone for JPG image -->
-                                             <StackPane fx:id="imageDropZone" layoutX="450.0" layoutY="25.0" prefHeight="100.0" prefWidth="100.0" style="-fx-border-color:#244060; -fx-border-radius:8; -fx-background-color:#0f1b2d22;">
-                                                <children>
-                                                   <ImageView fx:id="flowerImageView" fitHeight="100.0" fitWidth="100.0" pickOnBounds="true" preserveRatio="true" />
-                                                   <Label fx:id="dropHint" mouseTransparent="true" text="Drop JPG here" />
-                                                   <Button fx:id="clearImageBtn" focusTraversable="false" managed="false" style="-fx-background-color: rgba(0,0,0,0.5); -fx-text-fill: white; -fx-font-weight: bold;" text="×" visible="false" />
-                                                </children>
-                                             </StackPane>
+                                             <ComboBox fx:id="reportTypeComboBox" prefWidth="200.0" promptText="Select Report Type" />
+                                             <Button fx:id="generateReportBtn" onAction="#onGenerateReport" text="Generate Report" />
                                           </children>
-                                       </Pane>
-                                       <VBox alignment="CENTER" prefWidth="585.0" spacing="5.0">
+                                       </HBox>
+                                       <HBox alignment="CENTER" spacing="10.0">
                                           <children>
-                                             <Label text="Reports" underline="true">
-                                                <font>
-                                                   <Font name="System Bold" size="14.0" />
-                                                </font>
-                                             </Label>
-                                             <Label fx:id="ManagerBranch" style="-fx-text-fill: white;" text="Branch:" />
-                                             <ComboBox fx:id="BranchComboBox" prefWidth="200.0" />
-                                             <HBox fx:id="branchSelectorBox" alignment="CENTER" spacing="10.0" visible="false">
-                                                <children>
-                                                   <Label fx:id="managerScopeLabel" style="-fx-font-weight: bold;" text="Reports for: [Branch Name]" />
-                                                   <ComboBox fx:id="branchSelectorComboBox" prefWidth="200.0" promptText="Select Branch" />
-                                                </children>
-                                             </HBox>
-                                             <HBox alignment="CENTER" spacing="10.0">
-                                                <children>
-                                                   <ComboBox fx:id="reportTypeComboBox" prefWidth="200.0" promptText="Select Report Type" />
-                                                   <Button fx:id="generateReportBtn" onAction="#onGenerateReport" text="Generate Report" />
-                                                </children>
-                                             </HBox>
-                                             <HBox alignment="CENTER" spacing="10.0">
-                                                <children>
-                                                   <DatePicker fx:id="reportDate1" promptText="Date A" />
-                                                   <DatePicker fx:id="reportDate2" promptText="Date B" />
-                                                   <Button fx:id="compareReportsBtn" onAction="#onCompareReports" text="Compare Reports" />
-                                                </children>
-                                             </HBox>
+                                             <DatePicker fx:id="reportDate1" promptText="Date A" />
+                                             <DatePicker fx:id="reportDate2" promptText="Date B" />
+                                             <Button fx:id="compareReportsBtn" onAction="#onCompareReports" text="Compare Reports" />
                                           </children>
-                                       </VBox>
+                                       </HBox>
                                     </children>
                                  </VBox>
+
+                                 <Label alignment="CENTER_RIGHT" layoutX="22.0" layoutY="499.0" prefHeight="32.0" prefWidth="100.0" text="Eilat Supply :" />
+                                 <TextField fx:id="NewEilatFlowerSupply" layoutX="124.0" layoutY="504.0" promptText="Amount in Eilat storage" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="281.0" layoutY="469.0" prefHeight="32.0" prefWidth="100.0" text="TelAviv Supply :" />
+                                 <TextField fx:id="NewTelAvivFlowerSupply" layoutX="383.0" layoutY="474.0" promptText="Amount in TelAviv storage" />
+                                 <Label alignment="CENTER_RIGHT" layoutX="281.0" layoutY="501.0" prefHeight="32.0" prefWidth="100.0" text="Storage Supply :" />
+                                 <TextField fx:id="NewStorageSupply" layoutX="383.0" layoutY="506.0" promptText="Amount in storage" />
                               </children>
                            </Pane>
                         </content>
