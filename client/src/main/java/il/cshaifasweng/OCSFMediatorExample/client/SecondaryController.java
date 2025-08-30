@@ -1,6 +1,7 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import java.awt.image.BufferedImage;
+
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -13,6 +14,7 @@ import javafx.fxml.FXML;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.input.TransferMode;
 import javafx.stage.FileChooser;
+import javassist.Loader;
 import org.greenrobot.eventbus.EventBus;
 
 import java.io.ByteArrayOutputStream;
@@ -33,6 +35,7 @@ import javafx.scene.text.Font;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
+
 import java.util.concurrent.atomic.AtomicReference;
 import java.time.LocalDate;
 
@@ -810,15 +813,13 @@ public class SecondaryController {
                 SettingsPane.setPrefHeight(300);
 
             });
-        }
-        else if ("Customer".equalsIgnoreCase(role)) {
+        } else if ("Customer".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 for (Tab tab : ManagerTabs) {
                     MainTabsFrame.getTabs().remove(tab);
                 }
             });
-        }
-        else if ("BranchManager".equalsIgnoreCase(role)) {
+        } else if ("BranchManager".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 MainTabsFrame.getTabs().remove(CustomerServicePanel);
                 MainTabsFrame.getTabs().remove(detailsChange);
@@ -842,8 +843,7 @@ public class SecondaryController {
                 BranchComboBox.setDisable(true);
                 BranchComboBox.setVisible(false);
             });
-        }
-        else if ("CustomerService".equalsIgnoreCase(role)) {
+        } else if ("CustomerService".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 for (Tab tab : ManagerTabs) {
                     if (tab != CustomerServicePanel) {
@@ -851,8 +851,7 @@ public class SecondaryController {
                     }
                 }
             });
-        }
-        else if ("NetworkManager".equalsIgnoreCase(role)) {
+        } else if ("NetworkManager".equalsIgnoreCase(role)) {
             Platform.runLater(() -> {
                 MainTabsFrame.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
                     if (newTab == ManagerPanel) {
@@ -866,8 +865,7 @@ public class SecondaryController {
                     }
                 });
             });
-        }
-        else {
+        } else {
             System.out.println("Unknown role: " + role);
         }
     }
@@ -954,6 +952,7 @@ public class SecondaryController {
         if (!Guest) {
             try {
                 SimpleClient.getClient().sendToServer(new LogoutRequest(account));
+                SimpleClient.getClient().sendToServer("remove client");
             } catch (IOException ex) {
                 // log, don't rethrow
                 System.err.println("Logout send failed: " + ex.getMessage());
@@ -977,7 +976,6 @@ public class SecondaryController {
         // System.exit(0);
     }
 
-
     @FXML
     private void minimizeWindow() {
         ((Stage) CustomTitleBar.getScene().getWindow()).setIconified(true);
@@ -997,8 +995,8 @@ public class SecondaryController {
                 : "";
 
         final boolean isNetworkManager = role.equals("networkmanager") || role.equals("managernetwork");
-        final boolean isBranchManager  = role.equals("branchmanager")  || role.equals("managerbranch");
-        final boolean isManagerAll     = isNetworkManager || role.equals("manager");
+        final boolean isBranchManager = role.equals("branchmanager") || role.equals("managerbranch");
+        final boolean isManagerAll = isNetworkManager || role.equals("manager");
         final int branchId = resolveBranchId(account);
 
         for (Flower flower : flowerList) {
@@ -1007,7 +1005,7 @@ public class SecondaryController {
             card.setMaxWidth(470);
             card.prefWidthProperty().bind(ManagerCatalogSelectorVbox.widthProperty().subtract(24));
 
-            Label name  = new Label("Name: " + flower.getName());
+            Label name = new Label("Name: " + flower.getName());
             Label price = new Label("Price: ₪" + flower.getPrice());
             Label color = new Label("Color: " + flower.getColor());
 
@@ -1019,19 +1017,35 @@ public class SecondaryController {
 
             HBox haifaRow = buildSupplyRow("Supply (Haifa): ", flower.getSupplyHaifa(),
                     isManagerAll || (isBranchManager && branchId == BRANCH_HAIFA),
-                    newVal -> { flower.setSupplyHaifa(newVal); updateTotalAndModel(flower, total); pushUpdateAndRefresh(flower, flowerList); });
+                    newVal -> {
+                        flower.setSupplyHaifa(newVal);
+                        updateTotalAndModel(flower, total);
+                        pushUpdateAndRefresh(flower, flowerList);
+                    });
 
             HBox eilatRow = buildSupplyRow("Supply (Eilat): ", flower.getSupplyEilat(),
                     isManagerAll || (isBranchManager && branchId == BRANCH_EILAT),
-                    newVal -> { flower.setSupplyEilat(newVal); updateTotalAndModel(flower, total); pushUpdateAndRefresh(flower, flowerList); });
+                    newVal -> {
+                        flower.setSupplyEilat(newVal);
+                        updateTotalAndModel(flower, total);
+                        pushUpdateAndRefresh(flower, flowerList);
+                    });
 
             HBox telAvivRow = buildSupplyRow("Supply (Tel Aviv): ", flower.getSupplyTelAviv(),
                     isManagerAll || (isBranchManager && branchId == BRANCH_TEL_AVIV),
-                    newVal -> { flower.setSupplyTelAviv(newVal); updateTotalAndModel(flower, total); pushUpdateAndRefresh(flower, flowerList); });
+                    newVal -> {
+                        flower.setSupplyTelAviv(newVal);
+                        updateTotalAndModel(flower, total);
+                        pushUpdateAndRefresh(flower, flowerList);
+                    });
 
             HBox storageRow = buildSupplyRow("Supply (Delivery): ", flower.getStorage(),
                     isManagerAll,
-                    newVal -> { flower.setStorage(newVal); updateTotalAndModel(flower, total); pushUpdateAndRefresh(flower, flowerList); });
+                    newVal -> {
+                        flower.setStorage(newVal);
+                        updateTotalAndModel(flower, total);
+                        pushUpdateAndRefresh(flower, flowerList);
+                    });
 
             HBox actions = new HBox(8);
             VBox editPane = new VBox(10);
@@ -1045,17 +1059,17 @@ public class SecondaryController {
                 Button deleteBtn = new Button("Delete");
                 actions.getChildren().addAll(editBtn, deleteBtn);
 
-                TextField nameField  = new TextField(flower.getName());
+                TextField nameField = new TextField(flower.getName());
                 TextField colorField = new TextField(flower.getColor());
                 TextField priceField = new TextField(String.valueOf(flower.getPrice()));
-                TextArea  descField  = new TextArea(flower.getDescription());
+                TextArea descField = new TextArea(flower.getDescription());
                 descField.setPrefHeight(80);
                 descField.setWrapText(true);
                 descField.setMaxWidth(Double.MAX_VALUE);
 
-                Button saveBtn   = new Button("Save");
+                Button saveBtn = new Button("Save");
                 Button cancelBtn = new Button("Cancel");
-                HBox buttonBox   = new HBox(8, saveBtn, cancelBtn);
+                HBox buttonBox = new HBox(8, saveBtn, cancelBtn);
 
                 // --- NetworkManager-only picture controls
                 final java.util.concurrent.atomic.AtomicReference<byte[]> pendingImageJpeg =
@@ -1107,15 +1121,24 @@ public class SecondaryController {
                 Button finalChangePicBtn1 = changePicBtn;
                 Button finalRemovePicBtn1 = removePicBtn;
                 saveBtn.setOnAction(e -> {
-                    String newName  = nameField.getText().trim();
+                    String newName = nameField.getText().trim();
                     String newColor = colorField.getText().trim();
                     String priceTxt = priceField.getText().trim();
-                    String newDesc  = descField.getText().trim();
+                    String newDesc = descField.getText().trim();
 
                     boolean valid = true;
-                    if (newName.isEmpty() || !newName.matches("^[A-Za-z\\s]+$")) { nameField.setStyle("-fx-border-color: red;"); valid = false; } else nameField.setStyle("");
-                    if (newColor.isEmpty() || !newColor.matches("^[A-Za-z\\s]+$")) { colorField.setStyle("-fx-border-color: red;"); valid = false; } else colorField.setStyle("");
-                    if (!priceTxt.matches("^\\d+(\\.\\d{1,2})?$")) { priceField.setStyle("-fx-border-color: red;"); valid = false; } else priceField.setStyle("");
+                    if (newName.isEmpty() || !newName.matches("^[A-Za-z\\s]+$")) {
+                        nameField.setStyle("-fx-border-color: red;");
+                        valid = false;
+                    } else nameField.setStyle("");
+                    if (newColor.isEmpty() || !newColor.matches("^[A-Za-z\\s]+$")) {
+                        colorField.setStyle("-fx-border-color: red;");
+                        valid = false;
+                    } else colorField.setStyle("");
+                    if (!priceTxt.matches("^\\d+(\\.\\d{1,2})?$")) {
+                        priceField.setStyle("-fx-border-color: red;");
+                        valid = false;
+                    } else priceField.setStyle("");
                     if (!valid) return;
 
                     double newPrice = Double.parseDouble(priceTxt);
@@ -1179,7 +1202,7 @@ public class SecondaryController {
                     editPane.getChildren().add(picButtons);
                 }
                 editPane.getChildren().addAll(
-                        new Label("Edit Name:"),  nameField,
+                        new Label("Edit Name:"), nameField,
                         new Label("Edit Price:"), priceField,
                         new Label("Edit Color:"), colorField,
                         new Label("Edit Description:"), descField,
@@ -1297,7 +1320,6 @@ public class SecondaryController {
             this.label = l;
         }
     }
-
 
     /**
      * Prompts for a non-negative integer; returns Optional.empty() if invalid/canceled.
@@ -1753,7 +1775,6 @@ public class SecondaryController {
         FeedBackBranch.getSelectionModel().clearSelection();
     }
 
-
     @FXML
     void CustomerServiceGatherInfo(Event event) {
         try {
@@ -2066,35 +2087,71 @@ public class SecondaryController {
         boolean valid = true;
 
         if (name.isEmpty() || !name.matches("^[A-Za-z\\s]+$")) {
-            NewFlowerName.setStyle("-fx-border-color: red;"); valid = false;
+            NewFlowerName.setStyle("-fx-border-color: red;");
+            valid = false;
         } else NewFlowerName.setStyle("");
 
         if (color.isEmpty() || !color.matches("^[A-Za-z\\s]+$")) {
-            NewFlowerColor.setStyle("-fx-border-color: red;"); valid = false;
+            NewFlowerColor.setStyle("-fx-border-color: red;");
+            valid = false;
         } else NewFlowerColor.setStyle("");
 
         double price = -1;
         int supplyHaifa = -1, supplyEilat = -1, supplyTelAviv = -1, supplyStorage = -1;
 
-        try { price = Double.parseDouble(priceText); NewFlowerPrice.setStyle(""); }
-        catch (NumberFormatException e) { NewFlowerPrice.setStyle("-fx-border-color: red;"); valid = false; }
+        try {
+            price = Double.parseDouble(priceText);
+            NewFlowerPrice.setStyle("");
+        } catch (NumberFormatException e) {
+            NewFlowerPrice.setStyle("-fx-border-color: red;");
+            valid = false;
+        }
 
-        try { supplyHaifa = Integer.parseInt(supplyHaifaText); if (supplyHaifa < 0) throw new NumberFormatException(); NewHaifaFlowerSupply.setStyle(""); }
-        catch (NumberFormatException e) { NewHaifaFlowerSupply.setStyle("-fx-border-color: red;"); valid = false; }
+        try {
+            supplyHaifa = Integer.parseInt(supplyHaifaText);
+            if (supplyHaifa < 0) throw new NumberFormatException();
+            NewHaifaFlowerSupply.setStyle("");
+        } catch (NumberFormatException e) {
+            NewHaifaFlowerSupply.setStyle("-fx-border-color: red;");
+            valid = false;
+        }
 
-        try { supplyTelAviv = Integer.parseInt(supplyTelAvivText); if (supplyTelAviv < 0) throw new NumberFormatException(); NewTelAvivFlowerSupply.setStyle(""); }
-        catch (NumberFormatException e) { NewTelAvivFlowerSupply.setStyle("-fx-border-color: red;"); valid = false; }
+        try {
+            supplyTelAviv = Integer.parseInt(supplyTelAvivText);
+            if (supplyTelAviv < 0) throw new NumberFormatException();
+            NewTelAvivFlowerSupply.setStyle("");
+        } catch (NumberFormatException e) {
+            NewTelAvivFlowerSupply.setStyle("-fx-border-color: red;");
+            valid = false;
+        }
 
-        try { supplyEilat = Integer.parseInt(supplyEilatText); if (supplyEilat < 0) throw new NumberFormatException(); NewEilatFlowerSupply.setStyle(""); }
-        catch (NumberFormatException e) { NewEilatFlowerSupply.setStyle("-fx-border-color: red;"); valid = false; }
+        try {
+            supplyEilat = Integer.parseInt(supplyEilatText);
+            if (supplyEilat < 0) throw new NumberFormatException();
+            NewEilatFlowerSupply.setStyle("");
+        } catch (NumberFormatException e) {
+            NewEilatFlowerSupply.setStyle("-fx-border-color: red;");
+            valid = false;
+        }
 
-        try { supplyStorage = Integer.parseInt(supplyStorageText); if (supplyStorage < 0) throw new NumberFormatException(); NewStorageSupply.setStyle(""); }
-        catch (NumberFormatException e) { NewStorageSupply.setStyle("-fx-border-color: red;"); valid = false; }
+        try {
+            supplyStorage = Integer.parseInt(supplyStorageText);
+            if (supplyStorage < 0) throw new NumberFormatException();
+            NewStorageSupply.setStyle("");
+        } catch (NumberFormatException e) {
+            NewStorageSupply.setStyle("-fx-border-color: red;");
+            valid = false;
+        }
 
-        if (desc.isEmpty()) { NewFlowerDesc.setStyle("-fx-border-color: red;"); valid = false; }
-        else NewFlowerDesc.setStyle("");
+        if (desc.isEmpty()) {
+            NewFlowerDesc.setStyle("-fx-border-color: red;");
+            valid = false;
+        } else NewFlowerDesc.setStyle("");
 
-        if (!valid) { System.err.println("Validation failed."); return; }
+        if (!valid) {
+            System.err.println("Validation failed.");
+            return;
+        }
 
         int totalSupply = supplyHaifa + supplyEilat + supplyTelAviv + supplyStorage;
 
@@ -2129,7 +2186,6 @@ public class SecondaryController {
             new Alert(Alert.AlertType.ERROR, "Failed to send add-flower request.\n" + e.getMessage()).showAndWait();
         }
     }
-
 
     @Subscribe
     public void onNewFlowerNotification(NewFlowerNotification notif) {
@@ -2374,8 +2430,8 @@ public class SecondaryController {
         // (Optional) downscale
         final int maxDim = 1600;
         if (img.getWidth() > maxDim || img.getHeight() > maxDim) {
-            double s = Math.min((double)maxDim/img.getWidth(), (double)maxDim/img.getHeight());
-            int w = (int)Math.round(img.getWidth()*s), h = (int)Math.round(img.getHeight()*s);
+            double s = Math.min((double) maxDim / img.getWidth(), (double) maxDim / img.getHeight());
+            int w = (int) Math.round(img.getWidth() * s), h = (int) Math.round(img.getHeight() * s);
             BufferedImage scaled = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
             Graphics2D g = scaled.createGraphics();
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
@@ -2813,12 +2869,6 @@ public class SecondaryController {
                     "Could not request Complaints Report:\n" + ex.getMessage()).showAndWait();
         }
     }
-
-    // fields already present:
-// @FXML private Label dropHint;
-// @FXML private Button clearImageBtn;
-// @FXML private ImageView flowerImageView;
-// private byte[] flowerJpeg;
 
     private void setHintVisible(boolean v) {
         dropHint.setVisible(v);

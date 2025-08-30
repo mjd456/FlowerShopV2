@@ -8,6 +8,7 @@ import java.util.ResourceBundle;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.LogoutRequest;
 import il.cshaifasweng.OCSFMediatorExample.entities.SignUpRequest;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -274,6 +275,22 @@ public class PrimaryController {
 	@FXML
 	private void closeWindow() {
 		((Stage) CustomTitleBar.getScene().getWindow()).close();
+
+		try {
+			org.greenrobot.eventbus.EventBus.getDefault().unregister(this);
+		} catch (Throwable ignore) { /* already unregistered */ }
+
+		try {
+			SimpleClient.getClient().sendToServer("remove client");
+		} catch (Throwable ignore) {  }
+
+		try {
+			SimpleClient.getClient().closeConnection();
+		} catch (Exception ex) {
+			System.err.println("Close connection failed: " + ex.getMessage());
+		}
+
+		Platform.exit();
 	}
 
 	@FXML
@@ -333,7 +350,6 @@ public class PrimaryController {
 			}
 		}
 	}
-
 
 	/* ---------- Helper to toggle visibility & layout ---------- */
 
