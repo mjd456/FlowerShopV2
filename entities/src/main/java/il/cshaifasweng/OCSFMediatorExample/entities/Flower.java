@@ -1,5 +1,8 @@
 package il.cshaifasweng.OCSFMediatorExample.entities;
 
+import org.hibernate.annotations.Generated;
+import org.hibernate.annotations.GenerationTime;
+
 import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
@@ -45,6 +48,13 @@ public class Flower implements Serializable {
     @Column(name = "Storage", nullable = false)
     private int storage;
 
+    @Column(name = "discount",nullable = false)
+    private int discount;
+
+    @Column(name = "discount_price", insertable = false, updatable = false)
+    @org.hibernate.annotations.Generated(org.hibernate.annotations.GenerationTime.ALWAYS)
+    private double discountPrice;
+
     @PreUpdate
     @PrePersist
     public void syncSupply() {
@@ -69,6 +79,7 @@ public class Flower implements Serializable {
         this.supplyTelAviv = supplyTelAviv;
         this.popularity = 0;
         this.storage = storage;
+        this.discount = 0;
     }
 
     // ----- Getters and Setters -----
@@ -83,8 +94,6 @@ public class Flower implements Serializable {
             default: return 0;
         }
     }
-
-
 
     public void reduceSupply(String branch, int amount) {
         switch (branch) {
@@ -119,11 +128,9 @@ public class Flower implements Serializable {
         return Objects.hash(id);
     }
 
-
     private void recalcTotalSupply() {
         this.supply = supplyHaifa + supplyEilat + supplyTelAviv;
     }
-
 
     public int getId() { return id; }
 
@@ -161,5 +168,10 @@ public class Flower implements Serializable {
     public int getStorage() { return storage; }
     public void setStorage(int storage) { this.storage = Math.max(0, storage); }
 
+    public int getDiscount() { return discount; }
+    public void setDiscount(int discount) { this.discount = Math.max(0, discount); }
 
+    public double getDiscountPrice() {
+        return discountPrice;
+    }
 }

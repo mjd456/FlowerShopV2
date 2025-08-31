@@ -515,7 +515,6 @@ public class SimpleServer extends AbstractServer {
         else if (msg instanceof UpdateFlowerRequest updateRequest) {
             Flower updatedData = updateRequest.getFlower();
 
-            // Who is calling?
             il.cshaifasweng.OCSFMediatorExample.entities.Account acc =
                     (il.cshaifasweng.OCSFMediatorExample.entities.Account) client.getInfo("account");
             boolean isNetworkManager = acc != null &&
@@ -539,6 +538,7 @@ public class SimpleServer extends AbstractServer {
                     flowerInDb.setPrice(updatedData.getPrice());
                     flowerInDb.setDescription(updatedData.getDescription());
                     flowerInDb.setColor(updatedData.getColor());
+                    flowerInDb.setDiscount(updatedData.getDiscount());
 
                     // 2) Supplies (no negatives)
                     int haifa = Math.max(0, updatedData.getSupplyHaifa());
@@ -580,7 +580,8 @@ public class SimpleServer extends AbstractServer {
                     }
 
                     session.update(flowerInDb);
-
+                    session.flush();
+                    session.refresh(flowerInDb);
                     // 4) Update existing order details if names changed
                     if (!java.util.Objects.equals(oldName, newName)) {
                         List<OrderSQL> affectedOrders = session.createQuery(
@@ -1743,7 +1744,6 @@ public class SimpleServer extends AbstractServer {
     public void sendToClientRefreshedList(ConnectionToClient client) {
         try (Session session = sessionFactory.openSession()) {
             session.beginTransaction();
-
 
             List<Flower> flowerList = session.createQuery("FROM Flower", Flower.class).getResultList();
             Map<Flower, byte[]> flowerImageMap = new HashMap<>();

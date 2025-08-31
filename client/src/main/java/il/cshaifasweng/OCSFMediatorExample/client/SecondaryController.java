@@ -13,6 +13,7 @@ import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.input.TransferMode;
+import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javassist.Loader;
 import org.greenrobot.eventbus.EventBus;
@@ -595,7 +596,6 @@ public class SecondaryController {
         });
     }
 
-
     /**
      * Schedules regular checks for order status
      */
@@ -639,7 +639,6 @@ public class SecondaryController {
             Flower flower = entry.getKey();
             byte[] imageData = entry.getValue();
 
-
             HBox flowerBox = new HBox(10);
             flowerBox.setStyle("-fx-border-color: #244060;");
             flowerBox.setPadding(new Insets(10));
@@ -647,17 +646,18 @@ public class SecondaryController {
             flowerBox.setPrefHeight(140);
             flowerBox.setMaxWidth(Double.MAX_VALUE);
 
-
+            // Image
             ImageView imageView = new ImageView();
             try {
-                ByteArrayInputStream bais = new ByteArrayInputStream(imageData);
-                Image image = new Image(bais);
-                imageView.setImage(image);
+                if (imageData != null && imageData.length > 0) {
+                    imageView.setImage(new Image(new ByteArrayInputStream(imageData)));
+                } else {
+                    imageView.setImage(null); // no picture; leave empty or set a placeholder if you have one
+                }
             } catch (Exception e) {
                 System.err.println("Failed to load image for: " + flower.getName());
                 e.printStackTrace();
             }
-
             System.out.println("Processing: " + (flower == null ? "null" : flower.getName()));
             System.out.println("Image data null? " + (imageData == null));
 
@@ -665,29 +665,49 @@ public class SecondaryController {
             imageView.setFitHeight(100);
             imageView.setPreserveRatio(true);
 
+            // Text / details
             VBox textBox = new VBox(5);
-            Label name = new Label("Name: " + flower.getName());
-            Label price = new Label("Price: ₪" + flower.getPrice());
+            Label name  = new Label("Name: " + flower.getName());
             Label color = new Label("Color: " + flower.getColor());
-            Label desc = new Label("Description: " + flower.getDescription());
+            Label desc  = new Label("Description: " + flower.getDescription());
+            desc.setWrapText(true);
             Label supply = new Label("Supply: " + flower.getSupply());
+
+            // --- Price / Discount ---
+            int discount = Math.max(0, Math.min(100, flower.getDiscount())); // clamp just in case
+            double priceValue = flower.getPrice();
+            Node priceNode;
+            if (discount > 0) {
+                double discounted = java.math.BigDecimal.valueOf(priceValue)
+                        .multiply(java.math.BigDecimal.valueOf(100 - discount))
+                        .divide(java.math.BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP)
+                        .doubleValue();
+
+                javafx.scene.text.Text orig = new javafx.scene.text.Text("Price: ₪" + String.format("%.2f", priceValue));
+                orig.setStrikethrough(true);
+                orig.setFill(javafx.scene.paint.Color.WHITE);
+
+                Label disc = new Label("DISCOUNT PRICE: ₪" + String.format("%.2f", discounted) + " (" + discount + "% off)");
+                disc.setStyle("-fx-text-fill: #23c55e; -fx-font-weight: bold;");
+
+                HBox priceRow = new HBox(8, orig, disc);
+                priceRow.setAlignment(Pos.CENTER_LEFT);
+                priceNode = priceRow;
+            } else {
+                priceNode = new Label("Price: ₪" + String.format("%.2f", priceValue));
+            }
 
             if (flower.getSupply() <= 0) {
                 Label outOfStock = new Label("Out of Stock");
                 outOfStock.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
-                textBox.getChildren().addAll(name, price, color, desc, supply, outOfStock);
+                textBox.getChildren().addAll(name, priceNode, color, desc, supply, outOfStock);
             } else {
                 Spinner<Integer> quantitySpinner = new Spinner<>(1, flower.getSupply(), 1);
                 TextField spinnerEditor = quantitySpinner.getEditor();
-
                 spinnerEditor.setTextFormatter(new TextFormatter<String>(change -> {
                     String newText = change.getControlNewText();
-                    if (newText.matches("\\d*")) {
-                        return change; // Accept
-                    }
-                    return null; // Reject
+                    return newText.matches("\\d*") ? change : null;
                 }));
-
                 quantitySpinner.setEditable(true);
                 quantitySpinner.setMaxWidth(80);
 
@@ -707,7 +727,6 @@ public class SecondaryController {
                             alert.setTitle("Quantity Limit");
                             alert.setHeaderText(null);
                             alert.setContentText("Cannot add more than available supply (" + flower.getSupply() + ").");
-
                             DialogPane dialogPane = alert.getDialogPane();
                             URL cssUrl = getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/dark-theme.css");
                             if (cssUrl != null) {
@@ -716,22 +735,20 @@ public class SecondaryController {
                             alert.showAndWait();
                         }
                     });
-                    textBox.getChildren().addAll(name, price, color, desc, supply, quantitySpinner, addToCartButton);
+                    textBox.getChildren().addAll(name, priceNode, color, desc, supply, quantitySpinner, addToCartButton);
                 } else {
-                    textBox.getChildren().addAll(name, price, color, desc, supply, quantitySpinner);
+                    textBox.getChildren().addAll(name, priceNode, color, desc, supply, quantitySpinner);
                 }
             }
 
             System.out.println("Adding node for: " + flower.getName());
-
             flowerBox.getChildren().addAll(imageView, textBox);
 
             cachedFlowerNodes.add(new Pair<>(flower, flowerBox));
             FlowerPageVbox.getChildren().add(flowerBox);
         }
-        Platform.runLater(() -> {
-            FlowersScrollPane.setVvalue(0.0);
-        });
+
+        Platform.runLater(() -> FlowersScrollPane.setVvalue(0.0));
     }
 
     @org.greenrobot.eventbus.Subscribe
@@ -1006,7 +1023,8 @@ public class SecondaryController {
             card.prefWidthProperty().bind(ManagerCatalogSelectorVbox.widthProperty().subtract(24));
 
             Label name = new Label("Name: " + flower.getName());
-            Label price = new Label("Price: ₪" + flower.getPrice());
+            Label price = new Label("Price: ₪" + flower.getPrice() + (flower.getDiscount() != 0?", with discount: ₪"+ flower.getPrice()*(100 - flower.getDiscount())/100:""));
+            Label discount = new Label("discount: %" + flower.getDiscount());
             Label color = new Label("Color: " + flower.getColor());
 
             Label total = new Label();
@@ -1062,6 +1080,7 @@ public class SecondaryController {
                 TextField nameField = new TextField(flower.getName());
                 TextField colorField = new TextField(flower.getColor());
                 TextField priceField = new TextField(String.valueOf(flower.getPrice()));
+                TextField discountField = new TextField(String.valueOf(flower.getDiscount()));
                 TextArea descField = new TextArea(flower.getDescription());
                 descField.setPrefHeight(80);
                 descField.setWrapText(true);
@@ -1124,6 +1143,7 @@ public class SecondaryController {
                     String newName = nameField.getText().trim();
                     String newColor = colorField.getText().trim();
                     String priceTxt = priceField.getText().trim();
+                    String discountTxt = discountField.getText().trim();
                     String newDesc = descField.getText().trim();
 
                     boolean valid = true;
@@ -1139,14 +1159,29 @@ public class SecondaryController {
                         priceField.setStyle("-fx-border-color: red;");
                         valid = false;
                     } else priceField.setStyle("");
+                    try {
+                        int d = Integer.parseInt(discountTxt);
+                        if (d < 0 || d > 100) {
+                            discountField.setStyle("-fx-border-color: red;");
+                            valid = false;
+                        } else {
+                            discountField.setStyle("");
+                        }
+                    } catch (NumberFormatException ex) {
+                        discountField.setStyle("-fx-border-color: red;");
+                        valid = false;
+                    }
+
                     if (!valid) return;
 
                     double newPrice = Double.parseDouble(priceTxt);
+                    int d = Integer.parseInt(discountTxt);
 
                     flower.setName(newName);
                     flower.setColor(newColor);
                     flower.setPrice(newPrice);
                     flower.setDescription(newDesc);
+                    flower.setDiscount(d);
 
                     try {
                         byte[] img = pendingImageJpeg.get(); // may be null
@@ -1204,6 +1239,7 @@ public class SecondaryController {
                 editPane.getChildren().addAll(
                         new Label("Edit Name:"), nameField,
                         new Label("Edit Price:"), priceField,
+                        new Label("Edit Discount:"), discountField,
                         new Label("Edit Color:"), colorField,
                         new Label("Edit Description:"), descField,
                         buttonBox
@@ -1214,7 +1250,7 @@ public class SecondaryController {
             }
 
             card.getChildren().addAll(
-                    name, price, color,
+                    name, price, discount,color,
                     haifaRow, eilatRow, telAvivRow, storageRow,
                     total,
                     desc
@@ -2351,14 +2387,36 @@ public class SecondaryController {
         for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
             Flower flower = entry.getKey();
             int quantity = entry.getValue();
-            double price = flower.getPrice() * quantity;
 
+            // --- Price calculation
+            double unitPrice = flower.getDiscount() > 0
+                    ? flower.getDiscountPrice()   // discounted price from DB
+                    : flower.getPrice();          // normal price
+
+            double price = unitPrice * quantity;
             totalPrice += price;
 
+            // --- UI for cart item
             HBox itemBox = new HBox(10);
             Label nameLabel = new Label(flower.getName() + " x" + quantity);
-            Label priceLabel = new Label("₪" + price);
 
+            if (flower.getDiscount() > 0) {
+                // show original price with strikethrough + discounted
+                Text orig = new Text("₪" + String.format("%.2f", flower.getPrice() * quantity));
+                orig.setStrikethrough(true);
+                orig.setFill(javafx.scene.paint.Color.GRAY);
+
+                Label disc = new Label(" → ₪" + String.format("%.2f", price));
+                disc.setStyle("-fx-text-fill: #23c55e; -fx-font-weight: bold;");
+
+                HBox priceBox = new HBox(5, orig, disc);
+                itemBox.getChildren().addAll(nameLabel, priceBox);
+            } else {
+                Label priceLabel = new Label("₪" + String.format("%.2f", price));
+                itemBox.getChildren().addAll(nameLabel, priceLabel);
+            }
+
+            // --- Quantity buttons
             Button plusBtn = new Button("+");
             Button minusBtn = new Button("-");
 
@@ -2392,20 +2450,20 @@ public class SecondaryController {
                 showCart();
             });
 
-            itemBox.getChildren().addAll(nameLabel, priceLabel, minusBtn, plusBtn);
+            itemBox.getChildren().addAll(minusBtn, plusBtn);
             CartVBox.getChildren().add(itemBox);
         }
 
-        // Apply discount if Plus member and total price > 50
+        // --- Plus member discount (after per-flower discount already applied)
         if (account != null && "Plus".equalsIgnoreCase(account.getSubscribtion_level()) && totalPrice > 50) {
             totalPrice *= 0.9; // Apply 10% discount
             discountApplied = true;
         }
-        CartPriceLabel.setText("₪" + String.format("%.2f", totalPrice));
-        DiscountLabel.setVisible(discountApplied);
 
         CartPriceLabel.setText("₪" + String.format("%.2f", totalPrice));
+        DiscountLabel.setVisible(discountApplied);
     }
+
 
     @Subscribe
     public void updateGrid(List<Account> accounts) {
