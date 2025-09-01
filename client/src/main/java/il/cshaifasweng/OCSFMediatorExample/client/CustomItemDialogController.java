@@ -62,6 +62,9 @@ public class CustomItemDialogController {
             } else {
                 price = Double.parseDouble(priceRange.trim());
             }
+            if (price < 100 || price > 200) {
+                throw new NumberFormatException("Price out of allowed range");
+            }
         } catch (NumberFormatException e) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle("Invalid Price");
@@ -86,7 +89,7 @@ public class CustomItemDialogController {
                 "Custom item with user details. Price range: " + priceRange,
                 "",
                 price,
-                1,
+                Integer.MAX_VALUE,
                 0,
                 0,
                 0,

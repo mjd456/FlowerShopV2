@@ -2422,6 +2422,7 @@ public class SecondaryController {
 
             plusBtn.setOnAction(e -> {
                 int currentQty = cartMap.get(flower);
+
                 if (currentQty + 1 <= flower.getSupply()) {
                     cartMap.put(flower, currentQty + 1);
                 } else {
@@ -2463,7 +2464,6 @@ public class SecondaryController {
         CartPriceLabel.setText("₪" + String.format("%.2f", totalPrice));
         DiscountLabel.setVisible(discountApplied);
     }
-
 
     @Subscribe
     public void updateGrid(List<Account> accounts) {

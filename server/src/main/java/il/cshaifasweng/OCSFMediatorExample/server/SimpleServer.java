@@ -65,8 +65,7 @@ public class SimpleServer extends AbstractServer {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            }
-            else if (msgString.startsWith("GetAccounts")) {
+            } else if (msgString.startsWith("GetAccounts")) {
                 List<Account> accounts = new LinkedList<>();
                 try (Session session = sessionFactory.openSession()) {
                     session.beginTransaction();
@@ -85,8 +84,7 @@ public class SimpleServer extends AbstractServer {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-            }
-            else if (msgString.startsWith("add client")) {
+            } else if (msgString.startsWith("add client")) {
                 SubscribedClient connection = new SubscribedClient(client);
                 SubscribersList.add(connection);
                 try {
@@ -94,8 +92,7 @@ public class SimpleServer extends AbstractServer {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-            }
-            else if (msgString.startsWith("remove client")) {
+            } else if (msgString.startsWith("remove client")) {
                 if (!SubscribersList.isEmpty()) {
                     for (SubscribedClient subscribedClient : SubscribersList) {
                         if (subscribedClient.getClient().equals(client)) {
@@ -104,11 +101,9 @@ public class SimpleServer extends AbstractServer {
                         }
                     }
                 }
-            }
-            else if (msgString.startsWith("RefreshList")) {
+            } else if (msgString.startsWith("RefreshList")) {
                 sendToClientRefreshedList(client);
-            }
-            else if (msgString.startsWith("Does this email exist?")) {
+            } else if (msgString.startsWith("Does this email exist?")) {
                 String[] tokens = msgString.split("\\s+");
 
                 String emailToCheck = tokens[4];
@@ -148,8 +143,7 @@ public class SimpleServer extends AbstractServer {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-            }
-            else if (msgString.startsWith("Is the code correct?")) {
+            } else if (msgString.startsWith("Is the code correct?")) {
                 String[] tokens = msgString.split("\\s+");
 
                 if (tokens.length != 6) {
@@ -219,8 +213,7 @@ public class SimpleServer extends AbstractServer {
                         e1.printStackTrace();
                     }
                 }
-            }
-            else if (msgString.startsWith("Is this password unique?")) {
+            } else if (msgString.startsWith("Is this password unique?")) {
                 String[] tokens = msgString.split("\\s+");
                 if (tokens.length < 6) {
                     try {
@@ -290,11 +283,9 @@ public class SimpleServer extends AbstractServer {
                         e1.printStackTrace();
                     }
                 }
-            }
-            else if (msgString.startsWith("RequestFlowerCatalogForManager")) {
+            } else if (msgString.startsWith("RequestFlowerCatalogForManager")) {
                 sendToClientRefreshedList(client);
-            }
-            else if (msgString.startsWith("Send all Feedbacks")) {
+            } else if (msgString.startsWith("Send all Feedbacks")) {
                 Session session = sessionFactory.openSession();
                 List<FeedBackSQL> allFeedbacks = new ArrayList<>();
                 try {
@@ -311,8 +302,7 @@ public class SimpleServer extends AbstractServer {
                     e.printStackTrace();
                 }
             }
-        }
-        else if (msg instanceof OrderSQL orderSQL) {
+        } else if (msg instanceof OrderSQL orderSQL) {
             System.out.println("Received OrderSQL from client: " + orderSQL.getDetails());
 
             Session session = null;
@@ -350,8 +340,7 @@ public class SimpleServer extends AbstractServer {
             } finally {
                 if (session != null) session.close();
             }
-        }
-        else if (msg instanceof LoginRequest loginRequest) {
+        } else if (msg instanceof LoginRequest loginRequest) {
             String email = loginRequest.getUsername();
             String password = loginRequest.getPassword();
 
@@ -426,8 +415,7 @@ public class SimpleServer extends AbstractServer {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-        else if (msg instanceof SignUpRequest signupDetails) {
+        } else if (msg instanceof SignUpRequest signupDetails) {
             System.out.println("Received SignUp request from client");
 
             Session session = null;
@@ -492,8 +480,7 @@ public class SimpleServer extends AbstractServer {
                     session.close();
                 }
             }
-        }
-        else if (msg instanceof GetUserOrdersRequest req) {
+        } else if (msg instanceof GetUserOrdersRequest req) {
             int accountId = req.getAccountId();
             List<OrderSQL> orders = null;
 
@@ -511,8 +498,7 @@ public class SimpleServer extends AbstractServer {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        }
-        else if (msg instanceof UpdateFlowerRequest updateRequest) {
+        } else if (msg instanceof UpdateFlowerRequest updateRequest) {
             Flower updatedData = updateRequest.getFlower();
 
             il.cshaifasweng.OCSFMediatorExample.entities.Account acc =
@@ -607,8 +593,7 @@ public class SimpleServer extends AbstractServer {
             } finally {
                 if (session != null) session.close();
             }
-        }
-        else if (msg instanceof LogoutRequest logoutRequest) {
+        } else if (msg instanceof LogoutRequest logoutRequest) {
             System.out.println("Logout request from client");
 
             Account requestAccount = logoutRequest.getAccount();
@@ -652,8 +637,7 @@ public class SimpleServer extends AbstractServer {
             } finally {
                 if (session != null) session.close();
             }
-        }
-        else if (msg instanceof Feedback) {
+        } else if (msg instanceof Feedback) {
             Feedback feedbackMsg = (Feedback) msg;
 
             Session session = sessionFactory.openSession();
@@ -722,8 +706,7 @@ public class SimpleServer extends AbstractServer {
             } finally {
                 session.close();
             }
-        }
-        else if (msg instanceof GetUserFeedbacksRequest) {
+        } else if (msg instanceof GetUserFeedbacksRequest) {
             GetUserFeedbacksRequest req = (GetUserFeedbacksRequest) msg;
             int accountId = req.getAccountId();
             List<FeedBackSQL> feedbacks = null;
@@ -748,8 +731,7 @@ public class SimpleServer extends AbstractServer {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-        else if (msg instanceof QuarterlyRevenueReportRequest req) {
+        } else if (msg instanceof QuarterlyRevenueReportRequest req) {
             System.out.println("QuarterlyRevenueReportRequest: branchId=" + req.getBranchId()
                     + ", from=" + req.getFrom() + ", to=" + req.getTo());
 
@@ -786,8 +768,7 @@ public class SimpleServer extends AbstractServer {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-        else if (msg instanceof OrdersByProductTypeReportRequest req) {
+        } else if (msg instanceof OrdersByProductTypeReportRequest req) {
             System.out.println("Received OrdersByProductTypeReportRequest for branch ID: " + req.getBranchId());
 
             try (Session s = sessionFactory.openSession()) {
@@ -938,8 +919,7 @@ public class SimpleServer extends AbstractServer {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-        else if (msg instanceof UpdateFeedbackStatusRequest) {
+        } else if (msg instanceof UpdateFeedbackStatusRequest) {
             UpdateFeedbackStatusRequest req = (UpdateFeedbackStatusRequest) msg;
             int feedbackId = req.getFeedbackId();
             FeedBackSQL.FeedbackStatus newStatus = req.getStatus();
@@ -976,8 +956,7 @@ public class SimpleServer extends AbstractServer {
             } finally {
                 session.close();
             }
-        }
-        else if (msg instanceof SubscriptionRequest) {
+        } else if (msg instanceof SubscriptionRequest) {
             SubscriptionRequest req = (SubscriptionRequest) msg;
             int accountId = req.getAccount().getId();
 
@@ -1017,8 +996,7 @@ public class SimpleServer extends AbstractServer {
             } finally {
                 if (session != null) session.close();
             }
-        }
-        else if (msg instanceof CancelAutoRenewRequest) {
+        } else if (msg instanceof CancelAutoRenewRequest) {
             CancelAutoRenewRequest req = (CancelAutoRenewRequest) msg;
             int accountId = req.getAccount().getId();
 
@@ -1056,8 +1034,7 @@ public class SimpleServer extends AbstractServer {
             } finally {
                 if (session != null) session.close();
             }
-        }
-        else if (msg instanceof DeleteFlowerRequest delReq) {
+        } else if (msg instanceof DeleteFlowerRequest delReq) {
             int idToDelete = delReq.getFlowerId();
 
             try (Session session = sessionFactory.openSession()) {
@@ -1088,8 +1065,7 @@ public class SimpleServer extends AbstractServer {
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
-        }
-        else if (msg instanceof AddFlowerRequest addFlowerRequest) {
+        } else if (msg instanceof AddFlowerRequest addFlowerRequest) {
             System.out.println("Received AddFlowerRequest from client.");
 
             Flower newFlower = addFlowerRequest.getFlower();
@@ -1153,8 +1129,7 @@ public class SimpleServer extends AbstractServer {
             } finally {
                 if (session != null) session.close();
             }
-        }
-        else if (msg instanceof UpdatePasswordRequest req) {
+        } else if (msg instanceof UpdatePasswordRequest req) {
             // Find the Account associated with this ConnectionToClient
             Account account = null;
             for (SubscribedClient sub : SubscribersList) {
@@ -1230,8 +1205,7 @@ public class SimpleServer extends AbstractServer {
             } finally {
                 if (session != null) session.close();
             }
-        }
-        else if (msg instanceof UpdateCreditCardRequest req) {
+        } else if (msg instanceof UpdateCreditCardRequest req) {
             Session session = null;
             Transaction tx = null;
 
@@ -1275,8 +1249,7 @@ public class SimpleServer extends AbstractServer {
             } finally {
                 if (session != null) session.close();
             }
-        }
-        else if (msg instanceof CancelOrderRequest request) {
+        } else if (msg instanceof CancelOrderRequest request) {
             long orderId = request.getOrderId();
 
             SubscribedClient subscribedClient = null;
@@ -1449,8 +1422,7 @@ public class SimpleServer extends AbstractServer {
             } finally {
                 if (session != null) session.close();
             }
-        }
-        else if (msg instanceof PlaceOrderRequest request) {
+        } else if (msg instanceof PlaceOrderRequest request) {
             Session session = sessionFactory.openSession();
             Transaction tx = null;
             try {
@@ -1544,8 +1516,7 @@ public class SimpleServer extends AbstractServer {
             } finally {
                 session.close();
             }
-        }
-        else if (msg instanceof Account) {
+        } else if (msg instanceof Account) {
             Account account = (Account) msg;
             Session session = null;
             Transaction tx = null;
@@ -1584,8 +1555,7 @@ public class SimpleServer extends AbstractServer {
             } finally {
                 if (session != null) session.close();
             }
-        }
-        else if (msg instanceof GetAllBranchesRequest) {
+        } else if (msg instanceof GetAllBranchesRequest) {
             try (Session s = sessionFactory.openSession()) {
                 List<Branch> branches = s.createQuery("FROM Branch", Branch.class).list();
                 client.sendToClient(new GetAllBranchesResponse(branches));
@@ -1593,8 +1563,7 @@ public class SimpleServer extends AbstractServer {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-        else if (msg instanceof ComplaintsReportRequest req) {
+        } else if (msg instanceof ComplaintsReportRequest req) {
             try (Session s = sessionFactory.openSession()) {
                 // 1) Bounds
                 java.time.LocalDateTime fromDT = req.getFrom().toLocalDate().atStartOfDay();
@@ -1663,8 +1632,7 @@ public class SimpleServer extends AbstractServer {
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
-        }
-        else if (msg instanceof CompareReportsRequest req) {
+        } else if (msg instanceof CompareReportsRequest req) {
 
             // 1) who is asking? (BM limited to own branch; NM can use requested branch)
             il.cshaifasweng.OCSFMediatorExample.entities.Account acc =
@@ -1700,8 +1668,7 @@ public class SimpleServer extends AbstractServer {
             } catch (java.io.IOException e) {
                 e.printStackTrace();
             }
-        }
-        else {
+        } else {
             System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
         }
     }
