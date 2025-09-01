@@ -1507,6 +1507,7 @@ public class SecondaryController {
 
             Stage stage = new Stage();
             stage.setTitle("Order Details");
+            stage.setResizable(false);
             stage.setScene(new javafx.scene.Scene(pane));
             stage.show();
         } catch (Exception e) {
@@ -2307,6 +2308,7 @@ public class SecondaryController {
             Stage stage = new Stage();
             stage.setTitle("Create Custom Item");
             stage.setScene(new Scene(root));
+            stage.setResizable(false);
             stage.show();
         } catch (IOException e) {
             e.printStackTrace();

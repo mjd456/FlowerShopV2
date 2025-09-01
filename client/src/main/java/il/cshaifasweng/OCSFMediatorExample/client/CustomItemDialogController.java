@@ -2,9 +2,8 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.Flower;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
-import javafx.scene.control.DialogPane;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import java.net.URL;
@@ -24,62 +23,32 @@ public class CustomItemDialogController {
     private TextField PriceRangeField;
 
     @FXML
-    private TextField ColorField;
+    private ComboBox<String> ColorField;
 
     @FXML
     private void handleConfirm() {
-        String type = ItemTypeField.getText();
+        String type = ColorField.getValue() + " - " + ItemTypeField.getText();
         String priceRange = PriceRangeField.getText();
-        String color = ColorField.getText();
+        String color = ColorField.getValue();
 
         if (type == null || type.isEmpty() || priceRange == null || priceRange.isEmpty()) {
-            Alert alert = new Alert(Alert.AlertType.WARNING);
-            alert.setTitle("Missing Information");
-            alert.setHeaderText(null);
-            alert.setContentText("Please fill all required fields.");
-
-            // Style with dark theme
-            DialogPane dialogPane = alert.getDialogPane();
-            URL cssUrl = getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/dark-theme.css");
-            if (cssUrl != null) {
-                dialogPane.getStylesheets().add(cssUrl.toExternalForm());
-            } else {
-                System.err.println("Could not find dark-theme.css!");
-            }
-
-            alert.showAndWait();
+            showWarn("Missing Information", "Please fill all required fields.");
             return;
         }
 
-        double price = 0;
-
+        double price;
         try {
             String[] parts = priceRange.split("-");
             if (parts.length == 2) {
                 double min = Double.parseDouble(parts[0].trim());
                 double max = Double.parseDouble(parts[1].trim());
-                price = (min + max) / 2;
+                price = (min + max) / 2.0;
             } else {
                 price = Double.parseDouble(priceRange.trim());
             }
-            if (price < 100 || price > 200) {
-                throw new NumberFormatException("Price out of allowed range");
-            }
+            if (price < 100 || price > 200) throw new NumberFormatException("Price out of allowed range");
         } catch (NumberFormatException e) {
-            Alert alert = new Alert(Alert.AlertType.WARNING);
-            alert.setTitle("Invalid Price");
-            alert.setHeaderText(null);
-            alert.setContentText("Please enter a valid price");
-
-            DialogPane dialogPane = alert.getDialogPane();
-            URL cssUrl = getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/dark-theme.css");
-            if (cssUrl != null) {
-                dialogPane.getStylesheets().add(cssUrl.toExternalForm());
-            } else {
-                System.err.println("Could not find dark-theme.css!");
-            }
-
-            alert.showAndWait();
+            showWarn("Invalid Price", "Please enter a valid price between 100 and 200.");
             return;
         }
 
@@ -89,18 +58,71 @@ public class CustomItemDialogController {
                 "Custom item with user details. Price range: " + priceRange,
                 "",
                 price,
-                Integer.MAX_VALUE,
-                0,
-                0,
-                0,
-                0
+                Integer.MAX_VALUE, // treat as “infinite” stock client-side
+                0, 0, 0, 0
         );
+
+        // >>> give it a unique temp id so Map<Flower,Integer> treats each as distinct
+        // negative id avoids clashing with real DB ids (>0)
+        int tempId = (int) -(System.nanoTime() & 0x7FFFFFFF);
+        customFlower.setId(tempId);
 
         if (mainController != null) {
             mainController.addToCart(customFlower);
         }
 
-        Stage stage = (Stage) ItemTypeField.getScene().getWindow();
-        stage.close();
+        ((Stage) ItemTypeField.getScene().getWindow()).close();
+    }
+
+    // helper to show styled warning
+    private void showWarn(String title, String msg) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(msg);
+        DialogPane dp = alert.getDialogPane();
+        URL cssUrl = getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/dark-theme.css");
+        if (cssUrl != null) dp.getStylesheets().add(cssUrl.toExternalForm());
+        alert.showAndWait();
+    }
+
+
+    @FXML
+    public void initialize() {
+        ColorField.getItems().setAll(
+                "Red", "Pink", "White", "Yellow", "Purple", "Blue", "Orange", "Green", "Violet", "Any"
+        );
+        ColorField.setPromptText("e.g., select a color");
+
+        ColorField.setCellFactory(listView -> new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item);
+                    setTextFill(Color.WHITE);
+                    setStyle("-fx-background-color:  #2b2f3a;");
+                }
+            }
+        });
+
+// Also style the selected item shown in the ComboBox itself:
+        ColorField.setButtonCell(new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item);
+                    setTextFill(Color.WHITE);
+                    setStyle("-fx-background-color:  #2b2f3a;");
+                }
+            }
+        });
+
+        ColorField.setValue("Any");
     }
 }

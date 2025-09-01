@@ -52,16 +52,16 @@
             <content>
                <AnchorPane fx:id="CartAnchor">
                   <children>
+                     <Label fx:id="CartPriceLabel" layoutX="98.0" layoutY="298.0" prefHeight="17.0" prefWidth="216.0" text="[Price]" />
+                     <Label fx:id="DiscountLabel" layoutX="98.0" layoutY="318.0" prefHeight="17.0" prefWidth="121.0" style="-fx-text-fill: #00ff90;" text="Discount applied!" visible="false" />
                      <ScrollPane fitToWidth="true" layoutX="29.0" layoutY="14.0" prefHeight="269.0" prefWidth="542.0">
                         <content>
                            <VBox fx:id="CartVBox" prefHeight="6.0" prefWidth="535.0" />
                         </content>
                      </ScrollPane>
                      <Label layoutX="29.0" layoutY="298.0" prefHeight="17.0" prefWidth="69.0" text="Total price : " />
-                     <Label fx:id="CartPriceLabel" layoutX="98.0" layoutY="298.0" prefHeight="17.0" prefWidth="51.0" text="[Price]" />
-                     <Label fx:id="DiscountLabel" layoutX="140.0" layoutY="298.0" style="-fx-text-fill: #00ff90;" text="Discount applied!" visible="false" />
                      <Button fx:id="ContinueToBuyButton" layoutX="506.0" layoutY="294.0" onAction="#ContinueToBuy" text="Continue" />
-                     <Label fx:id="CartMessage" alignment="CENTER" layoutX="27.0" layoutY="326.0" prefHeight="17.0" prefWidth="546.0" text="[Message]" visible="false" />
+                     <Label fx:id="CartMessage" alignment="CENTER" layoutX="27.0" layoutY="335.0" prefHeight="17.0" prefWidth="546.0" text="[Message]" visible="false" />
                   </children>
                </AnchorPane>
             </content>

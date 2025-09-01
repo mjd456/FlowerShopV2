@@ -248,7 +248,14 @@ public class OrderDetailsController {
                 greeting,
                 pickupBranchId
         );
-
+        System.out.println("=== CartMap before sending ===");
+        for (Map.Entry<Flower, Integer> entry : cartMap.entrySet()) {
+            System.out.println("Flower: " + entry.getKey().getName()
+                    + " | Qty: " + entry.getValue()
+                    + " | Price: " + entry.getKey().getPrice()
+                    + " | Discount: " + entry.getKey().getDiscount());
+        }
+        System.out.println("================================");
         SimpleClient.getClient().sendToServer(request);
 
         cartMap.clear();
