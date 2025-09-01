@@ -15,8 +15,10 @@ import javafx.scene.control.*;
 import javafx.scene.Node;
 import il.cshaifasweng.OCSFMediatorExample.entities.LoginRequest;
 import javafx.scene.layout.HBox;
+import javafx.scene.paint.Paint;
 import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
 
 
 public class PrimaryController {
@@ -277,7 +279,7 @@ public class PrimaryController {
 		((Stage) CustomTitleBar.getScene().getWindow()).close();
 
 		try {
-			org.greenrobot.eventbus.EventBus.getDefault().unregister(this);
+			EventBus.getDefault().unregister(this);
 		} catch (Throwable ignore) { /* already unregistered */ }
 
 		try {
@@ -342,7 +344,6 @@ public class PrimaryController {
 			// Example placeholder:
 			System.out.println("Sending login request for: " + email);
 
-			// If you're using EventBus or Client-Server:
 			try {
 				SimpleClient.getClient().sendToServer(new LoginRequest(email, password));
 			} catch (Exception e) {
@@ -527,17 +528,17 @@ public class PrimaryController {
 		CCValidDate.setVisible(true);
 	}
 
-	@org.greenrobot.eventbus.Subscribe
+	@Subscribe
 	public void onErrorLogin(ErrorMessageEvent event) {
-		javafx.application.Platform.runLater(()-> {
+		Platform.runLater(()-> {
 			ErrorMessageLabel.setVisible(true);
 			ErrorMessageLabel.setText(event.getMessage());
 		});
 	}
 
-	@org.greenrobot.eventbus.Subscribe
+	@Subscribe
 	public void onErrorSignUp(ErrorMessageSignUpEvent event) {
-		javafx.application.Platform.runLater(()-> {
+		Platform.runLater(()-> {
 			ErrorSignUpLabel.setVisible(true);
 			ErrorSignUpLabel.setText(event.getMessage());
 
@@ -552,9 +553,9 @@ public class PrimaryController {
 		});
 	}
 
-	@org.greenrobot.eventbus.Subscribe
+	@Subscribe
 	public void onSignUpSuccess(SignUpSuccess event) {
-		javafx.application.Platform.runLater(()-> {
+		Platform.runLater(()-> {
 			showLoginScreen(true);
 			ErrorSignUpLabel.setVisible(false);
 			ErrorMessageLabel.setVisible(false);
@@ -564,50 +565,50 @@ public class PrimaryController {
 		});
 	}
 
-	@org.greenrobot.eventbus.Subscribe
+	@Subscribe
 	public void onRecoveryMailNotFound(RecoveryMailNotFound event) {
-		javafx.application.Platform.runLater(()-> {
+		Platform.runLater(()-> {
 			ForgotPassErrorLabel.setText(event.getToken());
 			ForgotPassErrorLabel.setVisible(true);
 		});
 	}
 
-	@org.greenrobot.eventbus.Subscribe
+	@Subscribe
 	public void onRecoveryMailFound(RecoveryMailFound event) {
-		javafx.application.Platform.runLater(()-> {
+		Platform.runLater(()-> {
 			RecoveryMail = event.getEmailToCheck();
 			showVerifyCodeTab();
 			NewPasswordError.setVisible(false);
 		});
 	}
 
-	@org.greenrobot.eventbus.Subscribe
+	@Subscribe
 	public void onVerifyCodeError(VerifyCodeError event) {
-		javafx.application.Platform.runLater(()-> {
+		Platform.runLater(()-> {
 			ErrorVerifyCode.setVisible(true);
 			ErrorVerifyCode.setText(event.getError());
 		});
 	}
 
-	@org.greenrobot.eventbus.Subscribe
+	@Subscribe
 	public void onVerifiedCodeForRecovery(VerifiedCodeForRecovery event) {
-		javafx.application.Platform.runLater(()-> {
+		Platform.runLater(()-> {
 			showSetNewPasswordTab();
 		});
 	}
 
-	@org.greenrobot.eventbus.Subscribe
+	@Subscribe
 	public void onChangingPasswordError(ChangingPasswordError event) {
-		javafx.application.Platform.runLater(()-> {
+		Platform.runLater(()-> {
 			NewPasswordError.setVisible(true);
 			NewPasswordError.setText(event.getErrorMessage());
 		});
 	}
 
 
-	@org.greenrobot.eventbus.Subscribe
+	@Subscribe
 	public void onChangingPasswordSuccess(ChangingPasswordSuccess event) {
-		javafx.application.Platform.runLater(()-> {
+		Platform.runLater(()-> {
 			showLoginScreen(true);
 			ErrorSignUpLabel.setVisible(false);
 			ErrorMessageLabel.setVisible(false);
@@ -731,6 +732,12 @@ public class PrimaryController {
 		signUpButtons = new Button[] { SignUpFinal };
 		ErrorSignUpLabel.setVisible(false);
 		ErrorMessageLabel.setVisible(false);
+		ErrorMessageLabel.setStyle("-fx-text-fill: red;");
+		ErrorSignUpLabel.setStyle("-fx-text-fill: red;");
+		ForgotPassErrorLabel.setStyle("-fx-text-fill: red;");
+		ErrorVerifyCode.setStyle("-fx-text-fill: red;");
+		NewPasswordError.setStyle("-fx-text-fill: red;");
+
 		BackBtn.setVisible(false);
 		showLoginScreen(true);
 	}
