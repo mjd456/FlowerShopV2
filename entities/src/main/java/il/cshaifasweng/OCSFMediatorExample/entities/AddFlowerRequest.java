@@ -2,7 +2,6 @@ package il.cshaifasweng.OCSFMediatorExample.entities;
 
 import java.io.Serializable;
 
-// AddFlowerRequest.java
 public class AddFlowerRequest implements Serializable {
 
     private Flower flower;
@@ -12,7 +11,6 @@ public class AddFlowerRequest implements Serializable {
     public AddFlowerRequest(Flower newFlower) {
         this.flower = newFlower;
     }
-
 
     public AddFlowerRequest(Flower flower, byte[] imageJpeg, String suggestedFileName) {
         this.flower = flower;

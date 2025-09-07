@@ -16,8 +16,19 @@ public class CompareReportsRequest implements Serializable {
         this.dateB = dateB;
     }
 
-    public int getBranchId()     { return branchId; }
-    public String getReportType(){ return reportType; }
-    public Date getDateA()       { return dateA; }
-    public Date getDateB()       { return dateB; }
+    public int getBranchId() {
+        return branchId;
+    }
+
+    public String getReportType() {
+        return reportType;
+    }
+
+    public Date getDateA() {
+        return dateA;
+    }
+
+    public Date getDateB() {
+        return dateB;
+    }
 }

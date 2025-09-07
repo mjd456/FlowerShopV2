@@ -1,7 +1,6 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import java.awt.image.BufferedImage;
-
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -15,13 +14,13 @@ import javafx.scene.effect.DropShadow;
 import javafx.scene.input.TransferMode;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
-import javassist.Loader;
 import org.greenrobot.eventbus.EventBus;
-
+import javafx.util.StringConverter;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.sql.Date;
-
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -31,41 +30,30 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.*;
-
 import javafx.scene.text.Font;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
-
-import java.util.concurrent.atomic.AtomicReference;
-import java.time.LocalDate;
-
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.image.ImageView;
-
 import java.io.IOException;
 import java.net.URL;
 import java.time.ZoneId;
 import java.util.*;
-
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.util.Pair;
-import javafx.util.StringConverter;
 import javafx.util.converter.DefaultStringConverter;
-
 import java.io.ByteArrayInputStream;
 import java.util.stream.Collectors;
-
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import org.greenrobot.eventbus.Subscribe;
-
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
@@ -78,7 +66,6 @@ import java.util.List;
 import java.util.ArrayList;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-
 
 public class SecondaryController {
 
@@ -99,12 +86,6 @@ public class SecondaryController {
 
     @FXML
     private Button generateReportBtn;
-
-    @FXML
-    private ResourceBundle resources;
-
-    @FXML
-    private URL location;
 
     @FXML
     private Label AccInfoCCNum;
@@ -394,16 +375,6 @@ public class SecondaryController {
     @FXML
     private Button compareReportsBtn;
 
-
-    @FXML
-    private TableView<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row> QuarterlyTable;
-    @FXML
-    private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colYear;
-    @FXML
-    private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colQuarter;
-    @FXML
-    private TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse.Row, String> colRevenue;
-
     //==================CustomHeader=====================//
 
     private double xOffset = 0, yOffset = 0;
@@ -451,10 +422,9 @@ public class SecondaryController {
         } else if ("Network Manager".equalsIgnoreCase(accountLevel)) {
             branchSelectorBox.setVisible(true);
             managerScopeLabel.setVisible(false);
-            managerScopeLabel.setManaged(false); // Ensures it doesn't take up space
+            managerScopeLabel.setManaged(false);
             branchSelectorComboBox.setVisible(true);
 
-            // **NEW:** Ask the server for the list of all branches
             try {
                 SimpleClient.getClient().sendToServer(new GetAllBranchesRequest());
             } catch (IOException e) {
@@ -464,6 +434,8 @@ public class SecondaryController {
             branchSelectorBox.setVisible(false);
         }
     }
+
+    private static final DateTimeFormatter YM_FMT = DateTimeFormatter.ofPattern("MMM yyyy");
 
     public void addOrderToHistory(OrderSQL order) {
         purchaseHistoryList.add(order);
@@ -484,7 +456,7 @@ public class SecondaryController {
         });
     }
 
-    private Map<Long, Label> orderErrorLabels = new HashMap<>(); // orderId -> errorLabel
+    private Map<Long, Label> orderErrorLabels = new HashMap<>();
     private Map<Long, Button> orderCancelButtons = new HashMap<>();
 
     public void updatePurchaseHistoryUI() {
@@ -496,12 +468,10 @@ public class SecondaryController {
                 VBox orderBox = new VBox(5);
                 orderBox.setStyle("-fx-padding: 10; -fx-border-color: #4D8DFF; -fx-border-radius: 8; -fx-background-radius: 8;");
 
-                // Basic info
                 Label detailsLabel = new Label("Details: " + order.getDetails());
                 Label priceLabel = new Label("Price: ₪" + order.getTotalPrice());
                 Label statusLabel = new Label("Status: " + order.getStatus());
 
-                // Date (date-only)
                 String dateOnly;
                 try {
                     java.text.DateFormat fmt = new java.text.SimpleDateFormat("yyyy-MM-dd");
@@ -511,10 +481,8 @@ public class SecondaryController {
                 }
                 Label dateLabel = new Label("Date: " + dateOnly);
 
-                // Time
                 Label timeLabel = new Label("Time: " + (order.getDeliveryTime() != null ? order.getDeliveryTime() : "—"));
 
-                // Fulfillment (Delivery vs Pickup)
                 String fulfillmentText = order.getPickupBranch() == 4 ? "Delivery" : "Pick-up";
 
                 try {
@@ -540,7 +508,6 @@ public class SecondaryController {
                         fulfillmentText = "Pickup: " + bname;
                     }
                 } catch (Exception ignored) {
-                    // lazy/detached entity or null branch
                 }
 
                 Label fulfillmentLabel = new Label("Fulfillment: " + fulfillmentText);
@@ -548,7 +515,6 @@ public class SecondaryController {
 
                 orderBox.getChildren().addAll(detailsLabel, priceLabel, statusLabel, fulfillmentLabel);
 
-                // Address for deliveries only
                 if ("Delivery".equals(fulfillmentText)
                         && order.getAddress() != null
                         && !order.getAddress().isBlank()) {
@@ -557,7 +523,6 @@ public class SecondaryController {
 
                 orderBox.getChildren().addAll(dateLabel, timeLabel);
 
-                // If canceled, show refunded amount
                 boolean isCanceled = order.getStatus() != null && order.getStatus().equalsIgnoreCase("canceled");
                 if (isCanceled) {
                     Double refund = order.getRefundAmount();
@@ -567,13 +532,11 @@ public class SecondaryController {
                     orderBox.getChildren().add(refundLabel);
                 }
 
-                // Error label (per order)
                 Label errorLabel = new Label();
                 errorLabel.setVisible(false);
                 orderErrorLabels.put(order.getId(), errorLabel);
                 orderBox.getChildren().add(errorLabel);
 
-                // Cancel button (hide if already canceled)
                 Button cancelButton = new Button("Cancel");
                 cancelButton.setOnAction(e -> {
                     try {
@@ -588,7 +551,6 @@ public class SecondaryController {
                     orderCancelButtons.put(order.getId(), cancelButton);
                 }
 
-                // Keep card auto-update behavior
                 setupOrderCard(order, statusLabel, cancelButton);
 
                 PurchaseHistoryVbox.getChildren().add(orderBox);
@@ -620,7 +582,6 @@ public class SecondaryController {
 
             LocalTime orderTime = LocalTime.parse(order.getDeliveryTime());
             LocalDateTime orderDateTime = LocalDateTime.of(orderDate, orderTime);
-//the status is changed auto check every 30 secs
             if (LocalDateTime.now().isAfter(orderDateTime)) {
                 statusLabel.setText("status: delivered");
                 if (cancelButton != null) cancelButton.setVisible(false);
@@ -936,13 +897,13 @@ public class SecondaryController {
                 PlusUserLabel.setVisible(false);
                 PlusUpgradeButton.setVisible(false);
             }
-
             setUserRole();
         });
     }
 
     @FXML
     public void LogOut(ActionEvent event) {
+        EventBus.getDefault().unregister(this);
         try {
             StageManager.replaceScene("primary", "Authenticator");
             if (!Guest) {
@@ -956,16 +917,13 @@ public class SecondaryController {
 
     @FXML
     private void closeWindow() {
-        // 1) Optional: hide window immediately so the UI feels snappy
         Stage stage = (Stage) CustomTitleBar.getScene().getWindow();
         stage.hide();
 
-        // 2) Unregister from EventBus to stop callbacks into a dead controller
         try {
             org.greenrobot.eventbus.EventBus.getDefault().unregister(this);
         } catch (Throwable ignore) { /* already unregistered */ }
 
-        // 3) Tell server we're out, then close the socket
         if (!Guest) {
             try {
                 SimpleClient.getClient().sendToServer(new LogoutRequest(account));
@@ -978,19 +936,13 @@ public class SecondaryController {
         account = null;
 
         try {
-            // If your OCSF client exposes this — prevents lingering non-daemon threads
             SimpleClient.getClient().closeConnection();
         } catch (Exception ex) {
             System.err.println("Close connection failed: " + ex.getMessage());
         }
 
-        // 4) Shut down any app executors/timers you created
-        // e.g., scheduler.shutdownNow();
-
-        // 5) Exit JavaFX cleanly; normalize exit code for maven javafx:run
         Platform.exit();
-        // If you still see the plugin reporting a weird Windows error code, uncomment:
-        // System.exit(0);
+
     }
 
     @FXML
@@ -998,7 +950,6 @@ public class SecondaryController {
         ((Stage) CustomTitleBar.getScene().getWindow()).setIconified(true);
     }
 
-    // Branch ids you already use:
     private static final int BRANCH_HAIFA = 1;
     private static final int BRANCH_EILAT = 2;
     private static final int BRANCH_TEL_AVIV = 3;
@@ -1090,7 +1041,6 @@ public class SecondaryController {
                 Button cancelBtn = new Button("Cancel");
                 HBox buttonBox = new HBox(8, saveBtn, cancelBtn);
 
-                // --- NetworkManager-only picture controls
                 final java.util.concurrent.atomic.AtomicReference<byte[]> pendingImageJpeg =
                         new java.util.concurrent.atomic.AtomicReference<>(null);
                 final java.util.concurrent.atomic.AtomicBoolean deleteImageFlag =
@@ -1136,7 +1086,6 @@ public class SecondaryController {
                     changePicBtn = null;
                 }
 
-                // Save
                 Button finalChangePicBtn1 = changePicBtn;
                 Button finalRemovePicBtn1 = removePicBtn;
                 saveBtn.setOnAction(e -> {
@@ -1206,7 +1155,6 @@ public class SecondaryController {
                     editPane.setManaged(false);
                 });
 
-                // Delete flower
                 deleteBtn.setOnAction(e -> {
                     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                     alert.setTitle("Delete Confirmation");
@@ -1270,19 +1218,13 @@ public class SecondaryController {
         return base.isBlank() ? "image" : base;
     }
 
-    // Safe branch-id read (works even if Branch is a lazy proxy)
     private int resolveBranchId(Account acc) {
         if (acc == null) return 0;
         Branch br = acc.getBranch();
         if (br == null) return 0;
-        // The proxy always has the identifier available without needing a Hibernate Session
         return br.getId();
     }
 
-    /**
-     * Build a row:  [Label "Supply (X): <value>"]  [Change Supply] (button can be hidden)
-     * onSave is called with a validated non-negative int.
-     */
     private HBox buildSupplyRow(String labelPrefix,
                                 int initialValue,
                                 boolean canEdit,
@@ -1291,7 +1233,6 @@ public class SecondaryController {
         Button changeBtn = new Button("Change Supply");
 
         if (!canEdit) {
-            // Hide and remove from layout if not allowed
             changeBtn.setVisible(false);
             changeBtn.setManaged(false);
         } else {
@@ -1309,7 +1250,6 @@ public class SecondaryController {
                         valueLabel.setText(labelPrefix + v);
                         onSave.accept(v);
                     } catch (NumberFormatException ex) {
-                        // simple inline feedback; replace with your styled alert if you prefer
                         Alert a = new Alert(Alert.AlertType.WARNING, "Please enter a non-negative integer.", ButtonType.OK);
                         a.setHeaderText(null);
                         a.showAndWait();
@@ -1322,26 +1262,18 @@ public class SecondaryController {
         return row;
     }
 
-    /**
-     * Recalculate total (Haifa + Eilat + TelAviv + Storage), write label, and keep model’s total in sync.
-     */
     private void updateTotalAndModel(Flower f, Label totalLabel) {
         int total = (f.getSupplyHaifa() + f.getSupplyEilat() + f.getSupplyTelAviv() + f.getStorage());
-        f.setSupply(total); // keep the 'supply' column as the grand total
+        f.setSupply(total);
         totalLabel.setText("Total Supply: " + total);
     }
 
-    /**
-     * Send the update to the server and refresh the UI immediately so the new value is visible
-     * without a manual refresh. (This keeps the live feel in the manager panel.)
-     */
     private void pushUpdateAndRefresh(Flower flower, List<Flower> currentList) {
         try {
             SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        // Rebuild the list immediately with the updated in-memory values
         populateManagerCatalog(currentList);
     }
 
@@ -1357,9 +1289,6 @@ public class SecondaryController {
         }
     }
 
-    /**
-     * Prompts for a non-negative integer; returns Optional.empty() if invalid/canceled.
-     */
     private Optional<Integer> promptForInt(String title, String content, int current) {
         TextInputDialog d = new TextInputDialog(String.valueOf(current));
         d.setHeaderText(null);
@@ -1377,9 +1306,6 @@ public class SecondaryController {
         }
     }
 
-    /**
-     * Sends update to server (fire-and-forget). Keep optimistic UI already updated.
-     */
     private void pushUpdate(Flower flower) {
         try {
             SimpleClient.getClient().sendToServer(new UpdateFlowerRequest(flower));
@@ -1389,7 +1315,6 @@ public class SecondaryController {
         }
     }
 
-
     private static String safe(String s) {
         return s == null ? "" : s;
     }
@@ -1398,13 +1323,11 @@ public class SecondaryController {
         return i == null ? 0 : i;
     }
 
-
     private void updateTotal(Flower flower, Label totalLabel) {
         int total = flower.getSupplyHaifa() + flower.getSupplyEilat() + flower.getSupplyTelAviv() + flower.getStorage();
         flower.setSupply(total);
         totalLabel.setText("Total Supply: " + total);
     }
-
 
     private HBox buildSupplyRow(
             String labelText,
@@ -1437,7 +1360,6 @@ public class SecondaryController {
         return new HBox(8, label, changeBtn);
     }
 
-
     private void promptAndUpdateSupply(String branchLabel, int current, java.util.function.Consumer<Integer> onValid) {
         TextInputDialog dlg = new TextInputDialog(String.valueOf(current));
         dlg.setTitle("Change Supply");
@@ -1454,7 +1376,6 @@ public class SecondaryController {
             new Alert(Alert.AlertType.ERROR, "Please enter a non-negative integer.", ButtonType.OK).showAndWait();
         }
     }
-
 
     private void updateFlowerOnServer(Flower flower) {
         try {
@@ -1481,7 +1402,6 @@ public class SecondaryController {
             NewPassError.setVisible(true);
             return;
         }
-
         try {
             SimpleClient.getClient().sendToServer(
                     new UpdatePasswordRequest(newPass)
@@ -1558,7 +1478,6 @@ public class SecondaryController {
             NewCardCCV.setStyle("");
         }
 
-        // Validate card number (simple: 13–19 digits is a common standard)
         if (!ccNumber.matches("\\d{13,19}")) {
             NewCardNumber.setStyle("-fx-border-color: red;");
             valid = false;
@@ -1566,7 +1485,6 @@ public class SecondaryController {
             NewCardNumber.setStyle("");
         }
 
-        // Validate date: must be selected and after today
         if (date == null || !date.isAfter(LocalDate.now())) {
             NewCardDate.setStyle("-fx-border-color: red;");
             valid = false;
@@ -1579,7 +1497,6 @@ public class SecondaryController {
             return;
         }
 
-        // If valid, send update request
         try {
             // Convert LocalDate to java.util.Date
             java.util.Date cardDate = java.sql.Date.valueOf(date);
@@ -1589,7 +1506,6 @@ public class SecondaryController {
             account.setCvv(ccv);
             account.setCreditCardValidUntil(cardDate);
 
-            // Send to server (pass cardDate instead of date)
             SimpleClient.getClient().sendToServer(
                     new UpdateCreditCardRequest(account.getId(), ccNumber, ccv, cardDate)
             );
@@ -1608,7 +1524,6 @@ public class SecondaryController {
         if (validUntil instanceof java.sql.Date) {
             cardDate = ((java.sql.Date) validUntil).toLocalDate();
         } else {
-            // fallback if it's java.util.Date (not likely, but for safety)
             cardDate = validUntil.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
         }
         LocalDate today = LocalDate.now();
@@ -1664,7 +1579,6 @@ public class SecondaryController {
                 Label emailLabel = new Label("From: " + feedback.getAccount().getEmail());
                 emailLabel.setStyle("-fx-font-size: 12; -fx-text-fill: #2196F3;");
 
-                // Branch (safe against null/lazy)
                 String branchText = "—";
                 Branch branch = feedback.getBranch();
                 if (branch != null) {
@@ -1712,7 +1626,6 @@ public class SecondaryController {
 
                     UnresolvedFeedbackVBOX.getChildren().add(feedbackBox);
                 } else {
-                    // Status & resolved time for non-pending
                     boolean isResolved = feedback.getStatus() == FeedBackSQL.FeedbackStatus.Resolved;
                     String statusText = isResolved ? "Resolved" : "Rejected";
                     String statusColor = isResolved ? "#4CAF50" : "#F44336";
@@ -1733,20 +1646,16 @@ public class SecondaryController {
         });
     }
 
-    // Mark feedback as rejected and notify the server
     private void markFeedbackRejected(FeedBackSQL feedback) {
         try {
-            // You may want to show a confirmation dialog here!
             feedback.setStatus(FeedBackSQL.FeedbackStatus.Rejected);
             feedback.setResolvedAt(java.time.LocalDateTime.now());
-            // Send update to server
             SimpleClient.getClient().sendToServer(new UpdateFeedbackStatusRequest(feedback.getFeedback_id(), FeedBackSQL.FeedbackStatus.Rejected));
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    // Mark feedback as resolved and notify the server
     private void markFeedbackResolved(FeedBackSQL feedback) {
         try {
             feedback.setStatus(FeedBackSQL.FeedbackStatus.Resolved);
@@ -1762,7 +1671,6 @@ public class SecondaryController {
     void SendFeedBack(ActionEvent event) {
         boolean valid = true;
 
-        // Reset styles
         FeedBackTitle.setStyle("");
         FeedBackDetails.setStyle("");
         FeedBackBranch.setStyle("");
@@ -1792,9 +1700,8 @@ public class SecondaryController {
             return;
         }
 
-        // Assuming your Feedback entity has a constructor or setter for branch
         Feedback feedback = new Feedback(account, title, details, branch);
-        feedback.setBranch(branch); // 👈 assign branch
+        feedback.setBranch(branch);
 
         try {
             SimpleClient.getClient().sendToServer(feedback);
@@ -1976,7 +1883,6 @@ public class SecondaryController {
                     return;
                 }
 
-                // Now you can safely update them
                 nameLabel.setText("Name: " + updatedFlower.getName());
                 priceLabel.setText("Price: ₪" + updatedFlower.getPrice());
                 descLabel.setText("Description: " + updatedFlower.getDescription());
@@ -1984,7 +1890,6 @@ public class SecondaryController {
                 quantitySpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(
                         1, updatedFlower.getSupply(), 1
                 ));
-
 
                 cachedFlowerNodes.set(i, new Pair<>(updatedFlower, flowerBox));
                 break;
@@ -2007,7 +1912,6 @@ public class SecondaryController {
             cartMap.put(updatedFlower, newQuantity); // Insert updated key with possibly new quantity
             showCart();
         }
-
     }
 
     @org.greenrobot.eventbus.Subscribe
@@ -2068,13 +1972,8 @@ public class SecondaryController {
             }
 
             if (toRemove != null) {
-                // Remove the node from the UI
                 FlowerPageVbox.getChildren().remove(toRemove.getValue());
-
-                // Remove from cachedFlowerNodes
                 cachedFlowerNodes.remove(toRemove);
-
-                // Also remove from cart
                 cartMap.entrySet().removeIf(entry -> entry.getKey().getId() == flowerID);
             }
         });
@@ -2201,7 +2100,6 @@ public class SecondaryController {
         String suggestedFile = sanitizeBaseName(name) + ".jpg";
 
         try {
-            // Use the extended constructor that carries the JPEG (may be null → server will ignore)
             SimpleClient.getClient().sendToServer(new AddFlowerRequest(newFlower, flowerJpeg, suggestedFile));
             System.out.println("Requested to add new flower: " + name);
 
@@ -2232,25 +2130,21 @@ public class SecondaryController {
             Tab selectedTab = MainTabsFrame.getSelectionModel().getSelectedItem();
             if (selectedTab == null) return;
 
-            // Catalog tab: Add flower visually, with highlight
             if (selectedTab.getId().equals("FlowersTab")) {
                 HBox flowerBox = new HBox(10);
-                flowerBox.setStyle("-fx-border-color: #2fc4ca; -fx-background-color: #222;"); // Distinct border for new
+                flowerBox.setStyle("-fx-border-color: #2fc4ca; -fx-background-color: #222;");
                 flowerBox.setPadding(new Insets(10));
                 flowerBox.setAlignment(Pos.CENTER_LEFT);
                 flowerBox.setPrefHeight(140);
                 flowerBox.setMaxWidth(Double.MAX_VALUE);
 
-                // [NEW] badge
                 Label newBadge = new Label("[NEW]");
                 newBadge.setStyle("-fx-background-color: #2fc4ca; -fx-text-fill: #222; -fx-font-weight: bold; -fx-padding: 3 8 3 8; -fx-background-radius: 8;");
 
-                // Image (placeholder, since none available)
                 ImageView imageView = new ImageView();
                 imageView.setFitWidth(100);
                 imageView.setFitHeight(100);
                 imageView.setPreserveRatio(true);
-                // You can use a "no_image.png" in your resources or just leave blank
 
                 VBox textBox = new VBox(5);
                 Label name = new Label("Name: " + newFlower.getName());
@@ -2278,15 +2172,12 @@ public class SecondaryController {
 
                 flowerBox.getChildren().addAll(imageView, textBox);
 
-                // Optionally add at the top:
                 FlowerPageVbox.getChildren().add(0, flowerBox);
                 cachedFlowerNodes.add(new Pair<>(newFlower, flowerBox));
 
-                // Scroll to top so user sees the new flower
                 FlowersScrollPane.setVvalue(0.0);
 
             } else if (selectedTab.getId().equals("ManagerPanel")) {
-                // Manager panel: ask server for updated catalog
                 try {
                     SimpleClient.getClient().sendToServer("RequestFlowerCatalogForManager");
                 } catch (Exception e) {
@@ -2316,7 +2207,7 @@ public class SecondaryController {
     }
 
     public void addToCart(Flower flower) {
-        cartMap.put(flower, 1); // Add with default quantity 1
+        cartMap.put(flower, 1);
         showCart();
         System.out.println("Added custom item to cart: " + flower.getName());
     }
@@ -2343,7 +2234,6 @@ public class SecondaryController {
             Label errorLabel = orderErrorLabels.get(response.getOrderId());
             Button cancelButton = orderCancelButtons.get(response.getOrderId());
             if (response.isCancelled()) {
-                // Remove the button from the UI
                 if (cancelButton != null) {
                     ((Pane) cancelButton.getParent()).getChildren().remove(cancelButton);
                     orderCancelButtons.remove(response.getOrderId());
@@ -2390,7 +2280,6 @@ public class SecondaryController {
             Flower flower = entry.getKey();
             int quantity = entry.getValue();
 
-            // --- Price calculation
             double unitPrice = flower.getDiscount() > 0
                     ? flower.getDiscountPrice()   // discounted price from DB
                     : flower.getPrice();          // normal price
@@ -2398,12 +2287,10 @@ public class SecondaryController {
             double price = unitPrice * quantity;
             totalPrice += price;
 
-            // --- UI for cart item
             HBox itemBox = new HBox(10);
             Label nameLabel = new Label(flower.getName() + " x" + quantity);
 
             if (flower.getDiscount() > 0) {
-                // show original price with strikethrough + discounted
                 Text orig = new Text("₪" + String.format("%.2f", flower.getPrice() * quantity));
                 orig.setStrikethrough(true);
                 orig.setFill(javafx.scene.paint.Color.GRAY);
@@ -2418,7 +2305,6 @@ public class SecondaryController {
                 itemBox.getChildren().addAll(nameLabel, priceLabel);
             }
 
-            // --- Quantity buttons
             Button plusBtn = new Button("+");
             Button minusBtn = new Button("-");
 
@@ -2457,7 +2343,6 @@ public class SecondaryController {
             CartVBox.getChildren().add(itemBox);
         }
 
-        // --- Plus member discount (after per-flower discount already applied)
         if (account != null && "Plus".equalsIgnoreCase(account.getSubscribtion_level()) && totalPrice > 50) {
             totalPrice *= 0.9; // Apply 10% discount
             discountApplied = true;
@@ -2500,7 +2385,6 @@ public class SecondaryController {
             img = scaled;
         }
 
-        // Re-encode as JPEG for safety
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              ImageOutputStream ios = ImageIO.createImageOutputStream(baos)) {
             Iterator<ImageWriter> it = ImageIO.getImageWritersByFormatName("jpeg");
@@ -2519,33 +2403,56 @@ public class SecondaryController {
 
     @FXML
     void onGenerateReport(ActionEvent e) {
-        // 1) Which report?
+        String sel = reportTypeComboBox.getValue();
+        if ("Complaints Report".equals(sel)) {
+            // Use date pickers if both chosen; else default to last 12 months
+            java.time.LocalDate fromLD, toLD;
+            if (reportDate1 != null && reportDate2 != null
+                    && reportDate1.getValue() != null && reportDate2.getValue() != null) {
+                fromLD = reportDate1.getValue();
+                toLD   = reportDate2.getValue();
+                if (fromLD.isAfter(toLD)) { var t = fromLD; fromLD = toLD; toLD = t; }
+            } else {
+                toLD   = java.time.LocalDate.now();
+                fromLD = toLD.minusYears(1);
+            }
+
+            java.sql.Date from = java.sql.Date.valueOf(fromLD);
+            java.sql.Date to   = java.sql.Date.valueOf(toLD);
+
+            try {
+                SimpleClient.getClient().sendToServer(
+                        new ComplaintsByBranchHistogramRequest(from, to)
+                );
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR,
+                        "Failed to request Complaints Report:\n" + ex.getMessage()).showAndWait();
+            }
+            return;
+        }
+
         String reportType = reportTypeComboBox.getValue();
         if (reportType == null || reportType.isBlank()) {
             System.err.println("Pick a report type.");
             return;
         }
 
-        // 2) Which branch?
-        String lvl = (account != null) ? account.getAccountLevel() : null;
+        int branchId = 0; // Default to Network aggregate
+        String lvl = (account != null) ? account.getAccountLevel() : "";
 
-// Force network-wide reports for Branch Managers
-        int branchId = 0; // 0 = Network aggregate
-        if (!("BranchManager".equalsIgnoreCase(lvl) || "Branch Manager".equalsIgnoreCase(lvl))) {
-            String selected = BranchComboBox.getValue();     // e.g. "Haifa Branch (1)"
-            branchId = branchNameToId(selected);             // -> 0/1/2/3
-        } else {
-            String selected = BranchComboBox.getValue();     // e.g. "Haifa Branch (1)"
-            branchId = branchNameToId(selected);             // -> 0/1/2/3
+        if (lvl.equalsIgnoreCase("Branch Manager") || lvl.equalsIgnoreCase("BranchManager")) {
+            branchId = resolveBranchId(account);
+        } else if (lvl.equalsIgnoreCase("Network Manager") || lvl.equalsIgnoreCase("NetworkManager")) {
+            String selectedBranch = BranchComboBox.getValue();
+            branchId = branchNameToId(selectedBranch);
         }
 
         System.out.println("Using branchId = " + branchId + " | report = " + reportType);
 
-        // 3) Dispatch request
         switch (reportType) {
             case "Quarterly Revenue Report" -> requestQuarterlyRevenue(branchId);
             case "Orders by Type Report" -> requestOrdersByType(branchId);
-            case "Complaints Report" -> requestComplaints(0);
             default -> System.err.println("Unknown report type: " + reportType);
         }
     }
@@ -2559,8 +2466,12 @@ public class SecondaryController {
         LocalDate toLD = LocalDate.now();
         LocalDate fromLD = toLD.minusMonths(3);
 
+        lastReportFrom = fromLD;
+        lastReportTo   = toLD;
+        lastReportBranchId = branchId;
+
         Date from = Date.valueOf(fromLD);
-        Date to = Date.valueOf(toLD);
+        Date to   = Date.valueOf(toLD);
 
         try {
             SimpleClient.getClient().sendToServer(
@@ -2575,7 +2486,7 @@ public class SecondaryController {
 
     private void requestOrdersByType(int branchId) {
         LocalDate toLD = LocalDate.now();
-        LocalDate fromLD = toLD.minusMonths(3);
+        LocalDate fromLD = toLD.minusYears(1);
 
         Date from = Date.valueOf(fromLD);
         Date to = Date.valueOf(toLD);
@@ -2589,11 +2500,9 @@ public class SecondaryController {
     }
 
     private static String formatCurrency(double value) {
-        // Simple IL shekel formatting without locale headaches
         return "₪" + String.format("%,.2f", value);
     }
 
-    // Your existing mapping is fine; keeping here for completeness
     private int branchNameToId(String s) {
         if (s == null) return 0;
         s = s.toLowerCase();
@@ -2621,7 +2530,6 @@ public class SecondaryController {
                         continue;
                     }
                     for (var it : items) {
-                        // Optionally truncate long bodies for readability
                         String body = it.getDetails() == null ? "" : it.getDetails().trim();
                         if (body.length() > 600) body = body.substring(0, 600) + "…";
 
@@ -2653,93 +2561,175 @@ public class SecondaryController {
     @Subscribe
     public void onQuarterlyRevenueReport(QuarterlyRevenueReportResponse resp) {
         Platform.runLater(() -> {
-            var rows = (resp != null && resp.getRows() != null) ? resp.getRows() : List.<QuarterlyRevenueReportResponse.Row>of();
 
-            // Optional: sort by Year, Quarter
-            rows.sort(java.util.Comparator
-                    .comparingInt(QuarterlyRevenueReportResponse.Row::getYear)
-                    .thenComparingInt(QuarterlyRevenueReportResponse.Row::getQuarter));
+            LocalDate fromLD = (lastReportFrom != null) ? lastReportFrom : LocalDate.now().minusMonths(3);
+            LocalDate toLD   = (lastReportTo   != null) ? lastReportTo   : LocalDate.now();
+            final int scopeBranch = (lastReportBranchId != null ? lastReportBranchId : 0);
+            final boolean networkScope = (scopeBranch == 0);
 
-            StringBuilder sb = new StringBuilder();
-            sb.append(String.format("%-8s | %-8s | %s%n", "Year", "Quarter", "Revenue (₪)"));
-            sb.append("------------------------------------------\n");
+            BreakdownResult br = tryBuildBreakdown(resp, scopeBranch);
 
-            double total = 0.0;
-            for (var row : rows) {
-                total += row.getRevenue();
-                sb.append(String.format("%-8d | %-8d | %s%n",
-                        row.getYear(),
-                        row.getQuarter(),
-                        formatCurrency(row.getRevenue())));
+            String header = (networkScope ? "Whole Network" : "Branch " + resolveBranchName(scopeBranch))
+                    + " • " + fromLD + " → " + toLD;
+
+            TextArea ta = new TextArea();
+            ta.setEditable(false);
+            ta.setWrapText(false);
+            ta.setFont(Font.font("monospaced"));
+
+            if (br == null || (networkScope && br.pickupByBranch.isEmpty() && br.deliveryTotal == 0.0)
+                    || (!networkScope && br.branchPickupTotal < 0)) {
+                ta.setText("No branch-level breakdown available in the response.\n"
+                        + "Server must include either:\n"
+                        + "  • getOrders(): List<Order> with getPickupBranch() and getTotalPrice(), or\n"
+                        + "  • getBreakdown(): List<Row> with getBranch(/Id), getType(), getRevenue().");
+            } else {
+                StringBuilder sb = new StringBuilder();
+                sb.append(String.format("%-24s | %s%n", "LINE", "Revenue (₪)"));
+                sb.append("------------------------------------------\n");
+
+                if (networkScope) {
+                    for (var entry : br.pickupByBranch.entrySet()) {
+                        sb.append(String.format("%-24s | %s%n",
+                                entry.getKey() + " (Pickup)", formatCurrency(entry.getValue())));
+                    }
+                    sb.append(String.format("%-24s | %s%n", "Delivery", formatCurrency(br.deliveryTotal)));
+                    double total = br.deliveryTotal + br.pickupByBranch.values().stream().mapToDouble(Double::doubleValue).sum();
+                    sb.append("------------------------------------------\n");
+                    sb.append(String.format("%-24s | %s%n", "TOTAL", formatCurrency(total)));
+
+                } else {
+                    // Branch scope: pickup only
+                    String bname = resolveBranchName(scopeBranch);
+                    double total = Math.max(0.0, br.branchPickupTotal);
+                    sb.append(String.format("%-24s | %s%n", (bname != null ? bname : ("Branch " + scopeBranch)) + " (Pickup)",
+                            formatCurrency(total)));
+                }
+                ta.setText(sb.toString());
             }
-            sb.append("------------------------------------------\n");
-            sb.append(String.format("%-19s %s%n", "Total:", formatCurrency(total)));
-
-            var textArea = new TextArea(sb.toString());
-            textArea.setEditable(false);
-            textArea.setWrapText(false);
-            textArea.setFont(Font.font("monospaced"));
 
             Alert a = new Alert(Alert.AlertType.INFORMATION);
             a.setTitle("Quarterly Revenue Report");
-            a.setHeaderText(rows.isEmpty() ? "No data in range" : "Last 12 months (by quarter)");
-            a.getDialogPane().setContent(textArea);
+            a.setHeaderText(header);
+            a.getDialogPane().setContent(ta);
             a.setResizable(true);
             a.showAndWait();
         });
     }
 
+    private static class BreakdownResult {
+        // for network scope
+        java.util.LinkedHashMap<String, Double> pickupByBranch = new java.util.LinkedHashMap<>();
+        double deliveryTotal = 0.0;
+        // for branch scope
+        double branchPickupTotal = -1.0;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String tryRenderFulfillmentBreakdown(Object resp,
+                                                 boolean networkScope,
+                                                 boolean branchScopePickupOnly) {
+        try {
+            java.lang.reflect.Method m = resp.getClass().getMethod("getBreakdown");
+            Object listObj = (m != null) ? m.invoke(resp) : null;
+            if (!(listObj instanceof java.util.List<?> bList)) return null;
+
+            java.util.Map<String, Double> pickupByBranch = new java.util.LinkedHashMap<>();
+            double deliveryTotal = 0.0;
+            double grandTotal = 0.0;
+
+            for (Object row : bList) {
+                String branch = tryGetString(row, "getBranch");
+                String type   = tryGetString(row, "getType");
+                Double rev    = tryGetDouble(row, "getRevenue");
+                if (branch == null || rev == null) continue;
+
+                boolean isDelivery = type != null && type.equalsIgnoreCase("delivery");
+                if (isDelivery) {
+                    if (networkScope) {
+                        deliveryTotal += rev;
+                        grandTotal += rev;
+                    }
+                } else {
+                    pickupByBranch.merge(branch, rev, Double::sum);
+                    grandTotal += rev;
+                }
+            }
+
+            if (pickupByBranch.isEmpty() && (!networkScope || deliveryTotal == 0.0)) return null;
+
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.format("%-24s | %s%n", "LINE", "Revenue (₪)"));
+            sb.append("------------------------------------------\n");
+
+            for (var e : pickupByBranch.entrySet()) {
+                sb.append(String.format("%-24s | %s%n", e.getKey() + " (Pickup)", formatCurrency(e.getValue())));
+            }
+
+            if (networkScope) {
+                sb.append(String.format("%-24s | %s%n", "Delivery", formatCurrency(deliveryTotal)));
+            }
+            sb.append("------------------------------------------\n");
+            sb.append(String.format("%-24s | %s%n", "TOTAL", formatCurrency(grandTotal)));
+            return sb.toString();
+        } catch (Throwable ignore) {
+            return null; // no breakdown API yet -> use fallback
+        }
+    }
+
+    private static String tryGetString(Object o, String getter) {
+        try { Object v = o.getClass().getMethod(getter).invoke(o); return (v != null) ? v.toString() : null; }
+        catch (Throwable t) { return null; }
+    }
+    private static Double tryGetDouble(Object o, String getter) {
+        try {
+            Object v = o.getClass().getMethod(getter).invoke(o);
+            return (v instanceof Number n) ? n.doubleValue() : (v != null ? Double.valueOf(v.toString()) : null);
+        } catch (Throwable t) { return null; }
+    }
+
+
     @Subscribe
     public void onOrdersByProductTypeReport(OrdersByProductTypeReportResponse response) {
         Platform.runLater(() -> {
-            var rows = (response != null && response.getRows() != null) ? response.getRows() : List.<OrdersByProductTypeReportResponse.Row>of();
+            var rows = (response != null && response.getRows() != null)
+                    ? response.getRows()
+                    : java.util.List.<OrdersByProductTypeReportResponse.Row>of();
 
-            // Optional: sort by orders desc, then product name
             rows.sort(java.util.Comparator
-                    .comparingLong(OrdersByProductTypeReportResponse.Row::getOrders).reversed()
+                    .comparingLong(OrdersByProductTypeReportResponse.Row::getQuantity)
+                    .reversed()
                     .thenComparing(OrdersByProductTypeReportResponse.Row::getProductType, String.CASE_INSENSITIVE_ORDER));
 
-            StringBuilder sb = new StringBuilder();
-            sb.append(String.format("%-24s | %12s | %14s | %14s%n",
-                    "Product Type", "Orders", "Total Qty", "Total (₪)"));
-            sb.append("--------------------------------------------------------------------------\n");
+            javafx.scene.chart.CategoryAxis x = new javafx.scene.chart.CategoryAxis();
+            x.setLabel("Flower");
+            x.setTickLabelRotation(0);       // ← keep names horizontal
+            x.setTickLabelGap(5);
 
-            long totalOrders = 0;
-            long totalQty = 0;
-            double totalSum = 0.0;
+            javafx.scene.chart.NumberAxis y = new javafx.scene.chart.NumberAxis();
+            y.setLabel("Quantity sold - Last 12 months");
 
-            if (rows.isEmpty()) {
-                sb.append("No order data found for the selected period.");
-            } else {
-                for (var row : rows) {
-                    totalOrders += row.getOrders();
-                    totalQty += row.getQuantity();
-                    totalSum += row.getTotal();
-                    sb.append(String.format("%-24s | %12d | %14d | %14s%n",
-                            row.getProductType(),
-                            row.getOrders(),
-                            row.getQuantity(),
-                            formatCurrency(row.getTotal())));
-                }
-                sb.append("--------------------------------------------------------------------------\n");
-                sb.append(String.format("%-24s | %12d | %14d | %14s%n",
-                        "TOTAL",
-                        totalOrders,
-                        totalQty,
-                        formatCurrency(totalSum)));
+            // Chart
+            javafx.scene.chart.BarChart<String, Number> chart =
+                    new javafx.scene.chart.BarChart<>(x, y);
+            chart.setTitle("Orders by Product Type");
+            chart.setLegendVisible(false);
+            chart.setCategoryGap(12);
+            chart.setBarGap(2);
+
+            javafx.scene.chart.XYChart.Series<String, Number> sQty = new javafx.scene.chart.XYChart.Series<>();
+            for (var r : rows) {
+                sQty.getData().add(new javafx.scene.chart.XYChart.Data<>(r.getProductType(), r.getQuantity()));
             }
+            chart.getData().add(sQty);
 
-            TextArea textArea = new TextArea(sb.toString());
-            textArea.setEditable(false);
-            textArea.setWrapText(false);
-            textArea.setFont(Font.font("monospaced"));
-
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Orders by Product Type Report");
-            alert.setHeaderText("Report for the last 3 months");
-            alert.getDialogPane().setContent(textArea);
-            alert.setResizable(true);
-            alert.showAndWait();
+            javafx.scene.layout.StackPane root = new javafx.scene.layout.StackPane(chart);
+            javafx.scene.Scene scene = new javafx.scene.Scene(root, 800, 500);
+            javafx.stage.Stage stage = new javafx.stage.Stage();
+            stage.setTitle("Orders by Product Type");
+            stage.setScene(scene);
+            stage.setResizable(true);
+            stage.show();
         });
     }
 
@@ -2748,7 +2738,6 @@ public class SecondaryController {
         Platform.runLater(() -> {
             List<Branch> branches = response.getBranches();
 
-            // Special "Network" option -> id = 0
             Branch network = new Branch();
             network.setId(0);
             network.setName("Network");
@@ -2757,8 +2746,6 @@ public class SecondaryController {
             items.add(network);
             items.addAll(branches);
             branchSelectorComboBox.setItems(items);
-
-            // Show: "Haifa Branch (1)" etc.
             branchSelectorComboBox.setConverter(new StringConverter<Branch>() {
                 @Override
                 public String toString(Branch b) {
@@ -2778,7 +2765,6 @@ public class SecondaryController {
                 }
             });
 
-            // Default selection: Network Managers -> Network; Branch Managers -> their own branch
             String lvl = account != null ? account.getAccountLevel() : null;
             if ("NetworkManager".equalsIgnoreCase(lvl)) {
                 branchSelectorComboBox.getSelectionModel().select(network);
@@ -2786,20 +2772,16 @@ public class SecondaryController {
             } else if ("BranchManager".equalsIgnoreCase(lvl) || "Branch Manager".equalsIgnoreCase(lvl)) {
                 Branch my = account != null ? account.getBranch() : null;
                 if (my != null) {
-                    // select the matching object from items (same id)
                     items.stream().filter(b -> b.getId() == my.getId()).findFirst()
                             .ifPresent(b -> branchSelectorComboBox.getSelectionModel().select(b));
                 } else {
                     branchSelectorComboBox.getSelectionModel().select(network);
                 }
-                // Lock selection for branch managers
                 branchSelectorComboBox.setDisable(true);
             } else {
-                // Other roles: select Network by default
                 branchSelectorComboBox.getSelectionModel().select(network);
             }
 
-            // Safety net: keep a selection if items ever refresh
             branchSelectorComboBox.getSelectionModel().selectedItemProperty().addListener((o, oldV, newV) -> {
                 if (newV == null && !branchSelectorComboBox.getItems().isEmpty()) {
                     branchSelectorComboBox.getSelectionModel().selectFirst();
@@ -2807,6 +2789,10 @@ public class SecondaryController {
             });
         });
     }
+
+    private LocalDate lastReportFrom;
+    private LocalDate lastReportTo;
+    private Integer lastReportBranchId; // 0 == network (aggregate)
 
     private boolean isNetworkManager() {
         return account != null
@@ -2846,12 +2832,11 @@ public class SecondaryController {
             return;
         }
 
-        // Send to server (adapt to your messaging)
         try {
             SimpleClient.getClient().sendToServer(
                     new CompareReportsRequest(
                             branchId,
-                            reportType, // will be "Compare Reports (by Date)"
+                            reportType,
                             java.sql.Date.valueOf(from),
                             java.sql.Date.valueOf(to)
                     )
@@ -2881,10 +2866,8 @@ public class SecondaryController {
     @org.greenrobot.eventbus.Subscribe
     public void onCompareReportsResponse(il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse resp) {
         javafx.application.Platform.runLater(() -> {
-            // Build a small table with metrics
             javafx.scene.control.TableView<il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse.Row> tv =
                     new javafx.scene.control.TableView<>();
-
             javafx.scene.control.TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse.Row, String> cMetric =
                     new javafx.scene.control.TableColumn<>("Metric");
             javafx.scene.control.TableColumn<il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse.Row, Number> cA =
@@ -2911,37 +2894,18 @@ public class SecondaryController {
         });
     }
 
-    private void requestComplaints(int branchId) {
-        java.time.LocalDate toLD = java.time.LocalDate.now();
-        java.time.LocalDate fromLD = toLD.minusMonths(3);
-
-        java.sql.Date from = java.sql.Date.valueOf(fromLD);
-        java.sql.Date to = java.sql.Date.valueOf(toLD);
-
-        try {
-            SimpleClient.getClient().sendToServer(
-                    new ComplaintsReportRequest(from, to, 0) // always network
-            );
-            System.out.println("[SEND] ComplaintsReportRequest(from=" + from + ", to=" + to + ", branchId=0)");
-        } catch (IOException ex) {
-            System.err.println("[ERROR] ComplaintsReportRequest failed: " + ex.getMessage());
-            new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR,
-                    "Could not request Complaints Report:\n" + ex.getMessage()).showAndWait();
-        }
-    }
-
     private void setHintVisible(boolean v) {
         dropHint.setVisible(v);
         dropHint.setManaged(v);
         // mirror the clear button
         clearImageBtn.setVisible(!v);
-        clearImageBtn.setManaged(!v); // keep layout clean when hidden
+        clearImageBtn.setManaged(!v);
     }
 
     private void clearFlowerImage() {
         flowerImageView.setImage(null);
         flowerJpeg = null;
-        setHintVisible(true); // this hides the clear button too
+        setHintVisible(true);
     }
 
     @FXML
@@ -3026,7 +2990,6 @@ public class SecondaryController {
 
         instance = this;
 
-        // Drag support for custom bar:
         CustomTitleBar.setOnMousePressed(event -> {
             xOffset = event.getSceneX();
             yOffset = event.getSceneY();
@@ -3076,8 +3039,6 @@ public class SecondaryController {
         });
 
         System.out.println("[SecondaryController] Initialized");
-
-        // details change.
 
         SimpleClient.getClient().sendToServer("GetAccounts");
         accountTable.setEditable(true);
@@ -3130,7 +3091,6 @@ public class SecondaryController {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                // we need to send to the server to update.
             }
         });
 
@@ -3285,20 +3245,17 @@ public class SecondaryController {
             }
         });
 
-        // Setup for the report generator
         ObservableList<String> reportTypes = FXCollections.observableArrayList(
                 "Quarterly Revenue Report",
                 "Orders by Type Report",
                 "Complaints Report",
-                "Compare Reports (by Date)"  // ← now always present
+                "Compare Reports (by Date)"
         );
         reportTypeComboBox.setItems(reportTypes);
         reportTypeComboBox.setValue("Quarterly Revenue Report");
 
-        // Hide compare controls initially
         setCompareControlsVisible(false);
 
-        // Toggle UI when report type changes:
         reportTypeComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
             boolean compareSelected = "Compare Reports (by Date)".equals(newVal);
             setCompareControlsVisible(compareSelected);         // ← no role check here
@@ -3353,8 +3310,176 @@ public class SecondaryController {
         if (isNetworkManager() && !reportTypeComboBox.getItems().contains("Compare Reports (by Date)")) {
             reportTypeComboBox.getItems().add("Compare Reports (by Date)");
         }
-
-        // 2) show the button (and hide for non-NM)
     }
 
+    @SuppressWarnings("unchecked")
+    private BreakdownResult tryBuildBreakdown(Object resp, int scopeBranchId) {
+        if (resp == null) return null;
+        BreakdownResult out = new BreakdownResult();
+
+        try {
+            var m = resp.getClass().getMethod("getOrders");
+            Object listObj = m.invoke(resp);
+            if (listObj instanceof java.util.List<?> list) {
+                double delivery = 0.0;
+                java.util.Map<String, Double> pick = new java.util.LinkedHashMap<>();
+                double branchOnly = 0.0;
+
+                for (Object order : list) {
+                    Integer pb = tryGetInt(order, "getPickupBranch"); // 4 == Delivery in your app
+                    Double amount = tryGetDouble(order, "getTotalPrice");
+                    if (amount == null) amount = tryGetDouble(order, "getTotal");
+                    if (amount == null) amount = tryGetDouble(order, "getPrice");
+                    if (pb == null || amount == null) continue;
+
+                    if (pb == 4) {
+                        // Delivery
+                        delivery += amount;
+                    } else {
+                        // Pickup for a branch
+                        String bname = resolveBranchName(pb);
+                        if (bname == null) bname = "Branch " + pb;
+                        pick.merge(bname, amount, Double::sum);
+                        if (scopeBranchId != 0 && pb == scopeBranchId) {
+                            branchOnly += amount;
+                        }
+                    }
+                }
+                out.pickupByBranch.putAll(pick);
+                out.deliveryTotal = delivery;
+                if (scopeBranchId != 0) out.branchPickupTotal = branchOnly;
+                return out;
+            }
+        } catch (ReflectiveOperationException ignore) {
+        }
+
+        try {
+            var m = resp.getClass().getMethod("getBreakdown");
+            Object listObj = m.invoke(resp);
+            if (!(listObj instanceof java.util.List<?> list)) return null;
+
+            double delivery = 0.0;
+            java.util.Map<String, Double> pick = new java.util.LinkedHashMap<>();
+            double branchOnly = 0.0;
+
+            for (Object row : list) {
+                String type = tryGetString(row, "getType"); // e.g., "PICKUP" / "DELIVERY"
+                Double rev  = tryGetDouble(row, "getRevenue");
+                if (rev == null) continue;
+
+                boolean isDelivery = type != null && type.equalsIgnoreCase("delivery");
+
+                if (isDelivery) {
+                    delivery += rev;
+                } else {
+                    // pickup: prefer branch name; otherwise derive from id
+                    String bname = tryGetString(row, "getBranch");
+                    if (bname == null) {
+                        Integer bid = tryGetInt(row, "getBranchId");
+                        bname = (bid != null ? resolveBranchName(bid) : null);
+                    }
+                    if (bname == null) bname = "Branch ?";
+                    pick.merge(bname, rev, Double::sum);
+
+                    if (scopeBranchId != 0) {
+                        Integer bid = tryGetInt(row, "getBranchId");
+                        if (bid != null && bid == scopeBranchId) branchOnly += rev;
+                    }
+                }
+            }
+
+            out.pickupByBranch.putAll(pick);
+            out.deliveryTotal = delivery;
+            if (scopeBranchId != 0) out.branchPickupTotal = branchOnly;
+            return out;
+        } catch (ReflectiveOperationException ignore) {
+        }
+
+        return null;
+    }
+
+    private static Integer tryGetInt(Object o, String getter) {
+        try {
+            Object v = o.getClass().getMethod(getter).invoke(o);
+            return (v instanceof Number n) ? n.intValue() : (v != null ? Integer.valueOf(v.toString()) : null);
+        } catch (Throwable t) { return null; }
+    }
+    @org.greenrobot.eventbus.Subscribe
+    public void onComplaintsByBranchHistogram(
+            il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsByBranchHistogramResponse resp) {
+
+        javafx.application.Platform.runLater(() -> {
+            var rows = (resp != null && resp.getRows() != null)
+                    ? resp.getRows()
+                    : java.util.List.<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsByBranchHistogramResponse.Row>of();
+
+            javafx.scene.chart.CategoryAxis x = new javafx.scene.chart.CategoryAxis();
+            x.setLabel("Branch");
+            x.setTickLabelRotation(0); // horizontal labels
+
+            javafx.scene.chart.NumberAxis y = new javafx.scene.chart.NumberAxis();
+            y.setLabel("Complaints (count)");
+            y.setAutoRanging(true);
+            y.setMinorTickCount(0);
+            y.setTickUnit(1); // prefer integer steps
+            y.setTickLabelFormatter(new javafx.util.StringConverter<Number>() {
+                @Override public String toString(Number n) { return String.valueOf(n.intValue()); }
+                @Override public Number fromString(String s) { return Integer.parseInt(s); }
+            });
+
+            // Chart
+            javafx.scene.chart.StackedBarChart<String, Number> chart =
+                    new javafx.scene.chart.StackedBarChart<>(x, y);
+            chart.setTitle("Complaints Report — Network");
+
+            var sPending  = new javafx.scene.chart.XYChart.Series<String, Number>(); sPending.setName("Pending");
+            var sResolved = new javafx.scene.chart.XYChart.Series<String, Number>(); sResolved.setName("Resolved");
+            var sRejected = new javafx.scene.chart.XYChart.Series<String, Number>(); sRejected.setName("Rejected");
+
+            for (var r : rows) {
+                String name = (r.getBranchName() == null || r.getBranchName().isBlank())
+                        ? ("Branch " + r.getBranchId()) : r.getBranchName();
+
+                // extraValue holds branchId (handy for future highlighting)
+                sPending.getData().add (new javafx.scene.chart.XYChart.Data<>(name, r.getPending(),  r.getBranchId()));
+                sResolved.getData().add(new javafx.scene.chart.XYChart.Data<>(name, r.getResolved(), r.getBranchId()));
+                sRejected.getData().add(new javafx.scene.chart.XYChart.Data<>(name, r.getRejected(), r.getBranchId()));
+            }
+            chart.getData().setAll(sPending, sResolved, sRejected);
+
+            java.util.List<javafx.scene.chart.XYChart.Series<String, Number>> seriesList =
+                    java.util.List.of(sPending, sResolved, sRejected);
+
+            chart.applyCss(); chart.layout();
+            for (var series : seriesList) {
+                for (var dp : series.getData()) {
+                    String branch = String.valueOf(dp.getXValue());
+                    long pending = 0, resolved = 0, rejected = 0;
+                    for (var r : rows) {
+                        String rn = (r.getBranchName() == null || r.getBranchName().isBlank())
+                                ? ("Branch " + r.getBranchId()) : r.getBranchName();
+                        if (rn.equals(branch)) {
+                            pending = r.getPending(); resolved = r.getResolved(); rejected = r.getRejected();
+                            break;
+                        }
+                    }
+                    long total = pending + resolved + rejected;
+                    String tip = branch + "\n"
+                            + "Pending:  " + pending + "\n"
+                            + "Resolved: " + resolved + "\n"
+                            + "Rejected: " + rejected + "\n"
+                            + "Total:    " + total;
+                    javafx.scene.control.Tooltip.install(dp.getNode(), new javafx.scene.control.Tooltip(tip));
+                }
+            }
+
+            javafx.scene.layout.StackPane root = new javafx.scene.layout.StackPane(chart);
+            javafx.scene.Scene scene = new javafx.scene.Scene(root, 900, 520);
+            javafx.stage.Stage stage = new javafx.stage.Stage();
+            stage.setTitle("Complaints Report");
+            stage.setScene(scene);
+            stage.setResizable(true);
+            stage.show();
+        });
+    }
 }

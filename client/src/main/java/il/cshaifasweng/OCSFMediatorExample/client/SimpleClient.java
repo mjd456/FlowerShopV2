@@ -2,14 +2,11 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import org.greenrobot.eventbus.EventBus;
-
 import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
 import il.cshaifasweng.OCSFMediatorExample.entities.Warning;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-
 
 public class SimpleClient extends AbstractClient {
 
@@ -85,8 +82,7 @@ public class SimpleClient extends AbstractClient {
                 EventBus.getDefault().post(new FeedBackSuccess());
             }
         }
-        // after we get the data we need to post it, so the accounts data be in the screen.
-        // to check from what screen we need to open DetailsChange Screen.
+
         else if (msg instanceof Map<?, ?> map && map.keySet().iterator().next() instanceof Flower) {
             Map<Flower, byte[]> flowerImageMap = (Map<Flower, byte[]>) msg;
             System.out.println("Posting FlowerListEventBus");
@@ -166,6 +162,8 @@ public class SimpleClient extends AbstractClient {
             org.greenrobot.eventbus.EventBus.getDefault().post(msg);
         } else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse resp) {
             org.greenrobot.eventbus.EventBus.getDefault().post(resp);
+        } else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsByBranchHistogramResponse resp) {
+            org.greenrobot.eventbus.EventBus.getDefault().post(resp);
         } else {
             System.out.println("Unhandled message type: " + msg.getClass().getSimpleName());
         }
@@ -192,7 +190,6 @@ public class SimpleClient extends AbstractClient {
         if (!client.isConnected()) {
             client.openConnection();
         }
-
         return client;
     }
 }

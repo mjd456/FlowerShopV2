@@ -5,14 +5,13 @@ import java.io.Serializable;
 import java.util.Date;
 
 @Entity
-@Table(name = "orders") // Assuming the table is named 'orders'
+@Table(name = "orders")
 public class OrderSQL implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    // Each order is for a single account; an account can have many orders
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false)
     private Account account;

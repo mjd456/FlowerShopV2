@@ -5,9 +5,9 @@ import java.io.Serializable;
 
 public class UpdateFlowerRequest implements Serializable {
     private Flower flower;
-    private byte[] newImageJpeg;        // nullable
-    private String suggestedFileName;   // nullable
-    private boolean deleteImage;        // NEW
+    private byte[] newImageJpeg;
+    private String suggestedFileName;
+    private boolean deleteImage;
 
     public UpdateFlowerRequest(Flower flower) { this(flower, null, null, false); }
     public UpdateFlowerRequest(Flower flower, byte[] newImageJpeg, String suggestedFileName) {

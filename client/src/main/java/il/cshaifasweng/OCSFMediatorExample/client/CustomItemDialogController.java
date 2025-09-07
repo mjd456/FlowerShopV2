@@ -62,8 +62,6 @@ public class CustomItemDialogController {
                 0, 0, 0, 0
         );
 
-        // >>> give it a unique temp id so Map<Flower,Integer> treats each as distinct
-        // negative id avoids clashing with real DB ids (>0)
         int tempId = (int) -(System.nanoTime() & 0x7FFFFFFF);
         customFlower.setId(tempId);
 
@@ -74,7 +72,6 @@ public class CustomItemDialogController {
         ((Stage) ItemTypeField.getScene().getWindow()).close();
     }
 
-    // helper to show styled warning
     private void showWarn(String title, String msg) {
         Alert alert = new Alert(Alert.AlertType.WARNING);
         alert.setTitle(title);
@@ -85,7 +82,6 @@ public class CustomItemDialogController {
         if (cssUrl != null) dp.getStylesheets().add(cssUrl.toExternalForm());
         alert.showAndWait();
     }
-
 
     @FXML
     public void initialize() {
@@ -108,7 +104,6 @@ public class CustomItemDialogController {
             }
         });
 
-// Also style the selected item shown in the ComboBox itself:
         ColorField.setButtonCell(new ListCell<String>() {
             @Override
             protected void updateItem(String item, boolean empty) {

@@ -15,7 +15,8 @@ public class OrdersByProductTypeReportResponse implements Serializable {
         private long quantity;
         private double total;
 
-        public Row() { }
+        public Row() {
+        }
 
         public Row(String productType, long orders, long quantity, double total) {
             this.productType = productType;
@@ -24,19 +25,33 @@ public class OrdersByProductTypeReportResponse implements Serializable {
             this.total = total;
         }
 
-        public String getProductType() { return productType; }
-        public long getOrders() { return orders; }
-        public long getQuantity() { return quantity; }
-        public double getTotal() { return total; }
+        public String getProductType() {
+            return productType;
+        }
+
+        public long getOrders() {
+            return orders;
+        }
+
+        public long getQuantity() {
+            return quantity;
+        }
+
+        public double getTotal() {
+            return total;
+        }
     }
 
     private List<Row> rows = new ArrayList<>();
 
-    public OrdersByProductTypeReportResponse() { }
+    public OrdersByProductTypeReportResponse() {
+    }
 
     public OrdersByProductTypeReportResponse(List<Row> rows) {
         this.rows = rows;
     }
 
-    public List<Row> getRows() { return rows; }
+    public List<Row> getRows() {
+        return rows;
+    }
 }

@@ -7,7 +7,6 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-
 import java.io.IOException;
 
 public class StageManager {
@@ -32,7 +31,6 @@ public class StageManager {
                 newStage.setOnCloseRequest(event -> {
                     try {
                         if (SimpleClient.account != null) {
-                            // Send logout request or disconnect message to server
                             try {
                                 SimpleClient.getClient().sendToServer(new LogoutRequest(SimpleClient.account));
                             } catch (Exception e) {
@@ -44,15 +42,8 @@ public class StageManager {
                         e.printStackTrace();
                     }
                 });
-                // Close the current stage
                 App.getPrimaryStage().close();
-
-                // Update the reference to the primary stage
                 App.setPrimaryStage(newStage);
-
-
-
-
             } catch (IOException e) {
                 e.printStackTrace();
             }

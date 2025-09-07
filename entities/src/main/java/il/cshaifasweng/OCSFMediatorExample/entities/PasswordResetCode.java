@@ -60,7 +60,6 @@ public class PasswordResetCode implements Serializable {
         this.expiresAt = expiresAt;
     }
 
-    // Optional: for checking if expired
     public boolean isExpired() {
         return new Date().after(expiresAt);
     }
