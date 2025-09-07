@@ -8,7 +8,7 @@ public class QuarterlyRevenueReportRequest implements Serializable {
 
     private Date from;
     private Date to;
-    private int branchId; // 0 for all branches
+    private int branchId;
 
     public QuarterlyRevenueReportRequest(Date from, Date to, int branchId) {
         this.from = from;

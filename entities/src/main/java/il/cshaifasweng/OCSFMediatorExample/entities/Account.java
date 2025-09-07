@@ -57,7 +57,7 @@ public class Account implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
     @JoinColumn(name = "branch_id", foreignKey = @ForeignKey(name = "fk_accounts_branch"))
-    private Branch branch;   // null means no branch assigned
+    private Branch branch;
     // ----- Constructors -----
 
     public Account() {

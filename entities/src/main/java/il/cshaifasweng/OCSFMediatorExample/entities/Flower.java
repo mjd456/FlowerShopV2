@@ -1,8 +1,5 @@
 package il.cshaifasweng.OCSFMediatorExample.entities;
 
-import org.hibernate.annotations.Generated;
-import org.hibernate.annotations.GenerationTime;
-
 import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
@@ -48,7 +45,7 @@ public class Flower implements Serializable {
     @Column(name = "Storage", nullable = false)
     private int storage;
 
-    @Column(name = "discount",nullable = false)
+    @Column(name = "discount", nullable = false)
     private int discount;
 
     @Column(name = "discount_price", insertable = false, updatable = false)
@@ -64,10 +61,11 @@ public class Flower implements Serializable {
 
     // ----- Constructors -----
 
-    public Flower() {}
+    public Flower() {
+    }
 
     public Flower(String name, String color, String description, String imageId,
-                  double price, int supply, int supplyHaifa, int supplyEilat, int supplyTelAviv,int storage) {
+                  double price, int supply, int supplyHaifa, int supplyEilat, int supplyTelAviv, int storage) {
         this.name = name;
         this.color = color;
         this.description = description;
@@ -83,15 +81,18 @@ public class Flower implements Serializable {
     }
 
     // ----- Getters and Setters -----
-
-    // --- Branch-aware supply helpers ---
     public int getSupply(String branch) {
         switch (branch) {
-            case "Haifa": return supplyHaifa;
-            case "Eilat": return supplyEilat;
-            case "Tel Aviv": return supplyTelAviv;
-            case "Storage": return storage;
-            default: return 0;
+            case "Haifa":
+                return supplyHaifa;
+            case "Eilat":
+                return supplyEilat;
+            case "Tel Aviv":
+                return supplyTelAviv;
+            case "Storage":
+                return storage;
+            default:
+                return 0;
         }
     }
 
@@ -111,7 +112,7 @@ public class Flower implements Serializable {
 
     public void reduceSupplyForDelivery(int amount) {
 
-            storage -= amount;
+        storage -= amount;
 
     }
 
@@ -132,45 +133,113 @@ public class Flower implements Serializable {
         this.supply = supplyHaifa + supplyEilat + supplyTelAviv;
     }
 
-    public int getId() { return id; }
-    public void setId(int id) { this.id = id; }
+    public int getId() {
+        return id;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public void setId(int id) {
+        this.id = id;
+    }
 
-    public String getColor() { return color; }
-    public void setColor(String color) { this.color = color; }
+    public String getName() {
+        return name;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-    public String getImageId() { return imageId; }
-    public void setImageId(String imageId) { this.imageId = imageId; }
+    public String getColor() {
+        return color;
+    }
 
-    public double getPrice() { return price; }
-    public void setPrice(double price) { this.price = price; }
+    public void setColor(String color) {
+        this.color = color;
+    }
 
-    public int getSupply() { return supply; }
-    public void setSupply(int supply) { this.supply = supply; }
+    public String getDescription() {
+        return description;
+    }
 
-    public int getPopularity() { return popularity; }
-    public void setPopularity(int popularity) { this.popularity = popularity; }
-    public void incrementPopularity() { this.popularity++; }
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
-    public int getSupplyHaifa() { return supplyHaifa; }
-    public void setSupplyHaifa(int supplyHaifa) { this.supplyHaifa = supplyHaifa; }
+    public String getImageId() {
+        return imageId;
+    }
 
-    public int getSupplyEilat() { return supplyEilat; }
-    public void setSupplyEilat(int supplyEilat) { this.supplyEilat = supplyEilat; }
+    public void setImageId(String imageId) {
+        this.imageId = imageId;
+    }
 
-    public int getSupplyTelAviv() { return supplyTelAviv; }
-    public void setSupplyTelAviv(int supplyTelAviv) { this.supplyTelAviv = supplyTelAviv; }
+    public double getPrice() {
+        return price;
+    }
 
-    public int getStorage() { return storage; }
-    public void setStorage(int storage) { this.storage = Math.max(0, storage); }
+    public void setPrice(double price) {
+        this.price = price;
+    }
 
-    public int getDiscount() { return discount; }
-    public void setDiscount(int discount) { this.discount = Math.max(0, discount); }
+    public int getSupply() {
+        return supply;
+    }
+
+    public void setSupply(int supply) {
+        this.supply = supply;
+    }
+
+    public int getPopularity() {
+        return popularity;
+    }
+
+    public void setPopularity(int popularity) {
+        this.popularity = popularity;
+    }
+
+    public void incrementPopularity() {
+        this.popularity++;
+    }
+
+    public int getSupplyHaifa() {
+        return supplyHaifa;
+    }
+
+    public void setSupplyHaifa(int supplyHaifa) {
+        this.supplyHaifa = supplyHaifa;
+    }
+
+    public int getSupplyEilat() {
+        return supplyEilat;
+    }
+
+    public void setSupplyEilat(int supplyEilat) {
+        this.supplyEilat = supplyEilat;
+    }
+
+    public int getSupplyTelAviv() {
+        return supplyTelAviv;
+    }
+
+    public void setSupplyTelAviv(int supplyTelAviv) {
+        this.supplyTelAviv = supplyTelAviv;
+    }
+
+    public int getStorage() {
+        return storage;
+    }
+
+    public void setStorage(int storage) {
+        this.storage = Math.max(0, storage);
+    }
+
+    public int getDiscount() {
+        return discount;
+    }
+
+    public void setDiscount(int discount) {
+        this.discount = Math.max(0, discount);
+    }
 
     public double getDiscountPrice() {
         return discountPrice;

@@ -1,4 +1,5 @@
 package il.cshaifasweng.OCSFMediatorExample.entities;
+
 import java.io.Serializable;
 import java.sql.Date;
 import java.util.ArrayList;
@@ -21,10 +22,21 @@ public class CompareReportsResponse implements Serializable {
                     : null;
         }
 
-        public String getMetric() { return metric; }
-        public Number getValueA() { return valueA; }
-        public Number getValueB() { return valueB; }
-        public Number getDelta()  { return delta; }
+        public String getMetric() {
+            return metric;
+        }
+
+        public Number getValueA() {
+            return valueA;
+        }
+
+        public Number getValueB() {
+            return valueB;
+        }
+
+        public Number getDelta() {
+            return delta;
+        }
     }
 
     private final Date dateA;
@@ -44,9 +56,23 @@ public class CompareReportsResponse implements Serializable {
         rows.add(new Row(metric, a, b));
     }
 
-    public Date getDateA()          { return dateA; }
-    public Date getDateB()          { return dateB; }
-    public String getBranchName()   { return branchName; }
-    public String getReportType()   { return reportType; }
-    public List<Row> getRows()      { return rows; }
+    public Date getDateA() {
+        return dateA;
+    }
+
+    public Date getDateB() {
+        return dateB;
+    }
+
+    public String getBranchName() {
+        return branchName;
+    }
+
+    public String getReportType() {
+        return reportType;
+    }
+
+    public List<Row> getRows() {
+        return rows;
+    }
 }

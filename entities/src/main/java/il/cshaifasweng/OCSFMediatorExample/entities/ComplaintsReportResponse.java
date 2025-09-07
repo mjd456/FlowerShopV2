@@ -1,6 +1,5 @@
 package il.cshaifasweng.OCSFMediatorExample.entities;
 
-
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -28,18 +27,39 @@ public class ComplaintsReportResponse implements Serializable {
             this.status = status;
         }
 
-        public int getId() { return id; }
-        public String getTitle() { return title; }
-        public String getDetails() { return details; }
-        public String getEmail() { return email; }
-        public String getBranch() { return branch; }
-        public LocalDateTime getSubmittedAt() { return submittedAt; }
-        public FeedBackSQL.FeedbackStatus getStatus() { return status; }
+        public int getId() {
+            return id;
+        }
+
+        public String getTitle() {
+            return title;
+        }
+
+        public String getDetails() {
+            return details;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public String getBranch() {
+            return branch;
+        }
+
+        public LocalDateTime getSubmittedAt() {
+            return submittedAt;
+        }
+
+        public FeedBackSQL.FeedbackStatus getStatus() {
+            return status;
+        }
     }
+
     public static class Row implements Serializable {
         private final LocalDate day;
         private final long count;
-        private final List<Detail> details; // NEW
+        private final List<Detail> details;
 
         public Row(LocalDate day, long count, List<Detail> details) {
             this.day = day;
@@ -47,9 +67,17 @@ public class ComplaintsReportResponse implements Serializable {
             this.details = details;
         }
 
-        public LocalDate getDay() { return day; }
-        public long getCount() { return count; }
-        public List<Detail> getDetails() { return details; }
+        public LocalDate getDay() {
+            return day;
+        }
+
+        public long getCount() {
+            return count;
+        }
+
+        public List<Detail> getDetails() {
+            return details;
+        }
     }
 
     private final List<Row> rows;
@@ -58,5 +86,7 @@ public class ComplaintsReportResponse implements Serializable {
         this.rows = rows;
     }
 
-    public List<Row> getRows() { return rows; }
+    public List<Row> getRows() {
+        return rows;
+    }
 }

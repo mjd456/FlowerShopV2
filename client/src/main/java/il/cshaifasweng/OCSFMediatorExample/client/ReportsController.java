@@ -2,16 +2,13 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportRequest;
 import il.cshaifasweng.OCSFMediatorExample.entities.QuarterlyRevenueReportResponse;
-
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
-
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;

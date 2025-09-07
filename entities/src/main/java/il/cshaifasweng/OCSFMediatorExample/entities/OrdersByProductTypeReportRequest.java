@@ -8,7 +8,7 @@ public class OrdersByProductTypeReportRequest implements Serializable {
 
     private Date from;
     private Date to;
-    private int branchId; // 0 for all branches
+    private int branchId;
 
     public OrdersByProductTypeReportRequest(Date from, Date to, int branchId) {
         this.from = from;

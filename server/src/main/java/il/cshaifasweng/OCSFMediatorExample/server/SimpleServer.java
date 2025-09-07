@@ -3,16 +3,7 @@ package il.cshaifasweng.OCSFMediatorExample.server;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
-
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -21,7 +12,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
 import jakarta.mail.MessagingException;
 import org.hibernate.HibernateException;
@@ -33,15 +23,23 @@ import org.hibernate.cfg.Configuration;
 import org.hibernate.query.Query;
 import org.hibernate.service.ServiceRegistry;
 
-import javax.imageio.ImageIO;
-
-
 public class SimpleServer extends AbstractServer {
     private static final List<SubscribedClient> SubscribersList = new CopyOnWriteArrayList<>();
     private static SessionFactory sessionFactory;
     private static Session session;
     private final ScheduledExecutorService orderDeliverySweeper = Executors.newSingleThreadScheduledExecutor();
-    private final ZoneId sweeperZone = ZoneId.of("Asia/Jerusalem"); // or ZoneId.systemDefault()
+    private final ZoneId sweeperZone = ZoneId.of("Asia/Jerusalem");
+
+    private static final int DELIVERY_BRANCH_ID = 4;
+
+    private static String branchName(int id) {
+        return switch (id) {
+            case 1 -> "Haifa";
+            case 2 -> "Eilat";
+            case 3 -> "Tel Aviv";
+            default -> "Branch " + id;
+        };
+    }
 
     public SimpleServer(int port) {
         super(port);
@@ -123,7 +121,6 @@ public class SimpleServer extends AbstractServer {
                         // Generate 6-digit code
                         String code = generate6DigitCode();
 
-                        // Store the code in the DB (if you're using PasswordResetCode entity)
                         PasswordResetCode resetCode = new PasswordResetCode(found, code, getExpiryTimestamp());
                         session.save(resetCode);
 
@@ -524,14 +521,12 @@ public class SimpleServer extends AbstractServer {
                     String oldName = flowerInDb.getName();
                     String newName = updatedData.getName();
 
-                    // 1) Basic fields
                     flowerInDb.setName(newName);
                     flowerInDb.setPrice(updatedData.getPrice());
                     flowerInDb.setDescription(updatedData.getDescription());
                     flowerInDb.setColor(updatedData.getColor());
                     flowerInDb.setDiscount(updatedData.getDiscount());
 
-                    // 2) Supplies (no negatives)
                     int haifa = Math.max(0, updatedData.getSupplyHaifa());
                     int eilat = Math.max(0, updatedData.getSupplyEilat());
                     int telAviv = Math.max(0, updatedData.getSupplyTelAviv());
@@ -542,12 +537,10 @@ public class SimpleServer extends AbstractServer {
                     flowerInDb.setStorage(storage);
                     flowerInDb.setSupply(haifa + eilat + telAviv + storage);
 
-                    // 3) Picture ops — NM only
                     if (isNetworkManager) {
                         String oldFile = flowerInDb.getImageId();
 
                         if (updateRequest.isDeleteImage()) {
-                            // delete and clear reference
                             if (oldFile != null && !oldFile.isBlank()) {
                                 deleteFlowerImageFile(oldFile); // best-effort
                             }
@@ -560,11 +553,10 @@ public class SimpleServer extends AbstractServer {
                                     updateRequest.getSuggestedFileName());
                             flowerInDb.setImageId(saved);
                             if (oldFile != null && !oldFile.isBlank() && !oldFile.equals(saved)) {
-                                deleteFlowerImageFile(oldFile); // best-effort
+                                deleteFlowerImageFile(oldFile);
                             }
                         }
                     } else {
-                        // non-NM: ignore any picture-related fields silently
                         if (updateRequest.isDeleteImage() || (updateRequest.getNewImageJpeg() != null))
                             System.out.println("Ignoring image update from non-NetworkManager (accId="
                                     + (acc != null ? acc.getId() : null) + ")");
@@ -573,7 +565,6 @@ public class SimpleServer extends AbstractServer {
                     session.update(flowerInDb);
                     session.flush();
                     session.refresh(flowerInDb);
-                    // 4) Update existing order details if names changed
                     if (!java.util.Objects.equals(oldName, newName)) {
                         List<OrderSQL> affectedOrders = session.createQuery(
                                         "FROM OrderSQL WHERE details LIKE :oldName", OrderSQL.class)
@@ -610,7 +601,6 @@ public class SimpleServer extends AbstractServer {
                 session = sessionFactory.openSession();
                 tx = session.beginTransaction();
 
-                // Re-fetch the account using the ID from the client
                 Account accountInDb = session.get(Account.class, requestAccount.getId());
 
                 if (accountInDb != null) {
@@ -619,7 +609,6 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient("Logout successful");
                     } catch (IOException e) {
                         System.err.println("Client disconnected during send.");
-                        // Do not crash, just remove from list
                     }
 
                     SubscribedClient toRemove = null;
@@ -636,7 +625,7 @@ public class SimpleServer extends AbstractServer {
                     System.err.println("Account not found in DB (LogoutRequest).");
                 }
 
-                tx.commit(); // Always commit the logout, even if client gone
+                tx.commit();
             } catch (Exception e) {
                 if (tx != null) tx.rollback();
                 e.printStackTrace();
@@ -653,7 +642,6 @@ public class SimpleServer extends AbstractServer {
             try {
                 tx = session.beginTransaction();
 
-                // 1) Load managed Account
                 int accountId = feedbackMsg.getAccount().getId();
                 Account account = session.get(Account.class, accountId);
                 if (account == null) {
@@ -662,12 +650,10 @@ public class SimpleServer extends AbstractServer {
                     return;
                 }
 
-                // 2) Resolve Branch from the String (may be null/blank)
                 Branch branchEntity = null;
                 String branchName = feedbackMsg.getBranch(); // String from client
                 if (branchName != null && !branchName.isBlank()) {
                     String normalized = branchName.trim().toLowerCase();
-                    // normalize common variants for Tel Aviv
                     if (normalized.equals("tel aviv") || normalized.equals("tel-aviv")) {
                         normalized = "telaviv";
                     }
@@ -678,27 +664,23 @@ public class SimpleServer extends AbstractServer {
                             .setParameter("name", normalized)
                             .setMaxResults(1)
                             .uniqueResult();
-                    // If not found, leave as null (optional: send warning back)
                 }
 
-                // 3) Create and persist feedback
                 FeedBackSQL feedbackEntity = new FeedBackSQL(
                         account,
                         feedbackMsg.getfeedbackTtitle(),
                         feedbackMsg.getfeedbackTdesc(),
-                        branchEntity // <--- pass Branch, not String
+                        branchEntity
                 );
 
                 session.save(feedbackEntity);
 
-                // touch needed lazy fields for clients
                 feedbackEntity.getAccount().getEmail();
 
                 tx.commit();
                 System.out.println("Feedback succeeded for account: " + accountId);
                 client.sendToClient("Feedback added successfully");
 
-                // Notify listeners
                 NewFeedbackNotification notif = new NewFeedbackNotification(feedbackEntity);
                 sendToAllClients(notif);
 
@@ -721,19 +703,16 @@ public class SimpleServer extends AbstractServer {
 
             Session session = sessionFactory.openSession();
             try {
-                // Query all feedbacks for this account, order by submission time (newest first)
                 feedbacks = session.createQuery(
                                 "FROM FeedBackSQL WHERE account.id = :id ORDER BY submittedAt DESC", FeedBackSQL.class)
                         .setParameter("id", accountId)
                         .getResultList();
             } catch (Exception e) {
                 e.printStackTrace();
-                // Optionally send error message to client here
             } finally {
                 session.close();
             }
 
-            // Wrap in response object and send to client
             try {
                 client.sendToClient(new GetUserFeedbacksResponse(feedbacks));
             } catch (Exception e) {
@@ -745,189 +724,142 @@ public class SimpleServer extends AbstractServer {
                     + ", from=" + req.getFrom() + ", to=" + req.getTo());
 
             try (Session s = sessionFactory.openSession()) {
-                // Quarter = ((month-1)/3)+1  → avoids relying on vendor-specific QUARTER()
+
                 String hql =
-                        "SELECT YEAR(o.deliveryDate), ((MONTH(o.deliveryDate)-1)/3)+1, " +
-                                "       SUM(COALESCE(o.totalPrice, 0)) " +
+                        "SELECT o.pickupBranch, SUM(COALESCE(o.totalPrice, 0)) " +
                                 "FROM   OrderSQL o " +
                                 "WHERE  LOWER(o.status) = 'delivered' " +
                                 "  AND  o.deliveryDate BETWEEN :from AND :to " +
                                 (req.getBranchId() > 0 ? "  AND  o.pickupBranch = :branchId " : "") +
-                                "GROUP BY YEAR(o.deliveryDate), ((MONTH(o.deliveryDate)-1)/3)+1 " +
-                                "ORDER BY YEAR(o.deliveryDate), ((MONTH(o.deliveryDate)-1)/3)+1";
+                                "GROUP BY o.pickupBranch " +
+                                "ORDER BY o.pickupBranch";
 
                 Query<Object[]> q = s.createQuery(hql, Object[].class)
                         .setParameter("from", req.getFrom())
-                        .setParameter("to", req.getTo());
+                        .setParameter("to",   req.getTo());
 
                 if (req.getBranchId() > 0) {
                     q.setParameter("branchId", req.getBranchId());
                 }
 
                 List<Object[]> rows = q.list();
-                List<QuarterlyRevenueReportResponse.Row> out = new ArrayList<>(rows.size());
+
+                Map<Integer, Double> pickupByBranch = new LinkedHashMap<>();
+                double deliveryTotal = 0.0;
+
                 for (Object[] r : rows) {
-                    int year = ((Number) r[0]).intValue();
-                    int quarter = ((Number) r[1]).intValue();
-                    double rev = (r[2] != null) ? ((Number) r[2]).doubleValue() : 0.0;
-                    out.add(new QuarterlyRevenueReportResponse.Row(year, quarter, req.getBranchId(), rev));
+                    Integer pb = (r[0] == null) ? null : ((Number) r[0]).intValue();
+                    double sum = (r[1] != null) ? ((Number) r[1]).doubleValue() : 0.0;
+
+                    boolean isDelivery = (pb == null) || pb.equals(DELIVERY_BRANCH_ID);
+
+                    if (req.getBranchId() == 0) {
+                        if (isDelivery) {
+                            deliveryTotal += sum;
+                        } else {
+                            pickupByBranch.merge(pb, sum, Double::sum);
+                        }
+                    } else {
+                        if (!isDelivery && pb != null && pb == req.getBranchId()) {
+                            pickupByBranch.merge(pb, sum, Double::sum);
+                        }
+                    }
                 }
 
-                client.sendToClient(new QuarterlyRevenueReportResponse(out));
+                List<QuarterlyRevenueReportResponse.BreakdownRow> breakdown = new ArrayList<>();
+
+                if (req.getBranchId() == 0) {
+                    for (var e : pickupByBranch.entrySet()) {
+                        int bid = e.getKey();
+                        breakdown.add(new QuarterlyRevenueReportResponse.BreakdownRow(
+                                bid, branchName(bid), "PICKUP", e.getValue()
+                        ));
+                    }
+                    breakdown.add(new QuarterlyRevenueReportResponse.BreakdownRow(
+                            null, "Delivery", "DELIVERY", deliveryTotal
+                    ));
+                } else {
+                    int bid = req.getBranchId();
+                    double v = pickupByBranch.getOrDefault(bid, 0.0);
+                    breakdown.add(new QuarterlyRevenueReportResponse.BreakdownRow(
+                            bid, branchName(bid), "PICKUP", v
+                    ));
+                }
+
+                QuarterlyRevenueReportResponse resp = new QuarterlyRevenueReportResponse(new ArrayList<>());
+                resp.setBreakdown(breakdown);
+                client.sendToClient(resp);
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
         else if (msg instanceof OrdersByProductTypeReportRequest req) {
-            System.out.println("Received OrdersByProductTypeReportRequest for branch ID: " + req.getBranchId());
+            System.out.println("OrdersByProductTypeReportRequest: branchId=" + req.getBranchId()
+                    + ", from=" + req.getFrom() + ", to=" + req.getTo());
 
             try (Session s = sessionFactory.openSession()) {
+
                 String hql =
                         "FROM OrderSQL o " +
-                                "WHERE LOWER(o.status) = 'delivered' " +
-                                "  AND o.deliveryDate BETWEEN :from AND :to " +
-                                (req.getBranchId() > 0 ? "  AND o.pickupBranch = :branchId " : ""); // or o.account.branch.id
+                                "WHERE LOWER(o.status) IN ('delivered','upcoming') " +
+                                "  AND o.deliveryDate BETWEEN :from AND :toPlus " +
+                                (req.getBranchId() > 0 ? "AND o.pickupBranch = :branchId " : "") +
+                                "ORDER BY o.deliveryDate ASC";
 
-                Query<OrderSQL> query = s.createQuery(hql, OrderSQL.class)
+                java.util.Date toPlus = new java.util.Date(
+                        req.getTo().getTime() + java.util.concurrent.TimeUnit.DAYS.toMillis(365)
+                );
+
+                Query<OrderSQL> q = s.createQuery(hql, OrderSQL.class)
                         .setParameter("from", req.getFrom())
-                        .setParameter("to", req.getTo());
+                        .setParameter("toPlus", toPlus);
 
-                if (req.getBranchId() > 0) {
-                    query.setParameter("branchId", req.getBranchId());
-                }
+                if (req.getBranchId() > 0) q.setParameter("branchId", req.getBranchId());
 
-                List<OrderSQL> orders = query.list();
+                java.util.List<OrderSQL> orders = q.list();
 
-                // Aggregates: productType -> [ordersCount, totalQty] + totalAmount
-                Map<String, long[]> counts = new HashMap<>();      // [0]=ordersCount (distinct), [1]=totalQty
-                Map<String, Double> totals = new HashMap<>();      // money per product type
+                java.util.Map<String, Long> qtyByName = new java.util.LinkedHashMap<>();
+                java.util.Map<String, Long> ordersByName = new java.util.LinkedHashMap<>();
 
                 for (OrderSQL o : orders) {
                     String details = o.getDetails();
                     if (details == null || details.isBlank()) continue;
 
-                    // Parse all items from this order
-                    class Item {
-                        String type;
-                        int qty;
-                        Double unitPrice;
-                    }
-                    List<Item> items = new ArrayList<>();
-                    Set<String> seenThisOrder = new HashSet<>();
-
-                    for (String raw : details.split(",")) {
-                        String itemStr = raw.trim();
-                        int idx = itemStr.lastIndexOf(" x");
-                        if (idx <= 0) continue;
-
-                        String left = itemStr.substring(0, idx).trim();     // name + maybe price
-                        String qtyStr = itemStr.substring(idx + 2).trim();
-                        int qty;
-                        try {
-                            qty = Integer.parseInt(qtyStr);
-                        } catch (NumberFormatException ex) {
-                            continue;
-                        }
-
-                        // Try to extract unit price if present: "(₪12.5)" or "₪12.5" or "... 12.5"
-                        Double unit = null;
-                        String name = left;
-
-                        // 1) (₪12.5) pattern
-                        java.util.regex.Matcher mParen = java.util.regex.Pattern
-                                .compile("\\((?:₪|ILS\\s*)?([0-9]+(?:\\.[0-9]+)?)\\)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE)
-                                .matcher(left);
-                        if (mParen.find()) {
-                            unit = Double.valueOf(mParen.group(1));
-                            name = left.substring(0, mParen.start()).trim();
-                        } else {
-                            // 2) trailing currency/number: "... ₪12.5" or "... 12.5"
-                            java.util.regex.Matcher mTail = java.util.regex.Pattern
-                                    .compile("(?:₪|ILS\\s*)?([0-9]+(?:\\.[0-9]+)?)\\s*$", java.util.regex.Pattern.CASE_INSENSITIVE)
-                                    .matcher(left);
-                            if (mTail.find()) {
-                                unit = Double.valueOf(mTail.group(1));
-                                name = left.substring(0, mTail.start()).trim();
-                            }
-                        }
-
-                        Item it = new Item();
-                        it.type = name;
-                        it.qty = qty;
-                        it.unitPrice = unit;
-                        items.add(it);
-
-                        // distinct-order count per type
-                        if (seenThisOrder.add(name)) {
-                            long[] arr = counts.computeIfAbsent(name, k -> new long[2]);
-                            arr[0]++; // orders count
-                        }
-                        // total qty
-                        long[] arr = counts.computeIfAbsent(name, k -> new long[2]);
-                        arr[1] += qty;
-                    }
-
+                    java.util.Map<String, Integer> items = parseDetailsNameQty(details);
                     if (items.isEmpty()) continue;
 
-                    double orderNet = (o.getTotalPrice() != null ? o.getTotalPrice() : 0.0)
-                            - (o.getRefundAmount() != null ? o.getRefundAmount() : 0.0);
+                    java.util.Set<String> seenInThisOrder = new java.util.HashSet<>();
 
-                    // If we have any priced items, use their explicit totals; apportion any leftover to unpriced by qty.
-                    double knownSum = 0.0;
-                    int unknownQtySum = 0;
-                    for (Item it : items) {
-                        if (it.unitPrice != null) {
-                            knownSum += it.unitPrice * it.qty;
-                        } else {
-                            unknownQtySum += it.qty;
-                        }
-                    }
+                    for (var e : items.entrySet()) {
+                        String name = e.getKey();
+                        int qty = e.getValue();
+                        if (qty <= 0) continue;
 
-                    if (knownSum > 0 && orderNet > 0 && unknownQtySum > 0) {
-                        // Scale explicitly priced totals to match the order net (in case of rounding/fees),
-                        // then distribute leftover to unpriced by qty.
-                        double leftover = orderNet - knownSum;
-                        // If leftover negative (fees/discounts), still distribute proportionally.
-                        for (Item it : items) {
-                            double add;
-                            if (it.unitPrice != null) {
-                                add = it.unitPrice * it.qty + 0.0; // already counted in knownSum
-                            } else {
-                                add = (unknownQtySum == 0) ? 0.0 : leftover * ((double) it.qty / unknownQtySum);
-                            }
-                            totals.merge(it.type, add, Double::sum);
-                        }
-                    } else if (knownSum > 0) {
-                        // Only priced items → use their totals; ignore orderNet mismatch
-                        for (Item it : items) {
-                            if (it.unitPrice != null) {
-                                totals.merge(it.type, it.unitPrice * it.qty, Double::sum);
-                            }
-                        }
-                    } else {
-                        // No unit prices at all → apportion entire orderNet by quantities
-                        int sumQty = items.stream().mapToInt(it -> it.qty).sum();
-                        if (sumQty == 0) continue;
-                        for (Item it : items) {
-                            double add = (orderNet <= 0) ? 0.0 : orderNet * ((double) it.qty / sumQty);
-                            totals.merge(it.type, add, Double::sum);
+                        qtyByName.merge(name, (long) qty, Long::sum);
+
+                        if (seenInThisOrder.add(name)) {
+                            ordersByName.merge(name, 1L, Long::sum);
                         }
                     }
                 }
 
-                // Build response rows
-                List<OrdersByProductTypeReportResponse.Row> rows = new ArrayList<>(counts.size());
-                for (Map.Entry<String, long[]> e : counts.entrySet()) {
-                    String type = e.getKey();
-                    long ordersCt = e.getValue()[0];
-                    long qtySum = e.getValue()[1];
-                    double total = totals.getOrDefault(type, 0.0);
-                    rows.add(new OrdersByProductTypeReportResponse.Row(type, ordersCt, qtySum, total));
+                java.util.List<OrdersByProductTypeReportResponse.Row> rows = new java.util.ArrayList<>();
+                java.util.List<java.util.Map.Entry<String, Long>> sorted =
+                        new java.util.ArrayList<>(qtyByName.entrySet());
+                sorted.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+
+                for (var e : sorted) {
+                    String product = e.getKey();
+                    long quantity  = e.getValue();
+                    long ordersCnt = ordersByName.getOrDefault(product, 0L);
+                    double total   = 0.0; // we can't compute revenue per flower from 'details' (names only)
+                    rows.add(new OrdersByProductTypeReportResponse.Row(product, ordersCnt, quantity, total));
                 }
 
                 client.sendToClient(new OrdersByProductTypeReportResponse(rows));
-            } catch (Exception e) {
-                e.printStackTrace();
+            } catch (Exception ex) {
+                ex.printStackTrace();
             }
         }
         else if (msg instanceof UpdateFeedbackStatusRequest) {
@@ -941,7 +873,6 @@ public class SimpleServer extends AbstractServer {
             try {
                 tx = session.beginTransaction();
 
-                // Fetch feedback by ID
                 FeedBackSQL feedback = session.get(FeedBackSQL.class, feedbackId);
                 if (feedback != null) {
                     feedback.setStatus(newStatus);
@@ -949,7 +880,6 @@ public class SimpleServer extends AbstractServer {
                     session.update(feedback);
                     tx.commit();
 
-                    // Optionally: Send updated feedbacks list back to client(s)
                     List<FeedBackSQL> allFeedbacks = session.createQuery("FROM FeedBackSQL", FeedBackSQL.class).getResultList();
                     client.sendToClient(new GetAllFeedbacksResponse(allFeedbacks));
                 } else {
@@ -1026,14 +956,13 @@ public class SimpleServer extends AbstractServer {
                     return;
                 }
 
-                // Check if auto-renew is 'Yes'
                 if ("Yes".equalsIgnoreCase(account.getAuto_renew_subscription())) {
                     account.setAuto_renew_subscription("No");
                     session.update(account);
                     tx.commit();
                     client.sendToClient(new AutoRenewDisableResponse(account));
                 } else {
-                    tx.commit(); // Still commit if nothing changed, for consistency
+                    tx.commit();
                     client.sendToClient("Auto-renew was already disabled.");
                 }
             } catch (Exception e) {
@@ -1063,7 +992,6 @@ public class SimpleServer extends AbstractServer {
                     tx.commit();
                     System.out.println("Flower deleted: " + flower.getName());
 
-                    // Try to delete the picture from disk (best-effort; DB delete already committed)
                     if (imageFile != null && !imageFile.isBlank()) {
                         boolean deleted = deleteFlowerImageFile(imageFile);
                         if (!deleted) {
@@ -1085,28 +1013,21 @@ public class SimpleServer extends AbstractServer {
 
             Flower newFlower = addFlowerRequest.getFlower();
 
-            byte[] jpeg = addFlowerRequest.getImageJpeg();            // may be null
-            String suggested = addFlowerRequest.getSuggestedFileName(); // may be null
-
-            // (optional) authorize who can add, if you need:
-            // Account acc = (Account) client.getInfo("account");
-            // if (acc == null) { client.sendToClient("Not authorized"); return; }
+            byte[] jpeg = addFlowerRequest.getImageJpeg();
+            String suggested = addFlowerRequest.getSuggestedFileName();
 
             Session session = null;
             Transaction tx = null;
 
             try {
 
-                // 1) If a picture was provided, validate & save -> set imageId on entity
                 if (jpeg != null && jpeg.length > 0) {
-                    String savedName = saveFlowerJpeg(jpeg, suggested); // uses your helper
+                    String savedName = saveFlowerJpeg(jpeg, suggested);
                     newFlower.setImageId(savedName);
                 } else {
-                    // ensure no stale value sneaks in
                     newFlower.setImageId(null);
                 }
 
-                // (defensive) recompute total supply if your client doesn’t already
                 int total = Math.max(0, newFlower.getSupplyHaifa())
                         + Math.max(0, newFlower.getSupplyEilat())
                         + Math.max(0, newFlower.getSupplyTelAviv())
@@ -1116,7 +1037,7 @@ public class SimpleServer extends AbstractServer {
                 session = sessionFactory.openSession();
                 tx = session.beginTransaction();
 
-                session.save(newFlower); // DB ID assigned
+                session.save(newFlower);
 
 
                 tx.commit();
@@ -1146,7 +1067,6 @@ public class SimpleServer extends AbstractServer {
             }
         }
         else if (msg instanceof UpdatePasswordRequest req) {
-            // Find the Account associated with this ConnectionToClient
             Account account = null;
             for (SubscribedClient sub : SubscribersList) {
                 if (sub.getClient().equals(client)) {
@@ -1172,7 +1092,6 @@ public class SimpleServer extends AbstractServer {
                 session = sessionFactory.openSession();
                 tx = session.beginTransaction();
 
-                // 1. Check if password was ever used before for this user
                 Query<PasswordHistory> q = session.createQuery(
                         "FROM PasswordHistory WHERE user = :user AND passwordHash = :password", PasswordHistory.class
                 );
@@ -1185,7 +1104,6 @@ public class SimpleServer extends AbstractServer {
                     return;
                 }
 
-                // 2. Set previous current passwords to isCurrent = false
                 Query<PasswordHistory> currQ = session.createQuery(
                         "FROM PasswordHistory WHERE user = :user AND isCurrent = true", PasswordHistory.class
                 );
@@ -1196,12 +1114,10 @@ public class SimpleServer extends AbstractServer {
                     session.update(ph);
                 }
 
-                // 3. Update account password
                 Account managedAccount = session.get(Account.class, account.getId());
                 managedAccount.setPassword(newPassword);
                 session.update(managedAccount);
 
-                // 4. Save new password in PasswordHistory
                 PasswordHistory newHist = new PasswordHistory(
                         managedAccount, newPassword, true, new Date()
                 );
@@ -1246,9 +1162,7 @@ public class SimpleServer extends AbstractServer {
                 session.update(account);
                 tx.commit();
 
-                // You can send a success response or event to the client if needed
                 client.sendToClient(new UpdateCreditCardResponse(true, "Credit card updated.", account));
-                // (Optional) Update SubscribedClient if you're storing an in-memory account object
                 for (SubscribedClient sub : SubscribersList) {
                     if (sub.getAccount().getId() == account.getId()) {
                         sub.setAccount(account);
@@ -1342,11 +1256,10 @@ public class SimpleServer extends AbstractServer {
                     refundMsg = "Your order was cancelled. According to shop policy, no refund is given for cancellation within 1 hour of delivery.";
                 }
 
-// --- Restock flowers ---
-                String details = order.getDetails(); // e.g., "Rose x3, Lily x2"
-                Integer branchId = null; // null => delivery
+                String details = order.getDetails();
+                Integer branchId = null;
                 if (order.getPickupBranch() != null && order.getPickupBranch() != null) {
-                    branchId = order.getPickupBranch();  // Already an Integer
+                    branchId = order.getPickupBranch();
                 }
 
                 if (details != null && !details.isBlank()) {
@@ -1383,7 +1296,6 @@ public class SimpleServer extends AbstractServer {
                                     flower.setSupplyTelAviv(flower.getSupplyTelAviv() + qty);
                                     break;
                                 default:
-                                    // Unknown branch id – be safe, drop into Storage
                                     flower.setStorage(flower.getStorage() + qty);
                                     break;
                             }
@@ -1447,7 +1359,6 @@ public class SimpleServer extends AbstractServer {
             try {
                 tx = session.beginTransaction();
 
-                // 1) Supply checks (kept as-is; consider enforcing per-branch if Pickup)
                 for (Map.Entry<Flower, Integer> entry : request.getCartMap().entrySet()) {
                     Flower clientFlower = entry.getKey();
                     int qty = entry.getValue();
@@ -1469,7 +1380,6 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
-                // 2) Update supply/popularity (kept as-is)
                 for (Map.Entry<Flower, Integer> entry : request.getCartMap().entrySet()) {
                     Flower clientFlower = entry.getKey();
                     int qty = entry.getValue();
@@ -1481,7 +1391,6 @@ public class SimpleServer extends AbstractServer {
                     session.update(flower);
                 }
 
-                // 3) Save order to DB
                 Account managedAccount = session.get(Account.class, request.getCustomer().getId());
                 if (managedAccount == null) {
                     tx.rollback();
@@ -1496,7 +1405,6 @@ public class SimpleServer extends AbstractServer {
                             + " | Discount: " + entry.getKey().getDiscount());
                 }
                 System.out.println("================================");
-                // Build details string
                 StringBuilder details = new StringBuilder();
                 for (Map.Entry<Flower, Integer> entry : request.getCartMap().entrySet()) {
                     details.append(entry.getKey().getName())
@@ -1506,8 +1414,7 @@ public class SimpleServer extends AbstractServer {
                 }
                 if (details.length() > 2) details.setLength(details.length() - 2);
 
-                // NEW: resolve Branch from the request’s INT id (0 or null => delivery/no branch
-                Integer branchId = request.getPickupBranchId();  // already Integer (0 or null = delivery)
+                Integer branchId = request.getPickupBranchId();
 
                 OrderSQL orderSQL = new OrderSQL(
                         managedAccount,
@@ -1520,11 +1427,6 @@ public class SimpleServer extends AbstractServer {
                         request.getGreeting(),
                         branchId
                 );
-
-                // If you don’t have that ctor, do:
-                // OrderSQL orderSQL = new OrderSQL(... without pickup ...);
-                // orderSQL.setPickupBranch(pickup);
-
                 orderSQL.setAccount(managedAccount);
 
                 session.save(orderSQL);
@@ -1591,80 +1493,76 @@ public class SimpleServer extends AbstractServer {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-        else if (msg instanceof ComplaintsReportRequest req) {
+        }else if (msg instanceof il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsByBranchHistogramRequest req) {
             try (Session s = sessionFactory.openSession()) {
-                // 1) Bounds
                 java.time.LocalDateTime fromDT = req.getFrom().toLocalDate().atStartOfDay();
-                java.time.LocalDateTime toDT = req.getTo().toLocalDate().atTime(23, 59, 59);
+                java.time.LocalDateTime toDT   = req.getTo().toLocalDate().atTime(23, 59, 59);
 
-                // 2) Pull all in range (one query, filter branch in Java)
                 java.util.List<FeedBackSQL> all = s.createQuery(
                                 "from FeedBackSQL f where f.submittedAt >= :from and f.submittedAt <= :to",
                                 FeedBackSQL.class
-                        )
-                        .setParameter("from", fromDT)
-                        .setParameter("to", toDT)
+                        ).setParameter("from", fromDT)
+                        .setParameter("to",   toDT)
                         .list();
 
-                // 3) Group details per day (TreeMap -> sorted by day)
-                java.util.Map<java.time.LocalDate, java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Detail>>
-                        detailsByDay = new java.util.TreeMap<>();
-
-                int wantedBranchId = req.getBranchId(); // 0 = all (network)
+                class Agg { int id; String name; long pending, resolved, rejected; }
+                java.util.Map<Integer, Agg> byBranch = new java.util.LinkedHashMap<>();
 
                 for (FeedBackSQL f : all) {
                     if (f.getSubmittedAt() == null) continue;
 
-                    // figure feedback branch id (supports either f.branch or account.branch)
-                    int fbBranchId = 0;
-                    String branchName = "Network";
+                    int bid = 0; String bname = "Network";
                     if (f.getBranch() != null) {
-                        fbBranchId = f.getBranch().getId();
-                        if (f.getBranch().getName() != null) branchName = f.getBranch().getName();
+                        bid = f.getBranch().getId();
+                        if (f.getBranch().getName() != null) bname = f.getBranch().getName();
                     } else if (f.getAccount() != null && f.getAccount().getBranch() != null) {
-                        fbBranchId = f.getAccount().getBranch().getId();
-                        if (f.getAccount().getBranch().getName() != null)
-                            branchName = f.getAccount().getBranch().getName();
+                        bid = f.getAccount().getBranch().getId();
+                        if (f.getAccount().getBranch().getName() != null) bname = f.getAccount().getBranch().getName();
                     }
 
-                    if (wantedBranchId > 0 && fbBranchId != wantedBranchId) continue;
+                    Agg a = byBranch.get(bid);
+                    if (a == null) {
+                        a = new Agg();
+                        a.id = bid;
+                        a.name = bname;
+                        byBranch.put(bid, a);
+                    }
 
-                    java.time.LocalDate day = f.getSubmittedAt().toLocalDate();
-                    String email = (f.getAccount() != null) ? f.getAccount().getEmail() : "-";
-
-                    var detail = new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Detail(
-                            f.getFeedback_id(),
-                            f.getTitle(),
-                            f.getDetails(),
-                            email,
-                            branchName,
-                            f.getSubmittedAt(),
-                            f.getStatus()
-                    );
-
-                    detailsByDay.computeIfAbsent(day, k -> new java.util.ArrayList<>()).add(detail);
+                    FeedBackSQL.FeedbackStatus st = f.getStatus();
+                    if (st == null) {
+                        a.pending++;
+                    } else {
+                        switch (st) {
+                            case Pending  -> a.pending++;
+                            case Resolved -> a.resolved++;
+                            case Rejected -> a.rejected++;
+                            default       -> a.pending++;
+                        }
+                    }
                 }
 
-                // 4) Build rows (day, count, details)
-                java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row> rows = new java.util.ArrayList<>();
-                for (var e : detailsByDay.entrySet()) {
-                    java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Detail> det = e.getValue();
-                    rows.add(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse.Row(
-                            e.getKey(),
-                            det.size(),
-                            det
+                java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsByBranchHistogramResponse.Row> rows =
+                        new java.util.ArrayList<>();
+                for (Agg a : byBranch.values()) {
+                    rows.add(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsByBranchHistogramResponse.Row(
+                            a.id, a.name, a.pending, a.resolved, a.rejected
                     ));
                 }
 
-                client.sendToClient(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsReportResponse(rows));
+                rows.sort(java.util.Comparator
+                        .comparingLong(il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsByBranchHistogramResponse.Row::getAttention)
+                        .reversed()
+                        .thenComparing(il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsByBranchHistogramResponse.Row::getBranchName,
+                                String.CASE_INSENSITIVE_ORDER));
+
+                client.sendToClient(new il.cshaifasweng.OCSFMediatorExample.entities.ComplaintsByBranchHistogramResponse(rows));
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
         }
+
         else if (msg instanceof CompareReportsRequest req) {
 
-            // 1) who is asking? (BM limited to own branch; NM can use requested branch)
             il.cshaifasweng.OCSFMediatorExample.entities.Account acc =
                     (il.cshaifasweng.OCSFMediatorExample.entities.Account) client.getInfo("account");
 
@@ -1673,14 +1571,12 @@ public class SimpleServer extends AbstractServer {
                     && acc.getAccountLevel().trim().equalsIgnoreCase("BranchManager")) {
                 effectiveBranchId = (acc.getBranch() != null) ? acc.getBranch().getId() : 0;
             } else {
-                effectiveBranchId = req.getBranchId(); // NM or unknown -> honor request
+                effectiveBranchId = req.getBranchId();
             }
 
-            // 2) compute metrics for each date (TEMP dummy numbers)
             ReportMetrics A = computeMetrics(req.getReportType(), effectiveBranchId, req.getDateA());
             ReportMetrics B = computeMetrics(req.getReportType(), effectiveBranchId, req.getDateB());
 
-            // 3) build response
             String branchName = branchNameFor(effectiveBranchId);
             il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse resp =
                     new il.cshaifasweng.OCSFMediatorExample.entities.CompareReportsResponse(
@@ -1692,7 +1588,6 @@ public class SimpleServer extends AbstractServer {
             resp.addRow("Avg Order Value (₪)", A.avgOrderValue, B.avgOrderValue);
             resp.addRow("Complaints", A.complaints, B.complaints);
 
-            // 4) send back to this client
             try {
                 client.sendToClient(resp);
             } catch (java.io.IOException e) {
@@ -1725,14 +1620,12 @@ public class SimpleServer extends AbstractServer {
             if (idx > 0) {
                 String candidateName = entry.substring(0, idx).trim();
                 String quantityPart = entry.substring(idx + 1).trim();
-                // Only replace if candidateName matches oldName (case sensitive)
                 if (candidateName.equals(oldName)) {
                     parts[i] = newName + " " + quantityPart;
                 } else {
-                    parts[i] = candidateName + " " + quantityPart; // reconstruct for clean format
+                    parts[i] = candidateName + " " + quantityPart;
                 }
             } else {
-                // If there's no quantity, keep as is
                 parts[i] = entry;
             }
         }
@@ -1752,15 +1645,13 @@ public class SimpleServer extends AbstractServer {
 
                 if (imageFileName != null && !imageFileName.isBlank()) {
                     try {
-                        imageBytes = readFlowerImage(imageFileName); // your filesystem helper
+                        imageBytes = readFlowerImage(imageFileName);
                     } catch (IOException nf) {
                         System.err.println("Image not found for: " + imageFileName);
-                        // leave imageBytes = null
                     }
 
                 }
 
-                // Always put the flower, even if imageBytes == null
                 flowerImageMap.put(flower, imageBytes);
             }
 
@@ -1875,7 +1766,6 @@ public class SimpleServer extends AbstractServer {
                 }
             }
 
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -1902,7 +1792,6 @@ public class SimpleServer extends AbstractServer {
         LocalDate today = LocalDate.now(sweeperZone);
         LocalTime nowTime = LocalTime.now(sweeperZone);
 
-        // ---- Step 1: bulk update all strictly past dates ----
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();
             try {
@@ -1922,7 +1811,6 @@ public class SimpleServer extends AbstractServer {
             }
         }
 
-        // ---- Step 2: handle today's rows by time ----
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();
             try {
@@ -1946,7 +1834,6 @@ public class SimpleServer extends AbstractServer {
                         try {
                             dueTime = LocalTime.parse(t.trim(), hhmm);
                         } catch (DateTimeParseException dtpe) {
-                            // bad format; skip but keep the server healthy
                             System.err.println("[Sweeper] Bad delivery_time for order " + o.getId() + ": " + t);
                             continue;
                         }
@@ -2011,7 +1898,6 @@ public class SimpleServer extends AbstractServer {
     }
 
     private byte[] readFlowerImage(String fileName) throws IOException {
-        // external/prod folder
         java.nio.file.Path ext = java.nio.file.Paths.get("data", "FlowerPicture", fileName);
         if (java.nio.file.Files.exists(ext)) return java.nio.file.Files.readAllBytes(ext);
 
@@ -2033,7 +1919,6 @@ public class SimpleServer extends AbstractServer {
         ReportMetrics m = new ReportMetrics();
 
         try (Session s = sessionFactory.openSession()) {
-            // ----- Orders + Revenue for that single day -----
             String hqlOrders =
                     "select count(o), sum( coalesce(o.totalPrice,0) - coalesce(o.refundAmount,0) ) " +
                             "from OrderSQL o " +
@@ -2053,8 +1938,6 @@ public class SimpleServer extends AbstractServer {
             m.revenue = revenue;
             m.avgOrderValue = orders == 0 ? 0.0 : Math.round((revenue / orders) * 100.0) / 100.0;
 
-            // ----- Complaints on that day -----
-            // FeedBackSQL.submittedAt is a LocalDateTime, so use [startOfDay, nextDay)
             java.time.LocalDate d = date.toLocalDate();
             java.time.LocalDateTime start = d.atStartOfDay();
             java.time.LocalDateTime end = start.plusDays(1);
@@ -2075,13 +1958,11 @@ public class SimpleServer extends AbstractServer {
 
         } catch (Exception e) {
             e.printStackTrace();
-            // keep m as zeros if something fails
         }
         return m;
     }
 
     private String saveFlowerJpeg(byte[] data, String suggestedFileName) throws IOException {
-        // validate it's an image
         try (java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(data)) {
             java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(bais);
             if (img == null) throw new IOException("Invalid image data");
@@ -2174,4 +2055,32 @@ public class SimpleServer extends AbstractServer {
         }
         throw new IllegalArgumentException("Unsupported date type: " + t.getClass());
     }
+    /** Parse strings like "Rose x2, Tulip x1" into {Rose=2, Tulip=1}. Case- and space-tolerant. */
+    private static java.util.Map<String, Integer> parseDetailsNameQty(String details) {
+        java.util.Map<String, Integer> out = new java.util.LinkedHashMap<>();
+        if (details == null) return out;
+
+        // Split by comma
+        String[] parts = details.split(",");
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile("(.+?)\\s*[xX]\\s*(\\d+)\\s*$");
+
+        for (String raw : parts) {
+            String part = raw.trim();
+            if (part.isEmpty()) continue;
+
+            java.util.regex.Matcher m = p.matcher(part);
+            if (m.matches()) {
+                String name = m.group(1).trim();
+                int qty = Integer.parseInt(m.group(2));
+                if (!name.isEmpty() && qty > 0) {
+                    out.merge(name, qty, Integer::sum);
+                }
+            } else {
+                // If no " xN", treat the whole token as a name with qty 1
+                out.merge(part, 1, Integer::sum);
+            }
+        }
+        return out;
+    }
+
 }
